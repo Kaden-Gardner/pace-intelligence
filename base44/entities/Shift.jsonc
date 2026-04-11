@@ -1,0 +1,118 @@
+{
+  "name": "Shift",
+  "type": "object",
+  "properties": {
+    "shift_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Shift Date"
+    },
+    "shift_time": {
+      "type": "string",
+      "title": "Shift Start Time"
+    },
+    "shift_duration": {
+      "type": "number",
+      "title": "Shift Duration (hours)"
+    },
+    "flavorset_id": {
+      "type": "string",
+      "title": "Flavorset"
+    },
+    "flavorset_cases": {
+      "type": "number",
+      "title": "Flavorset Cases",
+      "default": 0
+    },
+    "individual_flavor_1": {
+      "type": "string",
+      "title": "Individual Flavor 1"
+    },
+    "individual_flavor_1_cases": {
+      "type": "number",
+      "title": "Flavor 1 Cases",
+      "default": 0
+    },
+    "individual_flavor_2": {
+      "type": "string",
+      "title": "Individual Flavor 2"
+    },
+    "individual_flavor_2_cases": {
+      "type": "number",
+      "title": "Flavor 2 Cases",
+      "default": 0
+    },
+    "individual_flavor_3": {
+      "type": "string",
+      "title": "Individual Flavor 3"
+    },
+    "individual_flavor_3_cases": {
+      "type": "number",
+      "title": "Flavor 3 Cases",
+      "default": 0
+    },
+    "individual_flavor_4": {
+      "type": "string",
+      "title": "Individual Flavor 4"
+    },
+    "individual_flavor_4_cases": {
+      "type": "number",
+      "title": "Flavor 4 Cases",
+      "default": 0
+    },
+    "waste": {
+      "type": "number",
+      "title": "Waste (cases)",
+      "default": 0
+    },
+    "filling_employee": {
+      "type": "string",
+      "title": "Filling Position"
+    },
+    "pulling_employee_1": {
+      "type": "string",
+      "title": "Pulling Position 1 (Required)"
+    },
+    "pulling_employee_2": {
+      "type": "string",
+      "title": "Pulling Position 2"
+    },
+    "pulling_employee_3": {
+      "type": "string",
+      "title": "Pulling Position 3"
+    },
+    "sorting_employee": {
+      "type": "string",
+      "title": "Sorting Position"
+    },
+    "bagging_employee": {
+      "type": "string",
+      "title": "Bagging Position"
+    },
+    "boxing_employee": {
+      "type": "string",
+      "title": "Boxing Position"
+    },
+    "training_employees": {
+      "type": "array",
+      "title": "Training Positions",
+      "items": {
+        "type": "string"
+      }
+    },
+    "shift_lead": {
+      "type": "string",
+      "title": "Shift Lead"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "shift_date",
+    "shift_time",
+    "shift_duration",
+    "pulling_employee_1"
+  ]
+}

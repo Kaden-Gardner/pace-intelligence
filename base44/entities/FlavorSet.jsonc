@@ -1,0 +1,30 @@
+{
+  "name": "FlavorSet",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Flavorset Name"
+    },
+    "flavor_1": {
+      "type": "string",
+      "title": "Flavor 1"
+    },
+    "flavor_2": {
+      "type": "string",
+      "title": "Flavor 2"
+    },
+    "flavor_3": {
+      "type": "string",
+      "title": "Flavor 3"
+    },
+    "flavor_4": {
+      "type": "string",
+      "title": "Flavor 4"
+    }
+  },
+  "required": [
+    "name",
+    "flavor_1"
+  ]
+}

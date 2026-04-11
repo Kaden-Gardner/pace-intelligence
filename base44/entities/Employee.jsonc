@@ -1,0 +1,23 @@
+{
+  "name": "Employee",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Employee Name"
+    },
+    "employee_number": {
+      "type": "string",
+      "title": "Employee Number"
+    },
+    "active": {
+      "type": "boolean",
+      "title": "Active",
+      "default": true
+    }
+  },
+  "required": [
+    "name",
+    "employee_number"
+  ]
+}
