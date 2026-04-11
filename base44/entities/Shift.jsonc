@@ -62,7 +62,7 @@
     },
     "waste": {
       "type": "number",
-      "title": "Waste (cases)",
+      "title": "Waste (gallons)",
       "default": 0
     },
     "filling_employee": {

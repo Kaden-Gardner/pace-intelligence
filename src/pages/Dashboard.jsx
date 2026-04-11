@@ -104,7 +104,7 @@ export default function Dashboard() {
         <StatCard title="Total Cases" value={totalCases.toLocaleString()} subtitle="Annual production" icon={Package} />
         <StatCard title="Avg Cases/Hour" value={avgCph.toFixed(1)} subtitle="Across all shifts" icon={TrendingUp} />
         <StatCard title="Total Shifts" value={shifts.length} subtitle={`${employees.length} employees`} icon={BarChart3} />
-        <StatCard title="Total Waste" value={totalWaste.toLocaleString()} subtitle="Cases wasted" icon={Trash2} />
+        <StatCard title="Total Waste" value={totalWaste.toLocaleString()} subtitle="Gallons wasted" icon={Trash2} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">

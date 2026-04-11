@@ -51,7 +51,7 @@ export default function ShiftProductionSection({ form, updateForm, flavors, flav
 
       {/* Waste */}
       <div className="mt-6">
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">Waste (cases)</label>
+        <label className="text-xs font-medium text-muted-foreground mb-1 block">Waste (gallons)</label>
         <Input type="number" min="0" value={form.waste} onChange={(e) => updateForm("waste", parseInt(e.target.value) || 0)} className="max-w-xs" />
       </div>
     </section>
