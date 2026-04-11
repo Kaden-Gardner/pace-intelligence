@@ -1,13 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { BarChart3, Users, Package, TrendingUp, Award, Trash2 } from "lucide-react";
-import StatCard from "../components/StatCard";
-import WeeklyChart from "../components/dashboard/WeeklyChart";
-import DreamTeamCard from "../components/dashboard/DreamTeamCard";
-import TopEmployeesCard from "../components/dashboard/TopEmployeesCard";
-import BestPairingsCard from "../components/dashboard/BestPairingsCard";
-import FlavorBreakdownCard from "../components/dashboard/FlavorBreakdownCard";
-import EmptyState from "../components/EmptyState";
 import {
   getTotalCases,
   getCasesPerHour,
@@ -17,6 +10,7 @@ import {
 } from "../lib/analyticsHelpers";
 
 export default function Dashboard() {
+  const [productionUnit, setProductionUnit] = useState("gallons");
   const [shifts, setShifts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [flavors, setFlavors] = useState([]);
@@ -65,6 +59,17 @@ export default function Dashboard() {
   const totalHours = shifts.reduce((sum, s) => sum + (s.shift_duration || 0), 0);
   const avgCph = totalHours > 0 ? totalCases / totalHours : 0;
   const totalWaste = shifts.reduce((sum, s) => sum + (s.waste || 0), 0);
+
+  // Gallons / popsicles running total
+  const totalGallons = shifts.reduce((sum, s) => sum + getTotalCases(s), 0); // 1 case = 1 gallon
+  const totalPopsicles = shifts.reduce((sum, s) => {
+    const ppg = s.popsicles_per_gallon || 24;
+    return sum + getTotalCases(s) * ppg;
+  }, 0);
+  const productionDisplay = productionUnit === "gallons"
+    ? totalGallons.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : totalPopsicles.toLocaleString();
+
   const weeklyData = getWeeklyProductionData(shifts);
 
   // Individual flavor breakdown
@@ -106,6 +111,41 @@ export default function Dashboard() {
         <StatCard title="Total Shifts" value={shifts.length} subtitle={`${employees.length} employees`} icon={BarChart3} />
         <StatCard title="Total Waste" value={totalWaste.toLocaleString()} subtitle="Gallons wasted" icon={Trash2} />
       </div>
+
+      {/* Gallons / Popsicles toggle card */}
+      <div className="bg-card rounded-2xl border border-border p-6 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Production</p>
+          <p className="text-3xl font-heading font-bold">
+            {productionDisplay}
+          </p>
+          <p className="text-sm text-muted-foreground mt-1">{productionUnit === "gallons" ? "Gallons produced" : "Popsicles produced"}</p>
+        </div>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setProductionUnit("gallons")}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              productionUnit === "gallons"
+                ? "bg-primary text-primary-foreground shadow"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Gallons
+          </button>
+          <button
+            onClick={() => setProductionUnit("popsicles")}
+            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              productionUnit === "popsicles"
+                ? "bg-primary text-primary-foreground shadow"
+                : "bg-muted text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Popsicles
+          </button>
+        </div>
+      </div>
+
+
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
         <div className="xl:col-span-2">

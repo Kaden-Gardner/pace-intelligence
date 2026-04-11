@@ -15,6 +15,15 @@
       "type": "number",
       "title": "Shift Duration (hours)"
     },
+    "popsicles_per_gallon": {
+      "type": "number",
+      "title": "Pack Size (popsicles per gallon)",
+      "enum": [
+        24,
+        48
+      ],
+      "default": 24
+    },
     "flavorset_id": {
       "type": "string",
       "title": "Flavorset"
@@ -22,6 +31,26 @@
     "flavorset_cases": {
       "type": "number",
       "title": "Flavorset Cases",
+      "default": 0
+    },
+    "starting_gallons_flavor_1": {
+      "type": "number",
+      "title": "Starting Gallons - Flavor 1",
+      "default": 0
+    },
+    "starting_gallons_flavor_2": {
+      "type": "number",
+      "title": "Starting Gallons - Flavor 2",
+      "default": 0
+    },
+    "starting_gallons_flavor_3": {
+      "type": "number",
+      "title": "Starting Gallons - Flavor 3",
+      "default": 0
+    },
+    "starting_gallons_flavor_4": {
+      "type": "number",
+      "title": "Starting Gallons - Flavor 4",
       "default": 0
     },
     "individual_flavor_1": {
