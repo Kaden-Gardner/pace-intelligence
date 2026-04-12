@@ -7,7 +7,7 @@ import EmployeeNumberSetup from "./EmployeeNumberSetup";
 import { cn } from "@/lib/utils";
 
 const adminNavItems = [
-  { path: "/", label: "Dashboard", icon: BarChart3 },
+  { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { path: "/shifts", label: "Shifts", icon: Calendar },
   { path: "/employees", label: "Employees", icon: Users },
   { path: "/flavors", label: "Flavors", icon: IceCreamCone },
@@ -73,7 +73,7 @@ export default function Layout() {
 
         <nav className="flex-1 px-3 py-2 space-y-1">
           {navItems.map((item) => {
-            const isActive = item.path === "/" ? location.pathname === "/" : location.pathname.startsWith(item.path);
+            const isActive = location.pathname === item.path || (item.path !== "/dashboard" && location.pathname.startsWith(item.path));
             return (
               <Link
                 key={item.path}
