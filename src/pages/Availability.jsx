@@ -173,22 +173,22 @@ export default function Availability() {
         <div className="grid grid-cols-7 gap-1">
           {Array(startPad).fill(null).map((_, i) => <div key={`pad-${i}`} />)}
           {days.map((day) => {
-            const avails = getAvailForDate(day);
-            const myAvail = getMyAvailForDate(day);
-            const isPast = day < TODAY;
-            const isFuture = day > MAX_DATE;
-            const isSelected = selectedDate && isSameDay(day, selectedDate);
-            const isToday = isSameDay(day, new Date());
+          const avails = getAvailForDate(day);
+          const myAvail = getMyAvailForDate(day);
+          const isPast = day < TODAY;
+          const isFuture = day > MAX_DATE;
+          const isSelected = selectedDate && isSameDay(day, selectedDate);
+          const isToday = isSameDay(day, new Date());
 
-            let bgClass = "hover:bg-muted cursor-pointer";
-            if (isPast || isFuture) bgClass = "opacity-30 cursor-default";
-            if (isSelected) bgClass = "bg-primary text-primary-foreground";
-            else if (isToday) bgClass = "ring-2 ring-primary";
+          let bgClass = "hover:bg-muted cursor-pointer";
+          if (isPast || isFuture) bgClass = "opacity-30 cursor-default";
+          if (isSelected) bgClass = "bg-primary/10 ring-2 ring-primary";
+          else if (isToday) bgClass = "ring-2 ring-primary";
 
             return (
               <div
                 key={day.toISOString()}
-                onClick={() => !isAdmin && handleDayClick(day)}
+                onClick={() => !isPast && !isFuture && handleDayClick(day)}
                 className={`rounded-xl p-2 min-h-[60px] flex flex-col transition-all ${bgClass}`}
               >
                 <span className="text-xs font-medium mb-1">{format(day, "d")}</span>
@@ -216,8 +216,8 @@ export default function Availability() {
         </div>
       </div>
 
-      {/* Form panel for users */}
-      {!isAdmin && selectedDate && (
+      {/* Form panel for all users including admins */}
+      {selectedDate && (
         <div className="mt-6 bg-card rounded-2xl border border-border p-6 max-w-md">
           <h3 className="font-heading font-semibold mb-4">{format(selectedDate, "EEEE, MMMM d, yyyy")}</h3>
           <form onSubmit={handleSave} className="space-y-4">
