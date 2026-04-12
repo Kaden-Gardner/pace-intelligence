@@ -18,7 +18,14 @@
     },
     "assigned_employees": {
       "type": "array",
-      "title": "Assigned Employees",
+      "title": "Working Employees",
+      "items": {
+        "type": "string"
+      }
+    },
+    "on_call_employees": {
+      "type": "array",
+      "title": "On Call Employees",
       "items": {
         "type": "string"
       }

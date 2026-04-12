@@ -24,7 +24,7 @@ export default function Schedule() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [editShift, setEditShift] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ shift_time: "08:00", shift_duration: 8, assigned_employees: [], notes: "" });
+  const [form, setForm] = useState({ shift_time: "08:00", shift_duration: 8, assigned_employees: [], on_call_employees: [], notes: "" });
 
   useEffect(() => {
     async function load() {
@@ -84,6 +84,7 @@ export default function Schedule() {
       shift_time: "08:00",
       shift_duration: 8,
       assigned_employees: suggested.map((e) => e.id),
+      on_call_employees: [],
       notes: "",
     });
   }
@@ -96,19 +97,29 @@ export default function Schedule() {
       shift_time: shift.shift_time || "08:00",
       shift_duration: shift.shift_duration || 8,
       assigned_employees: shift.assigned_employees || [],
+      on_call_employees: shift.on_call_employees || [],
       notes: shift.notes || "",
     });
   }
 
-  function toggleEmployee(empId) {
+  function toggleEmployee(empId, type) {
     setForm((f) => {
-      const current = f.assigned_employees || [];
-      return {
-        ...f,
-        assigned_employees: current.includes(empId)
-          ? current.filter((id) => id !== empId)
-          : [...current, empId].slice(0, 9),
-      };
+      if (type === "oncall") {
+        const current = f.on_call_employees || [];
+        return {
+          ...f,
+          on_call_employees: current.includes(empId)
+            ? current.filter((id) => id !== empId)
+            : [...current, empId],
+        };
+      } else {
+        const current = f.assigned_employees || [];
+        if (current.includes(empId)) {
+          return { ...f, assigned_employees: current.filter((id) => id !== empId) };
+        }
+        if (current.length >= 9) return f; // max 9 working
+        return { ...f, assigned_employees: [...current, empId] };
+      }
     });
   }
 
@@ -208,7 +219,7 @@ export default function Schedule() {
                     className="text-left w-full mb-0.5"
                   >
                     <span className="text-xs px-1 py-0.5 rounded bg-primary/15 text-primary font-medium block truncate">
-                      {s.shift_time} · {(s.assigned_employees || []).length} staff
+                      {s.shift_time} · {(s.assigned_employees || []).length} working{(s.on_call_employees || []).length > 0 ? ` · ${s.on_call_employees.length} on call` : ""}
                     </span>
                   </button>
                 ))}
@@ -244,7 +255,7 @@ export default function Schedule() {
 
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <label className="text-xs font-medium text-muted-foreground">Assigned Employees (max 9)</label>
+                <label className="text-xs font-medium text-muted-foreground">Working Employees ({(form.assigned_employees || []).length}/9)</label>
                 {suggestedForSelected.length > 0 && (
                   <button type="button" onClick={() => setForm((f) => ({ ...f, assigned_employees: suggestedForSelected.map((e) => e.id) }))}
                     className="flex items-center gap-1 text-xs text-primary hover:underline">
@@ -254,7 +265,8 @@ export default function Schedule() {
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {employees.map((emp) => {
-                  const isChecked = (form.assigned_employees || []).includes(emp.id);
+                  const isWorking = (form.assigned_employees || []).includes(emp.id);
+                  const isOnCall = (form.on_call_employees || []).includes(emp.id);
                   const avail = availOnSelected.find((a) =>
                     (a.employee_id && a.employee_id === emp.id) ||
                     (a.employee_number && a.employee_number === emp.employee_number)
@@ -262,24 +274,42 @@ export default function Schedule() {
                   const dreamTeam = findDreamTeam(shifts, employees);
                   const isDream = dreamTeam.some((e) => e.id === emp.id);
                   return (
-                    <button
-                      key={emp.id}
-                      type="button"
-                      onClick={() => toggleEmployee(emp.id)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all text-left ${
-                        isChecked ? "bg-primary/10 border-primary text-primary" : "border-border hover:bg-muted"
-                      }`}
-                    >
-                      <span className="flex-1 truncate">{emp.name}</span>
-                      <span className="flex gap-0.5">
-                        {isDream && <span title="Dream team" className="text-yellow-500 text-xs">★</span>}
-                        {avail ? <span title="Available" className="text-green-500 text-xs">✓</span> : <span title="No availability set" className="text-muted-foreground text-xs">?</span>}
-                      </span>
-                    </button>
+                    <div key={emp.id} className={`flex flex-col rounded-xl border transition-all ${
+                      isWorking ? "bg-primary/10 border-primary" : isOnCall ? "bg-yellow-50 border-yellow-300" : "border-border"
+                    }`}>
+                      <div className="flex items-center gap-2 px-3 py-2">
+                        <span className="flex-1 truncate text-sm font-medium">{emp.name}</span>
+                        <span className="flex gap-0.5">
+                          {isDream && <span title="Dream team" className="text-yellow-500 text-xs">★</span>}
+                          {avail ? <span title="Available" className="text-green-500 text-xs">✓</span> : <span title="No availability set" className="text-muted-foreground text-xs">?</span>}
+                        </span>
+                      </div>
+                      <div className="flex border-t border-border">
+                        <button
+                          type="button"
+                          onClick={() => toggleEmployee(emp.id, "working")}
+                          disabled={!isWorking && (form.assigned_employees || []).length >= 9}
+                          className={`flex-1 text-xs py-1 rounded-bl-xl transition-all ${
+                            isWorking ? "bg-primary text-primary-foreground" : "hover:bg-primary/10 text-muted-foreground disabled:opacity-30"
+                          }`}
+                        >
+                          Working
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleEmployee(emp.id, "oncall")}
+                          className={`flex-1 text-xs py-1 rounded-br-xl border-l border-border transition-all ${
+                            isOnCall ? "bg-yellow-400 text-yellow-900" : "hover:bg-yellow-50 text-muted-foreground"
+                          }`}
+                        >
+                          On Call
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
-              <p className="text-xs text-muted-foreground mt-1">★ = Dream team · ✓ = Available that day</p>
+              <p className="text-xs text-muted-foreground mt-1">★ = Dream team · ✓ = Available · Max 9 working, unlimited on call</p>
             </div>
 
             <div>
@@ -320,10 +350,23 @@ export default function Schedule() {
                   </div>
                 </div>
                 {assignedEmps.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {assignedEmps.map((emp) => (
-                      <span key={emp.id} className="text-xs px-2 py-1 bg-muted rounded-lg">{emp.name}</span>
-                    ))}
+                  <div className="mb-2">
+                    <p className="text-xs font-medium text-muted-foreground mb-1">Working</p>
+                    <div className="flex flex-wrap gap-2">
+                      {assignedEmps.map((emp) => (
+                        <span key={emp.id} className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg">{emp.name}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {(s.on_call_employees || []).length > 0 && (
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground mb-1">On Call</p>
+                    <div className="flex flex-wrap gap-2">
+                      {(s.on_call_employees || []).map((id) => empMap[id]).filter(Boolean).map((emp) => (
+                        <span key={emp.id} className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-lg">{emp.name}</span>
+                      ))}
+                    </div>
                   </div>
                 )}
                 {s.notes && <p className="text-xs text-muted-foreground mt-2">{s.notes}</p>}
