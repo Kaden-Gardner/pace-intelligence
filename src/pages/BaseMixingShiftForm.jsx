@@ -127,7 +127,7 @@ export default function BaseMixingShiftForm() {
     );
   }
 
-  const employeeOptions = [{ id: "", name: "— None —" }, ...employees];
+  const employeeOptions = employees;
 
   return (
     <div className="max-w-2xl">
@@ -164,7 +164,7 @@ export default function BaseMixingShiftForm() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Flavorset</label>
-              <Select value={form.flavorset_id} onValueChange={(v) => updateForm("flavorset_id", v)}>
+              <Select value={form.flavorset_id || undefined} onValueChange={(v) => updateForm("flavorset_id", v)}>
                 <SelectTrigger><SelectValue placeholder="Select flavorset" /></SelectTrigger>
                 <SelectContent>{flavorSets.map((fs) => <SelectItem key={fs.id} value={fs.id}>{fs.name}</SelectItem>)}</SelectContent>
               </Select>
@@ -186,20 +186,20 @@ export default function BaseMixingShiftForm() {
             {[1, 2, 3].map((n) => (
               <div key={n}>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Mixer {n}{n === 1 ? " (Required)" : ""}</label>
-                <Select value={form[`mixer_${n}`]} onValueChange={(v) => updateForm(`mixer_${n}`, v)}>
+                <Select value={form[`mixer_${n}`] || undefined} onValueChange={(v) => updateForm(`mixer_${n}`, v)}>
                   <SelectTrigger><SelectValue placeholder={`Mixer ${n}`} /></SelectTrigger>
                   <SelectContent>
-                    {employeeOptions.map((emp) => <SelectItem key={emp.id || "none"} value={emp.id}>{emp.name}</SelectItem>)}
+                    {employeeOptions.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             ))}
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Shift Lead</label>
-              <Select value={form.shift_lead} onValueChange={(v) => updateForm("shift_lead", v)}>
+              <Select value={form.shift_lead || undefined} onValueChange={(v) => updateForm("shift_lead", v)}>
                 <SelectTrigger><SelectValue placeholder="Select shift lead" /></SelectTrigger>
                 <SelectContent>
-                  {employeeOptions.map((emp) => <SelectItem key={emp.id || "none"} value={emp.id}>{emp.name}</SelectItem>)}
+                  {employeeOptions.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
