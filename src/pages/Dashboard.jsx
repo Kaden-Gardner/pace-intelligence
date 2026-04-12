@@ -16,8 +16,30 @@ import {
   getWeeklyProductionData,
 } from "../lib/analyticsHelpers";
 
+const PERIODS = [
+  { label: "Past Year", key: "year" },
+  { label: "Past Month", key: "month" },
+  { label: "Past Week", key: "week" },
+  { label: "Last Shift", key: "shift" },
+];
+
+function filterShiftsByPeriod(shifts, period) {
+  if (period === "shift") {
+    if (shifts.length === 0) return [];
+    const latest = shifts[0].shift_date;
+    return shifts.filter((s) => s.shift_date === latest);
+  }
+  const now = new Date();
+  const cutoff = new Date();
+  if (period === "year") cutoff.setFullYear(now.getFullYear() - 1);
+  else if (period === "month") cutoff.setMonth(now.getMonth() - 1);
+  else if (period === "week") cutoff.setDate(now.getDate() - 7);
+  return shifts.filter((s) => new Date(s.shift_date) >= cutoff);
+}
+
 export default function Dashboard() {
   const [productionUnit, setProductionUnit] = useState("gallons");
+  const [productionPeriod, setProductionPeriod] = useState("year");
   const [shifts, setShifts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [flavors, setFlavors] = useState([]);
@@ -62,22 +84,33 @@ export default function Dashboard() {
     );
   }
 
+  const periodShifts = filterShiftsByPeriod(shifts, productionPeriod);
+
   const totalCases = shifts.reduce((sum, s) => sum + getTotalCases(s), 0);
   const totalHours = shifts.reduce((sum, s) => sum + (s.shift_duration || 0), 0);
   const avgCph = totalHours > 0 ? totalCases / totalHours : 0;
   const totalWaste = shifts.reduce((sum, s) => sum + (s.waste || 0), 0);
 
-  // Gallons / popsicles running total
-  const totalGallons = shifts.reduce((sum, s) => sum + getTotalCases(s), 0); // 1 case = 1 gallon
-  const totalPopsicles = shifts.reduce((sum, s) => {
+  // Gallons: sum starting_gallons fields for each shift in period
+  const totalGallons = periodShifts.reduce((sum, s) => {
+    return sum +
+      (s.starting_gallons_flavor_1 || 0) +
+      (s.starting_gallons_flavor_2 || 0) +
+      (s.starting_gallons_flavor_3 || 0) +
+      (s.starting_gallons_flavor_4 || 0);
+  }, 0);
+  // Popsicles: gallons * popsicles_per_gallon
+  const totalPopsicles = periodShifts.reduce((sum, s) => {
     const ppg = s.popsicles_per_gallon || 24;
-    return sum + getTotalCases(s) * ppg;
+    const gallons = (s.starting_gallons_flavor_1 || 0) + (s.starting_gallons_flavor_2 || 0) +
+      (s.starting_gallons_flavor_3 || 0) + (s.starting_gallons_flavor_4 || 0);
+    return sum + gallons * ppg;
   }, 0);
   const productionDisplay = productionUnit === "gallons"
     ? totalGallons.toLocaleString(undefined, { maximumFractionDigits: 2 })
     : totalPopsicles.toLocaleString();
 
-  const weeklyData = getWeeklyProductionData(shifts);
+  const weeklyData = getWeeklyProductionData(periodShifts);
 
   // Individual flavor breakdown
   const flavorMap = {};
@@ -120,39 +153,34 @@ export default function Dashboard() {
       </div>
 
       {/* Gallons / Popsicles toggle card */}
-      <div className="bg-card rounded-2xl border border-border p-6 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Production</p>
-          <p className="text-3xl font-heading font-bold">
-            {productionDisplay}
-          </p>
-          <p className="text-sm text-muted-foreground mt-1">{productionUnit === "gallons" ? "Gallons produced" : "Popsicles produced"}</p>
+      <div className="bg-card rounded-2xl border border-border p-6 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Production</p>
+            <p className="text-3xl font-heading font-bold">{productionDisplay}</p>
+            <p className="text-sm text-muted-foreground mt-1">{productionUnit === "gallons" ? "Gallons produced" : "Popsicles produced"}</p>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setProductionUnit("gallons")} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${productionUnit === "gallons" ? "bg-primary text-primary-foreground shadow" : "bg-muted text-muted-foreground hover:text-foreground"}`}>Gallons</button>
+            <button onClick={() => setProductionUnit("popsicles")} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${productionUnit === "popsicles" ? "bg-primary text-primary-foreground shadow" : "bg-muted text-muted-foreground hover:text-foreground"}`}>Popsicles</button>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setProductionUnit("gallons")}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              productionUnit === "gallons"
-                ? "bg-primary text-primary-foreground shadow"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Gallons
-          </button>
-          <button
-            onClick={() => setProductionUnit("popsicles")}
-            className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
-              productionUnit === "popsicles"
-                ? "bg-primary text-primary-foreground shadow"
-                : "bg-muted text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Popsicles
-          </button>
+        <div className="flex gap-2 flex-wrap">
+          {PERIODS.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setProductionPeriod(p.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                productionPeriod === p.key
+                  ? "bg-foreground text-background"
+                  : "bg-muted text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
       </div>
-
-
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
         <div className="xl:col-span-2">
