@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Package, Truck, Plus, Pencil, Check, X, Trash2, Snowflake } from "lucide-react";
+import { Package, Truck, Plus, Pencil, Check, X, Trash2, Snowflake, Star, MoveRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -11,6 +11,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import EmptyState from "../components/EmptyState";
+import { getDefaultFreezerId, setDefaultFreezerId, syncToDefaultFreezer } from "../lib/freezerSync";
 
 const CASES_PER_PALLET = 66;
 
@@ -22,6 +23,7 @@ export default function Inventory() {
   const [freezers, setFreezers] = useState([]);
   const [freezerItems, setFreezerItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [defaultFreezer, setDefaultFreezer] = useState(() => getDefaultFreezerId());
 
   // Inventory edit
   const [editingInvId, setEditingInvId] = useState(null);
@@ -29,7 +31,7 @@ export default function Inventory() {
 
   // Add inventory manually
   const [showAddInv, setShowAddInv] = useState(false);
-  const [addInvType, setAddInvType] = useState("flavorset"); // "flavorset" | "individual"
+  const [addInvType, setAddInvType] = useState("flavorset");
   const [addInvForm, setAddInvForm] = useState({ flavorset_id: "", flavor_id: "", cases: 0 });
 
   // Pickup form
@@ -40,10 +42,12 @@ export default function Inventory() {
   const [showFreezerForm, setShowFreezerForm] = useState(false);
   const [editingFreezerId, setEditingFreezerId] = useState(null);
   const [freezerForm, setFreezerForm] = useState({ name: "", notes: "" });
-  const [showItemForm, setShowItemForm] = useState(null); // freezer_id
+  const [showItemForm, setShowItemForm] = useState(null);
   const [itemForm, setItemForm] = useState({ type: "pallet", flavorset_id: "", flavor_id: "", quantity: 1 });
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemQty, setEditItemQty] = useState(0);
+  const [movingItemId, setMovingItemId] = useState(null);
+  const [moveTargetFreezer, setMoveTargetFreezer] = useState("");
 
   const [saving, setSaving] = useState(false);
 
@@ -72,38 +76,53 @@ export default function Inventory() {
   const flMap = {};
   flavors.forEach((f) => { flMap[f.id] = f; });
 
+  function handleSetDefault(freezerId) {
+    setDefaultFreezerId(freezerId);
+    setDefaultFreezer(freezerId);
+  }
+
   // ---- INVENTORY HELPERS ----
   async function saveEditInv(inv) {
     await base44.entities.Inventory.update(inv.id, { cases: editCases });
-    setInventory((prev) => prev.map((i) => (i.id === inv.id ? { ...i, cases: editCases } : i)));
+    const updated = { ...inv, cases: editCases };
+    setInventory((prev) => prev.map((i) => (i.id === inv.id ? updated : i)));
     setEditingInvId(null);
+    // Sync to default freezer
+    await syncToDefaultFreezer({ flavorset_id: inv.flavorset_id, flavor_id: inv.flavor_id, cases: editCases });
+    setFreezerItems(await base44.entities.FreezerItem.list());
   }
 
   async function saveAddInv() {
     if (addInvType === "flavorset" && !addInvForm.flavorset_id) return;
     if (addInvType === "individual" && !addInvForm.flavor_id) return;
     setSaving(true);
+    let record;
     if (addInvType === "flavorset") {
       const existing = inventory.find((i) => i.flavorset_id === addInvForm.flavorset_id && !i.flavor_id);
       if (existing) {
         const newCases = (existing.cases || 0) + Number(addInvForm.cases);
         await base44.entities.Inventory.update(existing.id, { cases: newCases });
-        setInventory((prev) => prev.map((i) => (i.id === existing.id ? { ...i, cases: newCases } : i)));
+        record = { ...existing, cases: newCases };
+        setInventory((prev) => prev.map((i) => (i.id === existing.id ? record : i)));
       } else {
-        const created = await base44.entities.Inventory.create({ flavorset_id: addInvForm.flavorset_id, cases: Number(addInvForm.cases) });
-        setInventory((prev) => [...prev, created]);
+        record = await base44.entities.Inventory.create({ flavorset_id: addInvForm.flavorset_id, cases: Number(addInvForm.cases) });
+        setInventory((prev) => [...prev, record]);
       }
+      await syncToDefaultFreezer({ flavorset_id: record.flavorset_id, cases: record.cases });
     } else {
       const existing = inventory.find((i) => i.flavor_id === addInvForm.flavor_id && !i.flavorset_id);
       if (existing) {
         const newCases = (existing.cases || 0) + Number(addInvForm.cases);
         await base44.entities.Inventory.update(existing.id, { cases: newCases });
-        setInventory((prev) => prev.map((i) => (i.id === existing.id ? { ...i, cases: newCases } : i)));
+        record = { ...existing, cases: newCases };
+        setInventory((prev) => prev.map((i) => (i.id === existing.id ? record : i)));
       } else {
-        const created = await base44.entities.Inventory.create({ flavor_id: addInvForm.flavor_id, cases: Number(addInvForm.cases) });
-        setInventory((prev) => [...prev, created]);
+        record = await base44.entities.Inventory.create({ flavor_id: addInvForm.flavor_id, cases: Number(addInvForm.cases) });
+        setInventory((prev) => [...prev, record]);
       }
+      await syncToDefaultFreezer({ flavor_id: record.flavor_id, cases: record.cases });
     }
+    setFreezerItems(await base44.entities.FreezerItem.list());
     setAddInvForm({ flavorset_id: "", flavor_id: "", cases: 0 });
     setShowAddInv(false);
     setSaving(false);
@@ -126,6 +145,8 @@ export default function Inventory() {
       const newCases = Math.max(0, (invRecord.cases || 0) - pickupCases);
       await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
       setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
+      await syncToDefaultFreezer({ flavorset_id: invRecord.flavorset_id, cases: newCases });
+      setFreezerItems(await base44.entities.FreezerItem.list());
     }
     setPickupForm({ vendor_name: "", flavorset_id: "", pallets: 1, pickup_date: new Date().toISOString().split("T")[0], notes: "" });
     setShowPickupForm(false);
@@ -162,11 +183,11 @@ export default function Inventory() {
 
   async function deleteFreezer(id) {
     await base44.entities.Freezer.delete(id);
-    // Also delete all items in this freezer
     const items = freezerItems.filter((fi) => fi.freezer_id === id);
     await Promise.all(items.map((fi) => base44.entities.FreezerItem.delete(fi.id)));
     setFreezers((prev) => prev.filter((f) => f.id !== id));
     setFreezerItems((prev) => prev.filter((fi) => fi.freezer_id !== id));
+    if (defaultFreezer === id) handleSetDefault(null);
   }
 
   async function saveFreezerItem(freezer_id) {
@@ -194,6 +215,31 @@ export default function Inventory() {
     setFreezerItems((prev) => prev.filter((fi) => fi.id !== id));
   }
 
+  async function moveItem(item) {
+    if (!moveTargetFreezer || moveTargetFreezer === item.freezer_id) { setMovingItemId(null); return; }
+    setSaving(true);
+    // Check if target freezer already has this item type
+    const filterKey = item.type === "pallet" ? "flavorset_id" : "flavor_id";
+    const targetExisting = freezerItems.find(
+      (fi) => fi.freezer_id === moveTargetFreezer && fi.type === item.type && fi[filterKey] === item[filterKey]
+    );
+    if (targetExisting) {
+      // Merge quantities
+      await base44.entities.FreezerItem.update(targetExisting.id, { quantity: (targetExisting.quantity || 0) + (item.quantity || 0) });
+      await base44.entities.FreezerItem.delete(item.id);
+      setFreezerItems((prev) => prev
+        .filter((fi) => fi.id !== item.id)
+        .map((fi) => fi.id === targetExisting.id ? { ...fi, quantity: (fi.quantity || 0) + (item.quantity || 0) } : fi)
+      );
+    } else {
+      await base44.entities.FreezerItem.update(item.id, { freezer_id: moveTargetFreezer });
+      setFreezerItems((prev) => prev.map((fi) => fi.id === item.id ? { ...fi, freezer_id: moveTargetFreezer } : fi));
+    }
+    setMovingItemId(null);
+    setMoveTargetFreezer("");
+    setSaving(false);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -204,6 +250,7 @@ export default function Inventory() {
 
   const flavorsetInv = inventory.filter((i) => i.flavorset_id && !i.flavor_id);
   const individualInv = inventory.filter((i) => i.flavor_id && !i.flavorset_id);
+  const defaultFreezerName = freezers.find((f) => f.id === defaultFreezer)?.name;
 
   return (
     <div>
@@ -221,6 +268,26 @@ export default function Inventory() {
 
         {/* ====== INVENTORY TAB ====== */}
         <TabsContent value="inventory">
+          {/* Default Freezer Banner */}
+          <div className="bg-muted rounded-2xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <Snowflake className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-medium">
+                Default Freezer:{" "}
+                <span className={defaultFreezerName ? "text-foreground" : "text-muted-foreground"}>
+                  {defaultFreezerName || "None set — new inventory won't auto-assign to a freezer"}
+                </span>
+              </span>
+            </div>
+            <Select value={defaultFreezer || ""} onValueChange={(v) => handleSetDefault(v || null)}>
+              <SelectTrigger className="w-full sm:w-48 h-8 text-xs"><SelectValue placeholder="Set default freezer" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={null}>None</SelectItem>
+                {freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="flex justify-end mb-4">
             <Button className="gap-2" onClick={() => setShowAddInv(true)}>
               <Plus className="w-4 h-4" /> Adjust Inventory
@@ -230,6 +297,9 @@ export default function Inventory() {
           {showAddInv && (
             <div className="bg-card rounded-2xl border border-border p-6 mb-6">
               <h3 className="font-heading font-semibold mb-4">Add Cases to Inventory</h3>
+              {defaultFreezerName && (
+                <p className="text-xs text-muted-foreground mb-3">Will auto-sync to <span className="font-medium text-foreground">{defaultFreezerName}</span></p>
+              )}
               <div className="flex gap-2 mb-4">
                 <button onClick={() => setAddInvType("flavorset")} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${addInvType === "flavorset" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>Flavorset Cases</button>
                 <button onClick={() => setAddInvType("individual")} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${addInvType === "individual" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>Individual Flavor Cases</button>
@@ -261,7 +331,7 @@ export default function Inventory() {
             </div>
           )}
 
-          {/* Flavorset Cases (Pallets) */}
+          {/* Flavorset Cases */}
           <div className="mb-8">
             <h3 className="font-heading font-semibold mb-3">Flavorset Cases (Pallet Tracked)</h3>
             {flavorsetInv.length === 0 ? (
@@ -295,6 +365,7 @@ export default function Inventory() {
                       </div>
                       {editingInvId === inv.id ? (
                         <div className="space-y-2">
+                          {defaultFreezerName && <p className="text-xs text-muted-foreground">Will sync to {defaultFreezerName}</p>}
                           <Input type="number" min="0" value={editCases} onChange={(e) => setEditCases(parseFloat(e.target.value) || 0)} autoFocus />
                           <div className="flex gap-2">
                             <Button size="sm" onClick={() => saveEditInv(inv)} className="gap-1"><Check className="w-3 h-3" /> Save</Button>
@@ -340,6 +411,7 @@ export default function Inventory() {
                       </div>
                       {editingInvId === inv.id ? (
                         <div className="space-y-2">
+                          {defaultFreezerName && <p className="text-xs text-muted-foreground">Will sync to {defaultFreezerName}</p>}
                           <Input type="number" min="0" value={editCases} onChange={(e) => setEditCases(parseFloat(e.target.value) || 0)} autoFocus />
                           <div className="flex gap-1">
                             <Button size="sm" onClick={() => saveEditInv(inv)} className="gap-1"><Check className="w-3 h-3" /> Save</Button>
@@ -410,20 +482,31 @@ export default function Inventory() {
             <div className="space-y-4">
               {freezers.map((freezer) => {
                 const items = freezerItems.filter((fi) => fi.freezer_id === freezer.id);
+                const isDefault = defaultFreezer === freezer.id;
                 return (
-                  <div key={freezer.id} className="bg-card rounded-2xl border border-border p-5">
+                  <div key={freezer.id} className={`bg-card rounded-2xl border p-5 ${isDefault ? "border-primary" : "border-border"}`}>
                     <div className="flex items-start justify-between mb-4">
-                      <div>
+                      <div className="flex items-center gap-2">
                         <h4 className="font-heading font-semibold text-lg">{freezer.name}</h4>
-                        {freezer.notes && <p className="text-xs text-muted-foreground">{freezer.notes}</p>}
+                        {isDefault && (
+                          <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                            <Star className="w-3 h-3" /> Default
+                          </span>
+                        )}
+                        {freezer.notes && <span className="text-xs text-muted-foreground">· {freezer.notes}</span>}
                       </div>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setFreezerForm({ name: freezer.name, notes: freezer.notes || "" }); setEditingFreezerId(freezer.id); setShowFreezerForm(true); }}>
+                      <div className="flex gap-1 flex-wrap justify-end">
+                        {!isDefault && (
+                          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => handleSetDefault(freezer.id)}>
+                            <Star className="w-3 h-3" /> Set Default
+                          </Button>
+                        )}
+                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFreezerForm({ name: freezer.name, notes: freezer.notes || "" }); setEditingFreezerId(freezer.id); setShowFreezerForm(true); }}>
                           <Pencil className="w-3 h-3 mr-1" /> Edit
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
+                            <Button variant="ghost" size="sm" className="text-xs h-7 text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader><AlertDialogTitle>Delete Freezer</AlertDialogTitle><AlertDialogDescription>This will delete "{freezer.name}" and all its stored items.</AlertDialogDescription></AlertDialogHeader>
@@ -437,33 +520,51 @@ export default function Inventory() {
                     {items.length > 0 && (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
                         {items.map((item) => (
-                          <div key={item.id} className="bg-muted rounded-xl px-3 py-2 flex items-center justify-between gap-2">
-                            <div className="min-w-0">
-                              <p className="text-xs font-medium truncate">
-                                {item.type === "pallet"
-                                  ? `${fsMap[item.flavorset_id]?.name || "?"} — Pallets`
-                                  : `${flMap[item.flavor_id]?.name || "?"} — Cases`}
-                              </p>
-                              {editingItemId === item.id ? (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <Input type="number" min="0" value={editItemQty} onChange={(e) => setEditItemQty(parseFloat(e.target.value) || 0)} className="h-6 text-xs px-1 w-16" autoFocus />
-                                  <Button size="sm" className="h-6 px-1" onClick={() => saveEditItem(item)}><Check className="w-3 h-3" /></Button>
-                                  <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => setEditingItemId(null)}><X className="w-3 h-3" /></Button>
+                          <div key={item.id} className="bg-muted rounded-xl px-3 py-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-medium truncate">
+                                  {item.type === "pallet"
+                                    ? `${fsMap[item.flavorset_id]?.name || "?"} — Pallets`
+                                    : `${flMap[item.flavor_id]?.name || "?"} — Cases`}
+                                </p>
+                                {editingItemId === item.id ? (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Input type="number" min="0" value={editItemQty} onChange={(e) => setEditItemQty(parseFloat(e.target.value) || 0)} className="h-6 text-xs px-1 w-16" autoFocus />
+                                    <Button size="sm" className="h-6 px-1" onClick={() => saveEditItem(item)}><Check className="w-3 h-3" /></Button>
+                                    <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => setEditingItemId(null)}><X className="w-3 h-3" /></Button>
+                                  </div>
+                                ) : movingItemId === item.id ? (
+                                  <div className="flex items-center gap-1 mt-1">
+                                    <Select value={moveTargetFreezer} onValueChange={setMoveTargetFreezer}>
+                                      <SelectTrigger className="h-6 text-xs w-32"><SelectValue placeholder="To freezer..." /></SelectTrigger>
+                                      <SelectContent>
+                                        {freezers.filter((f) => f.id !== freezer.id).map((f) => (
+                                          <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Button size="sm" className="h-6 px-1" disabled={saving} onClick={() => moveItem(item)}><Check className="w-3 h-3" /></Button>
+                                    <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => setMovingItemId(null)}><X className="w-3 h-3" /></Button>
+                                  </div>
+                                ) : (
+                                  <p className="text-lg font-heading font-bold">{item.quantity}</p>
+                                )}
+                              </div>
+                              {editingItemId !== item.id && movingItemId !== item.id && (
+                                <div className="flex gap-0.5 flex-shrink-0">
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Move to another freezer" onClick={() => { setMovingItemId(item.id); setMoveTargetFreezer(""); }}>
+                                    <MoveRight className="w-3 h-3" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => { setEditingItemId(item.id); setEditItemQty(item.quantity); }}>
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive hover:text-destructive" onClick={() => deleteFreezerItem(item.id)}>
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
                                 </div>
-                              ) : (
-                                <p className="text-lg font-heading font-bold">{item.quantity}</p>
                               )}
                             </div>
-                            {editingItemId !== item.id && (
-                              <div className="flex gap-0.5 flex-shrink-0">
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => { setEditingItemId(item.id); setEditItemQty(item.quantity); }}>
-                                  <Pencil className="w-3 h-3" />
-                                </Button>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive hover:text-destructive" onClick={() => deleteFreezerItem(item.id)}>
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </div>
-                            )}
                           </div>
                         ))}
                       </div>

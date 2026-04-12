@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import ShiftPositionsSection from "../components/shift-form/ShiftPositionsSection";
 import ShiftProductionSection from "../components/shift-form/ShiftProductionSection";
+import { syncToDefaultFreezer } from "../lib/freezerSync";
 
 export default function ShiftForm() {
   const navigate = useNavigate();
@@ -145,9 +146,12 @@ export default function ShiftForm() {
         } else {
           base = base + newCases;
         }
-        await base44.entities.Inventory.update(allInv[0].id, { cases: Math.max(0, base) });
+        const finalCases = Math.max(0, base);
+        await base44.entities.Inventory.update(allInv[0].id, { cases: finalCases });
+        await syncToDefaultFreezer({ flavorset_id: payload.flavorset_id, cases: finalCases });
       } else {
         await base44.entities.Inventory.create({ flavorset_id: payload.flavorset_id, cases: newCases });
+        await syncToDefaultFreezer({ flavorset_id: payload.flavorset_id, cases: newCases });
       }
     }
 
@@ -188,6 +192,7 @@ export default function ShiftForm() {
         await base44.entities.Inventory.update(existing[0].id, { cases: Math.max(0, base) });
       } else {
         await base44.entities.Inventory.create({ flavor_id: flavorId, cases: newCases });
+        await syncToDefaultFreezer({ flavor_id: flavorId, cases: newCases });
       }
     }
 
