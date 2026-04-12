@@ -17,16 +17,15 @@ export default function ShiftProductionSection({ form, updateForm, flavors, flav
       {/* Mold size */}
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1 block">Mold Size (popsicles per gallon)</label>
-        <Select
-          value={String(form.popsicles_per_gallon || 24)}
-          onValueChange={(v) => updateForm("popsicles_per_gallon", Number(v))}
-        >
-          <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="24">24 popsicles = 1 gallon</SelectItem>
-            <SelectItem value="48">48 popsicles = 1 gallon</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2 max-w-xs">
+          <input
+            type="number" min="1" step="1"
+            value={form.popsicles_per_gallon || 24}
+            onChange={(e) => updateForm("popsicles_per_gallon", parseFloat(e.target.value) || 24)}
+            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          />
+          <span className="text-xs text-muted-foreground whitespace-nowrap">pops / gallon</span>
+        </div>
       </div>
 
       {/* Case size */}
