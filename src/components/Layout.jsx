@@ -1,22 +1,45 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { BarChart3, Users, Calendar, IceCreamCone, Plus, Menu, X, Package } from "lucide-react";
-import { useState } from "react";
+import { BarChart3, Users, Calendar, IceCreamCone, Plus, Menu, X, Package, CalendarDays, CalendarClock } from "lucide-react";
+import { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import EmployeeNumberSetup from "./EmployeeNumberSetup";
 import { cn } from "@/lib/utils";
 
-const navItems = [
+const adminNavItems = [
   { path: "/", label: "Dashboard", icon: BarChart3 },
   { path: "/shifts", label: "Shifts", icon: Calendar },
   { path: "/employees", label: "Employees", icon: Users },
   { path: "/flavors", label: "Flavors", icon: IceCreamCone },
   { path: "/inventory", label: "Inventory", icon: Package },
+  { path: "/availability", label: "Availability", icon: CalendarDays },
+  { path: "/schedule", label: "Schedule", icon: CalendarClock },
+];
+
+const userNavItems = [
+  { path: "/availability", label: "Availability", icon: CalendarDays },
+  { path: "/schedule", label: "Schedule", icon: CalendarClock },
 ];
 
 export default function Layout() {
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+  const navItems = isAdmin ? adminNavItems : userNavItems;
+  const [needsEmployeeNumber, setNeedsEmployeeNumber] = useState(false);
+
+  useEffect(() => {
+    if (user && !user.employee_number) {
+      setNeedsEmployeeNumber(true);
+    }
+  }, [user]);
 
   return (
     <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+      {needsEmployeeNumber && (
+        <EmployeeNumberSetup user={user} onComplete={() => setNeedsEmployeeNumber(false)} />
+      )}
       {/* Mobile Header */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-sidebar border-b border-sidebar-border">
         <div className="flex items-center gap-3">

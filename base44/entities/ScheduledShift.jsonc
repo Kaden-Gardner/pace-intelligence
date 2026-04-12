@@ -1,0 +1,35 @@
+{
+  "name": "ScheduledShift",
+  "type": "object",
+  "properties": {
+    "shift_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Shift Date"
+    },
+    "shift_time": {
+      "type": "string",
+      "title": "Shift Start Time"
+    },
+    "shift_duration": {
+      "type": "number",
+      "title": "Duration (hours)",
+      "default": 8
+    },
+    "assigned_employees": {
+      "type": "array",
+      "title": "Assigned Employees",
+      "items": {
+        "type": "string"
+      }
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "shift_date",
+    "shift_time"
+  ]
+}

@@ -13,6 +13,8 @@ import Employees from './pages/Employees';
 import Flavors from './pages/Flavors';
 import Inventory from './pages/Inventory';
 import BaseMixingShiftForm from './pages/BaseMixingShiftForm';
+import Availability from './pages/Availability';
+import Schedule from './pages/Schedule';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -50,6 +52,8 @@ const AuthenticatedApp = () => {
         <Route path="/inventory" element={<Inventory />} />
         <Route path="/shifts/new-base-mix" element={<BaseMixingShiftForm />} />
         <Route path="/shifts/edit-base-mix" element={<BaseMixingShiftForm />} />
+        <Route path="/availability" element={<Availability />} />
+        <Route path="/schedule" element={<Schedule />} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
     </Routes>

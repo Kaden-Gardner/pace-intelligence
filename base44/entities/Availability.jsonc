@@ -1,0 +1,44 @@
+{
+  "name": "Availability",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "title": "User ID"
+    },
+    "employee_number": {
+      "type": "string",
+      "title": "Employee Number"
+    },
+    "employee_name": {
+      "type": "string",
+      "title": "Employee Name"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date"
+    },
+    "is_available": {
+      "type": "boolean",
+      "title": "Available",
+      "default": true
+    },
+    "available_from": {
+      "type": "string",
+      "title": "Available From (time)"
+    },
+    "available_until": {
+      "type": "string",
+      "title": "Available Until (time)"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "date",
+    "is_available"
+  ]
+}
