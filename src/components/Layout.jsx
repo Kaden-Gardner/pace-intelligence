@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { BarChart3, Users, Calendar, IceCreamCone, Plus, Menu, X } from "lucide-react";
+import { BarChart3, Users, Calendar, IceCreamCone, Plus, Menu, X, Package } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -8,6 +8,7 @@ const navItems = [
   { path: "/shifts", label: "Shifts", icon: Calendar },
   { path: "/employees", label: "Employees", icon: Users },
   { path: "/flavors", label: "Flavors", icon: IceCreamCone },
+  { path: "/inventory", label: "Inventory", icon: Package },
 ];
 
 export default function Layout() {

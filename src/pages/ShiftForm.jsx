@@ -115,16 +115,51 @@ export default function ShiftForm() {
     setSaving(true);
 
     const payload = { ...form };
-    // Clean empty strings
     Object.keys(payload).forEach((key) => {
       if (payload[key] === "") delete payload[key];
     });
 
+    let previousFlavorsetId = null;
+    let previousFlavorsetCases = 0;
+
     if (editId) {
+      // Get old shift to reverse previous inventory contribution
+      const old = await base44.entities.Shift.filter({ id: editId });
+      if (old.length > 0 && old[0].flavorset_id && old[0].flavorset_cases) {
+        previousFlavorsetId = old[0].flavorset_id;
+        previousFlavorsetCases = old[0].flavorset_cases || 0;
+      }
       await base44.entities.Shift.update(editId, payload);
     } else {
       await base44.entities.Shift.create(payload);
     }
+
+    // Update inventory for flavorset cases
+    if (payload.flavorset_id) {
+      const allInv = await base44.entities.Inventory.filter({ flavorset_id: payload.flavorset_id });
+      const newCases = payload.flavorset_cases || 0;
+
+      if (allInv.length > 0) {
+        let base = allInv[0].cases || 0;
+        if (editId && previousFlavorsetId === payload.flavorset_id) {
+          base = base - previousFlavorsetCases + newCases;
+        } else {
+          base = base + newCases;
+        }
+        await base44.entities.Inventory.update(allInv[0].id, { cases: Math.max(0, base) });
+      } else {
+        await base44.entities.Inventory.create({ flavorset_id: payload.flavorset_id, cases: newCases });
+      }
+    }
+
+    // If editing and flavorset changed, restore old inventory
+    if (editId && previousFlavorsetId && previousFlavorsetId !== payload.flavorset_id && previousFlavorsetCases > 0) {
+      const oldInv = await base44.entities.Inventory.filter({ flavorset_id: previousFlavorsetId });
+      if (oldInv.length > 0) {
+        await base44.entities.Inventory.update(oldInv[0].id, { cases: Math.max(0, (oldInv[0].cases || 0) - previousFlavorsetCases) });
+      }
+    }
+
     setSaving(false);
     navigate("/shifts");
   }

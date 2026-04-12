@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { BarChart3, Users, Package, TrendingUp, Award, Trash2 } from "lucide-react";
+import { BarChart3, Users, Package, TrendingUp, Trash2 } from "lucide-react";
 import StatCard from "../components/StatCard";
 import WeeklyChart from "../components/dashboard/WeeklyChart";
 import DreamTeamCard from "../components/dashboard/DreamTeamCard";
@@ -43,18 +43,24 @@ export default function Dashboard() {
   const [shifts, setShifts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [flavors, setFlavors] = useState([]);
+  const [flavorSets, setFlavorSets] = useState([]);
+  const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      const [s, e, f] = await Promise.all([
+      const [s, e, f, fs, inv] = await Promise.all([
         base44.entities.Shift.list("-shift_date", 500),
         base44.entities.Employee.list(),
         base44.entities.Flavor.list(),
+        base44.entities.FlavorSet.list("name"),
+        base44.entities.Inventory.list(),
       ]);
       setShifts(s);
       setEmployees(e);
       setFlavors(f);
+      setFlavorSets(fs);
+      setInventory(inv);
       setLoading(false);
     }
     load();
@@ -193,6 +199,34 @@ export default function Dashboard() {
       <div className="mt-6">
         <FlavorBreakdownCard flavorCases={flavorCases} />
       </div>
+
+      {/* Inventory Pallet Summary */}
+      {inventory.length > 0 && (
+        <div className="mt-6">
+          <div className="bg-card rounded-2xl border border-border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Package className="w-5 h-5 text-primary" />
+              <h2 className="font-heading font-semibold text-lg">Inventory — Pallets on Hand</h2>
+              <span className="text-xs text-muted-foreground ml-1">(66 cases / pallet)</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {inventory.map((inv) => {
+                const fs = flavorSets.find((f) => f.id === inv.flavorset_id);
+                const pallets = Math.floor((inv.cases || 0) / 66);
+                const remainder = (inv.cases || 0) % 66;
+                return (
+                  <div key={inv.id} className="bg-muted rounded-xl p-4 text-center">
+                    <p className="text-3xl font-heading font-bold">{pallets}</p>
+                    <p className="text-xs font-medium mt-1">{fs?.name || "Unknown"}</p>
+                    <p className="text-xs text-muted-foreground">{inv.cases} cases total</p>
+                    {remainder > 0 && <p className="text-xs text-muted-foreground">+{remainder} partial</p>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

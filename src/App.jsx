@@ -11,6 +11,7 @@ import Shifts from './pages/Shifts';
 import ShiftForm from './pages/ShiftForm';
 import Employees from './pages/Employees';
 import Flavors from './pages/Flavors';
+import Inventory from './pages/Inventory';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -45,6 +46,7 @@ const AuthenticatedApp = () => {
         <Route path="/shifts/edit" element={<ShiftForm />} />
         <Route path="/employees" element={<Employees />} />
         <Route path="/flavors" element={<Flavors />} />
+        <Route path="/inventory" element={<Inventory />} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
     </Routes>

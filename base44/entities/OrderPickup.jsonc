@@ -1,0 +1,37 @@
+{
+  "name": "OrderPickup",
+  "type": "object",
+  "properties": {
+    "vendor_name": {
+      "type": "string",
+      "title": "Vendor Name"
+    },
+    "flavorset_id": {
+      "type": "string",
+      "title": "Flavorset"
+    },
+    "pallets": {
+      "type": "number",
+      "title": "Pallets Picked Up"
+    },
+    "cases": {
+      "type": "number",
+      "title": "Cases Picked Up"
+    },
+    "pickup_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Pickup Date"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "vendor_name",
+    "flavorset_id",
+    "pallets",
+    "pickup_date"
+  ]
+}
