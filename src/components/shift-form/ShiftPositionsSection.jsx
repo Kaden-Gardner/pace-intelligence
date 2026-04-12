@@ -7,7 +7,7 @@ function EmployeeSelect({ label, value, onChange, employees, required }) {
       <label className="text-xs font-medium text-muted-foreground mb-1 block">
         {label} {required && <span className="text-destructive">*</span>}
       </label>
-      <Select value={value} onValueChange={onChange}>
+      <Select value={value || undefined} onValueChange={onChange}>
         <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
         <SelectContent>
           {employees.map((e) => (

@@ -62,7 +62,7 @@ export default function ShiftProductionSection({ form, updateForm, flavors, flav
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Flavorset</label>
-          <Select value={form.flavorset_id} onValueChange={(v) => updateForm("flavorset_id", v)}>
+          <Select value={form.flavorset_id || undefined} onValueChange={(v) => updateForm("flavorset_id", v)}>
             <SelectTrigger><SelectValue placeholder="Select flavorset" /></SelectTrigger>
             <SelectContent>
               {flavorSets.map((fs) => (
@@ -113,7 +113,7 @@ export default function ShiftProductionSection({ form, updateForm, flavors, flav
         <div className="space-y-3">
           {[1, 2, 3, 4].map((n) => (
             <div key={n} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Select value={form[`individual_flavor_${n}`]} onValueChange={(v) => updateForm(`individual_flavor_${n}`, v)}>
+              <Select value={form[`individual_flavor_${n}`] || undefined} onValueChange={(v) => updateForm(`individual_flavor_${n}`, v)}>
                 <SelectTrigger><SelectValue placeholder={`Flavor ${n}`} /></SelectTrigger>
                 <SelectContent>
                   {flavors.map((f) => (
