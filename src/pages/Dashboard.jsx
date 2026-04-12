@@ -210,7 +210,7 @@ export default function Dashboard() {
               <span className="text-xs text-muted-foreground ml-1">(66 cases / pallet)</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {inventory.map((inv) => {
+              {inventory.filter((inv) => inv.flavorset_id && flavorSets.some((fs) => fs.id === inv.flavorset_id)).map((inv) => {
                 const fs = flavorSets.find((f) => f.id === inv.flavorset_id);
                 const pallets = Math.floor((inv.cases || 0) / 66);
                 const remainder = (inv.cases || 0) % 66;
