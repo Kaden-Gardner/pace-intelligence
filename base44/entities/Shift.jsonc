@@ -17,12 +17,13 @@
     },
     "popsicles_per_gallon": {
       "type": "number",
-      "title": "Pack Size (popsicles per gallon)",
-      "enum": [
-        24,
-        48
-      ],
+      "title": "Mold Size (popsicles per gallon)",
       "default": 24
+    },
+    "popsicles_per_case": {
+      "type": "number",
+      "title": "Case Size (popsicles per case)",
+      "default": 144
     },
     "flavorset_id": {
       "type": "string",

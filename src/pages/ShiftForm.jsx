@@ -17,6 +17,7 @@ export default function ShiftForm() {
   const [employees, setEmployees] = useState([]);
   const [flavors, setFlavors] = useState([]);
   const [flavorSets, setFlavorSets] = useState([]);
+  const [caseSizes, setCaseSizes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -25,6 +26,7 @@ export default function ShiftForm() {
     shift_time: "08:00",
     shift_duration: 8,
     popsicles_per_gallon: 24,
+    popsicles_per_case: 144,
     flavorset_id: "",
     flavorset_cases: 0,
     individual_flavor_1: "",
@@ -50,14 +52,16 @@ export default function ShiftForm() {
 
   useEffect(() => {
     async function load() {
-      const [e, f, fs] = await Promise.all([
+      const [e, f, fs, cs] = await Promise.all([
         base44.entities.Employee.list("name"),
         base44.entities.Flavor.list("name"),
         base44.entities.FlavorSet.list("name"),
+        base44.entities.CaseSize.list("name"),
       ]);
       setEmployees(e.filter((emp) => emp.active !== false));
       setFlavors(f);
       setFlavorSets(fs);
+      setCaseSizes(cs);
 
       if (editId) {
         const shifts = await base44.entities.Shift.filter({ id: editId });
@@ -87,6 +91,7 @@ export default function ShiftForm() {
             boxing_employee: s.boxing_employee || "",
             training_employees: s.training_employees || [],
             popsicles_per_gallon: s.popsicles_per_gallon || 24,
+            popsicles_per_case: s.popsicles_per_case || 144,
             starting_gallons_flavor_1: s.starting_gallons_flavor_1 || 0,
             starting_gallons_flavor_2: s.starting_gallons_flavor_2 || 0,
             starting_gallons_flavor_3: s.starting_gallons_flavor_3 || 0,
@@ -167,6 +172,7 @@ export default function ShiftForm() {
           updateForm={updateForm}
           flavors={flavors}
           flavorSets={flavorSets}
+          caseSizes={caseSizes}
         />
 
         {/* Positions */}

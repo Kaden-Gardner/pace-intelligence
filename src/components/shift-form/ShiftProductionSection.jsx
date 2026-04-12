@@ -1,13 +1,12 @@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export default function ShiftProductionSection({ form, updateForm, flavors, flavorSets }) {
-  // Find selected flavorset to show flavor names for starting gallons
+export default function ShiftProductionSection({ form, updateForm, flavors, flavorSets, caseSizes }) {
   const selectedSet = flavorSets.find((fs) => fs.id === form.flavorset_id);
   const flavorMap = {};
   flavors.forEach((f) => { flavorMap[f.id] = f; });
 
-  const setFlavors = selectedSet
+  const setFlavorIds = selectedSet
     ? [selectedSet.flavor_1, selectedSet.flavor_2, selectedSet.flavor_3, selectedSet.flavor_4].filter(Boolean)
     : [];
 
@@ -15,21 +14,49 @@ export default function ShiftProductionSection({ form, updateForm, flavors, flav
     <section className="bg-card rounded-2xl border border-border p-6 space-y-6">
       <h2 className="font-heading font-semibold text-lg">Production</h2>
 
-      {/* Pack size */}
+      {/* Mold size */}
       <div>
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">Pack Size (popsicles per gallon)</label>
+        <label className="text-xs font-medium text-muted-foreground mb-1 block">Mold Size (popsicles per gallon)</label>
         <Select
           value={String(form.popsicles_per_gallon || 24)}
           onValueChange={(v) => updateForm("popsicles_per_gallon", Number(v))}
         >
-          <SelectTrigger className="max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
+          <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="24">24 popsicles = 1 gallon</SelectItem>
             <SelectItem value="48">48 popsicles = 1 gallon</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Case size */}
+      <div>
+        <label className="text-xs font-medium text-muted-foreground mb-1 block">Case Size (popsicles per case)</label>
+        {caseSizes && caseSizes.length > 0 ? (
+          <Select
+            value={String(form.popsicles_per_case || 144)}
+            onValueChange={(v) => updateForm("popsicles_per_case", Number(v))}
+          >
+            <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {caseSizes.map((cs) => (
+                <SelectItem key={cs.id} value={String(cs.popsicles_per_case)}>
+                  {cs.name} — {cs.popsicles_per_case} pops/case
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <div className="flex items-center gap-2 max-w-xs">
+            <input
+              type="number" min="1" step="1"
+              value={form.popsicles_per_case || 144}
+              onChange={(e) => updateForm("popsicles_per_case", parseFloat(e.target.value) || 144)}
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">pops / case</span>
+          </div>
+        )}
       </div>
 
       {/* Flavorset + cases */}
@@ -52,16 +79,16 @@ export default function ShiftProductionSection({ form, updateForm, flavors, flav
       </div>
 
       {/* Starting gallons per flavor in the set */}
-      {selectedSet && setFlavors.length > 0 && (
+      {selectedSet && setFlavorIds.length > 0 && (
         <div>
           <h3 className="text-sm font-medium text-muted-foreground mb-3">Starting Gallons per Flavor (in flavorset)</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {setFlavors.map((flavorId, i) => {
+            {setFlavorIds.map((flavorId, i) => {
               const flavor = flavorMap[flavorId];
               const fieldKey = `starting_gallons_flavor_${i + 1}`;
               return (
                 <div key={flavorId}>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block flex items-center gap-1.5">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
                     {flavor && (
                       <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: flavor.color || "hsl(192 75% 42%)" }} />
                     )}

@@ -91,26 +91,22 @@ export default function Dashboard() {
   const avgCph = totalHours > 0 ? totalCases / totalHours : 0;
   const totalWaste = shifts.reduce((sum, s) => sum + (s.waste || 0), 0);
 
-  // Gallons: sum starting_gallons fields for each shift in period
+  // Gallons = cases * popsicles_per_case / popsicles_per_gallon
   const totalGallons = periodShifts.reduce((sum, s) => {
-    return sum +
-      (s.starting_gallons_flavor_1 || 0) +
-      (s.starting_gallons_flavor_2 || 0) +
-      (s.starting_gallons_flavor_3 || 0) +
-      (s.starting_gallons_flavor_4 || 0);
-  }, 0);
-  // Popsicles: gallons * popsicles_per_gallon
-  const totalPopsicles = periodShifts.reduce((sum, s) => {
+    const ppc = s.popsicles_per_case || 144;
     const ppg = s.popsicles_per_gallon || 24;
-    const gallons = (s.starting_gallons_flavor_1 || 0) + (s.starting_gallons_flavor_2 || 0) +
-      (s.starting_gallons_flavor_3 || 0) + (s.starting_gallons_flavor_4 || 0);
-    return sum + gallons * ppg;
+    return sum + getTotalCases(s) * ppc / ppg;
+  }, 0);
+  // Popsicles = cases * popsicles_per_case
+  const totalPopsicles = periodShifts.reduce((sum, s) => {
+    const ppc = s.popsicles_per_case || 144;
+    return sum + getTotalCases(s) * ppc;
   }, 0);
   const productionDisplay = productionUnit === "gallons"
     ? totalGallons.toLocaleString(undefined, { maximumFractionDigits: 2 })
     : totalPopsicles.toLocaleString();
 
-  const weeklyData = getWeeklyProductionData(periodShifts);
+  const weeklyData = getWeeklyProductionData(shifts);
 
   // Individual flavor breakdown
   const flavorMap = {};
