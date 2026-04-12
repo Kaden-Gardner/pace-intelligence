@@ -1,6 +1,13 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { BarChart3, Users, Package, TrendingUp, Award, Trash2 } from "lucide-react";
+import StatCard from "../components/StatCard";
+import WeeklyChart from "../components/dashboard/WeeklyChart";
+import DreamTeamCard from "../components/dashboard/DreamTeamCard";
+import TopEmployeesCard from "../components/dashboard/TopEmployeesCard";
+import BestPairingsCard from "../components/dashboard/BestPairingsCard";
+import FlavorBreakdownCard from "../components/dashboard/FlavorBreakdownCard";
+import EmptyState from "../components/EmptyState";
 import {
   getTotalCases,
   getCasesPerHour,
