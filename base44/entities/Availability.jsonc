@@ -6,6 +6,10 @@
       "type": "string",
       "title": "User ID"
     },
+    "employee_id": {
+      "type": "string",
+      "title": "Employee ID"
+    },
     "employee_number": {
       "type": "string",
       "title": "Employee Number"

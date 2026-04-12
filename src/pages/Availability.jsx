@@ -83,7 +83,8 @@ export default function Availability() {
       ...form,
       date: ds,
       user_id: user.id,
-      employee_number: user.employee_number || "",
+      employee_id: linkedEmployee?.id || "",
+      employee_number: linkedEmployee?.employee_number || user.employee_number || "",
       employee_name: linkedEmployee?.name || user?.full_name || "",
     };
 

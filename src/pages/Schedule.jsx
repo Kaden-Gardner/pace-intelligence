@@ -54,8 +54,12 @@ export default function Schedule() {
   function getSuggestedEmployees(date) {
     const ds = format(date, "yyyy-MM-dd");
     const availOnDate = availabilities.filter((a) => a.date === ds && a.is_available);
-    const availableEmpNumbers = availOnDate.map((a) => a.employee_number).filter(Boolean);
-    const availableEmps = employees.filter((e) => availableEmpNumbers.includes(e.employee_number));
+    const availableEmps = employees.filter((e) =>
+      availOnDate.some((a) =>
+        (a.employee_id && a.employee_id === e.id) ||
+        (a.employee_number && a.employee_number === e.employee_number)
+      )
+    );
 
     // Cross-reference with dream team
     const dreamTeam = findDreamTeam(shifts, employees);
@@ -251,7 +255,10 @@ export default function Schedule() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {employees.map((emp) => {
                   const isChecked = (form.assigned_employees || []).includes(emp.id);
-                  const avail = availOnSelected.find((a) => a.employee_number === emp.employee_number);
+                  const avail = availOnSelected.find((a) =>
+                    (a.employee_id && a.employee_id === emp.id) ||
+                    (a.employee_number && a.employee_number === emp.employee_number)
+                  );
                   const dreamTeam = findDreamTeam(shifts, employees);
                   const isDream = dreamTeam.some((e) => e.id === emp.id);
                   return (
