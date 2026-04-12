@@ -38,7 +38,7 @@ export default function Availability() {
 
   const myAvailabilities = availabilities.filter((a) => a.user_id === user?.id);
   const displayAvailabilities = isAdmin
-    ? (selectedEmployeeFilter === "all" ? availabilities : availabilities.filter((a) => a.employee_number === selectedEmployeeFilter))
+    ? (selectedEmployeeFilter === "all" ? availabilities : availabilities.filter((a) => a.user_id === selectedEmployeeFilter))
     : myAvailabilities;
 
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
@@ -115,9 +115,16 @@ export default function Availability() {
     </div>
   );
 
-  // Unique employees who submitted availability (for admin filter)
-  const availableEmployeeNumbers = [...new Set(availabilities.map((a) => a.employee_number).filter(Boolean))];
-  const availableEmployees = employees.filter((e) => availableEmployeeNumbers.includes(e.employee_number));
+  // Unique users who submitted availability (for admin filter) - key by user_id
+  const availableUserIds = [...new Set(availabilities.map((a) => a.user_id).filter(Boolean))];
+  // Build a display list: employee name if linked, or availability record name/email
+  const availableFilters = availableUserIds.map((uid) => {
+    const sample = availabilities.find((a) => a.user_id === uid);
+    return {
+      user_id: uid,
+      label: sample?.employee_name || sample?.created_by?.split("@")[0] || uid,
+    };
+  });
 
   return (
     <div>
@@ -128,7 +135,7 @@ export default function Availability() {
         </p>
       </div>
 
-      {isAdmin && availableEmployees.length > 0 && (
+      {isAdmin && availableFilters.length > 0 && (
         <div className="mb-6 flex flex-wrap gap-2">
           <button
             onClick={() => setSelectedEmployeeFilter("all")}
@@ -136,13 +143,13 @@ export default function Availability() {
           >
             All Employees
           </button>
-          {availableEmployees.map((emp) => (
+          {availableFilters.map((f) => (
             <button
-              key={emp.id}
-              onClick={() => setSelectedEmployeeFilter(emp.employee_number)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selectedEmployeeFilter === emp.employee_number ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+              key={f.user_id}
+              onClick={() => setSelectedEmployeeFilter(f.user_id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${selectedEmployeeFilter === f.user_id ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
             >
-              {emp.name}
+              {f.label}
             </button>
           ))}
         </div>
@@ -198,7 +205,7 @@ export default function Availability() {
                     <div className="flex flex-col gap-0.5">
                       {avails.slice(0, 3).map((a, i) => (
                         <span key={i} className={`text-xs px-1 rounded truncate ${a.is_available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                          {a.employee_name?.split(" ")[0] || a.employee_number}
+                          {a.employee_name?.split(" ")[0] || a.employee_number || a.created_by?.split("@")[0] || "?"}
                         </span>
                       ))}
                       {avails.length > 3 && <span className="text-xs text-muted-foreground">+{avails.length - 3}</span>}
