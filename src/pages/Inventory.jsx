@@ -13,6 +13,8 @@ import {
 import EmptyState from "../components/EmptyState";
 import { getDefaultFreezerId, setDefaultFreezerId, syncToDefaultFreezer } from "../lib/freezerSync";
 
+const GALLONS_PER_BATCH = 240;
+
 const CASES_PER_PALLET = 66;
 
 export default function Inventory() {
@@ -22,6 +24,7 @@ export default function Inventory() {
   const [pickups, setPickups] = useState([]);
   const [freezers, setFreezers] = useState([]);
   const [freezerItems, setFreezerItems] = useState([]);
+  const [baseInventory, setBaseInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [defaultFreezer, setDefaultFreezer] = useState(() => getDefaultFreezerId());
 
@@ -54,13 +57,14 @@ export default function Inventory() {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [fs, fl, inv, pk, frz, fi] = await Promise.all([
+    const [fs, fl, inv, pk, frz, fi, bi] = await Promise.all([
       base44.entities.FlavorSet.list("name"),
       base44.entities.Flavor.list("name"),
       base44.entities.Inventory.list(),
       base44.entities.OrderPickup.list("-pickup_date", 100),
       base44.entities.Freezer.list("name"),
       base44.entities.FreezerItem.list(),
+      base44.entities.BaseInventory.list(),
     ]);
     setFlavorSets(fs);
     setFlavors(fl);
@@ -68,6 +72,7 @@ export default function Inventory() {
     setPickups(pk);
     setFreezers(frz);
     setFreezerItems(fi);
+    setBaseInventory(bi);
     setLoading(false);
   }
 
@@ -262,6 +267,7 @@ export default function Inventory() {
       <Tabs defaultValue="inventory">
         <TabsList className="mb-6">
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
+          <TabsTrigger value="base">Base on Hand</TabsTrigger>
           <TabsTrigger value="freezers">Freezers</TabsTrigger>
           <TabsTrigger value="pickups">Order Pickups</TabsTrigger>
         </TabsList>
@@ -446,6 +452,36 @@ export default function Inventory() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        {/* ====== BASE ON HAND TAB ====== */}
+        <TabsContent value="base">
+          <p className="text-sm text-muted-foreground mb-6">Gallons of base on hand per flavorset. Updated automatically from base mixing shifts and deducted by production shifts.</p>
+          {baseInventory.filter((bi) => flavorSets.some((fs) => fs.id === bi.flavorset_id)).length === 0 ? (
+            <EmptyState icon={Package} title="No base inventory" description="Base inventory is automatically tracked from base mixing shifts." />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {baseInventory.filter((bi) => flavorSets.some((fs) => fs.id === bi.flavorset_id)).map((bi) => {
+                const fs = fsMap[bi.flavorset_id];
+                const batches = (bi.gallons || 0) / GALLONS_PER_BATCH;
+                return (
+                  <div key={bi.id} className="bg-card rounded-2xl border border-border p-5">
+                    <h4 className="font-heading font-semibold mb-3">{fs?.name || "Unknown"}</h4>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-muted rounded-xl p-3 text-center">
+                        <p className="text-2xl font-heading font-bold">{batches.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Batches</p>
+                      </div>
+                      <div className="bg-muted rounded-xl p-3 text-center">
+                        <p className="text-2xl font-heading font-bold">{bi.gallons || 0}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Gallons</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </TabsContent>
 
         {/* ====== FREEZERS TAB ====== */}

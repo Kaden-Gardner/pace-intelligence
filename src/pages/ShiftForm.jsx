@@ -163,6 +163,40 @@ export default function ShiftForm() {
       }
     }
 
+    // Subtract base gallons used in this production shift
+    if (payload.flavorset_id) {
+      const galFields = [
+        payload.starting_gallons_flavor_1 || 0,
+        payload.starting_gallons_flavor_2 || 0,
+        payload.starting_gallons_flavor_3 || 0,
+        payload.starting_gallons_flavor_4 || 0,
+      ];
+      const totalGallonsUsed = galFields.reduce((sum, g) => sum + g, 0);
+
+      if (totalGallonsUsed > 0) {
+        let previousGallonsUsed = 0;
+        if (editId) {
+          const old = await base44.entities.Shift.filter({ id: editId });
+          if (old.length > 0) {
+            previousGallonsUsed = [
+              old[0].starting_gallons_flavor_1 || 0,
+              old[0].starting_gallons_flavor_2 || 0,
+              old[0].starting_gallons_flavor_3 || 0,
+              old[0].starting_gallons_flavor_4 || 0,
+            ].reduce((s, g) => s + g, 0);
+          }
+        }
+        const baseInvRows = await base44.entities.BaseInventory.filter({ flavorset_id: payload.flavorset_id });
+        if (baseInvRows.length > 0) {
+          const currentGallons = baseInvRows[0].gallons || 0;
+          const net = editId
+            ? currentGallons + previousGallonsUsed - totalGallonsUsed
+            : currentGallons - totalGallonsUsed;
+          await base44.entities.BaseInventory.update(baseInvRows[0].id, { gallons: Math.max(0, net) });
+        }
+      }
+    }
+
     // Update inventory for individual flavor cases
     const indFlavors = [
       { id: payload.individual_flavor_1, cases: payload.individual_flavor_1_cases || 0 },
@@ -176,7 +210,6 @@ export default function ShiftForm() {
       if (existing.length > 0) {
         let base = existing[0].cases || 0;
         if (editId) {
-          // Find old cases for this flavor from the old shift
           const oldShiftData = editId ? await base44.entities.Shift.filter({ id: editId }) : [];
           const oldShift = oldShiftData.length > 0 ? oldShiftData[0] : {};
           const oldCases = [
