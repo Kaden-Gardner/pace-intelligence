@@ -1,0 +1,17 @@
+{
+  "name": "Freezer",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Freezer Name"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

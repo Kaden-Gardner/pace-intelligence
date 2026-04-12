@@ -4,7 +4,11 @@
   "properties": {
     "flavorset_id": {
       "type": "string",
-      "title": "Flavorset"
+      "title": "Flavorset (for case sets)"
+    },
+    "flavor_id": {
+      "type": "string",
+      "title": "Flavor (for individual cases)"
     },
     "cases": {
       "type": "number",
@@ -12,7 +16,5 @@
       "default": 0
     }
   },
-  "required": [
-    "flavorset_id"
-  ]
+  "required": []
 }

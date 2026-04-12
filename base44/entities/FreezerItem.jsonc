@@ -1,0 +1,36 @@
+{
+  "name": "FreezerItem",
+  "type": "object",
+  "properties": {
+    "freezer_id": {
+      "type": "string",
+      "title": "Freezer"
+    },
+    "type": {
+      "type": "string",
+      "title": "Type",
+      "enum": [
+        "pallet",
+        "individual"
+      ]
+    },
+    "flavorset_id": {
+      "type": "string",
+      "title": "Flavorset (for pallets)"
+    },
+    "flavor_id": {
+      "type": "string",
+      "title": "Flavor (for individual cases)"
+    },
+    "quantity": {
+      "type": "number",
+      "title": "Quantity (pallets or cases)",
+      "default": 0
+    }
+  },
+  "required": [
+    "freezer_id",
+    "type",
+    "quantity"
+  ]
+}

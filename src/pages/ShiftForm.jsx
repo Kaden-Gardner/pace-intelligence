@@ -138,7 +138,6 @@ export default function ShiftForm() {
     if (payload.flavorset_id) {
       const allInv = await base44.entities.Inventory.filter({ flavorset_id: payload.flavorset_id });
       const newCases = payload.flavorset_cases || 0;
-
       if (allInv.length > 0) {
         let base = allInv[0].cases || 0;
         if (editId && previousFlavorsetId === payload.flavorset_id) {
@@ -157,6 +156,38 @@ export default function ShiftForm() {
       const oldInv = await base44.entities.Inventory.filter({ flavorset_id: previousFlavorsetId });
       if (oldInv.length > 0) {
         await base44.entities.Inventory.update(oldInv[0].id, { cases: Math.max(0, (oldInv[0].cases || 0) - previousFlavorsetCases) });
+      }
+    }
+
+    // Update inventory for individual flavor cases
+    const indFlavors = [
+      { id: payload.individual_flavor_1, cases: payload.individual_flavor_1_cases || 0 },
+      { id: payload.individual_flavor_2, cases: payload.individual_flavor_2_cases || 0 },
+      { id: payload.individual_flavor_3, cases: payload.individual_flavor_3_cases || 0 },
+      { id: payload.individual_flavor_4, cases: payload.individual_flavor_4_cases || 0 },
+    ].filter((f) => f.id);
+
+    for (const { id: flavorId, cases: newCases } of indFlavors) {
+      const existing = await base44.entities.Inventory.filter({ flavor_id: flavorId });
+      if (existing.length > 0) {
+        let base = existing[0].cases || 0;
+        if (editId) {
+          // Find old cases for this flavor from the old shift
+          const oldShiftData = editId ? await base44.entities.Shift.filter({ id: editId }) : [];
+          const oldShift = oldShiftData.length > 0 ? oldShiftData[0] : {};
+          const oldCases = [
+            [oldShift.individual_flavor_1, oldShift.individual_flavor_1_cases],
+            [oldShift.individual_flavor_2, oldShift.individual_flavor_2_cases],
+            [oldShift.individual_flavor_3, oldShift.individual_flavor_3_cases],
+            [oldShift.individual_flavor_4, oldShift.individual_flavor_4_cases],
+          ].find(([id]) => id === flavorId)?.[1] || 0;
+          base = base - oldCases + newCases;
+        } else {
+          base = base + newCases;
+        }
+        await base44.entities.Inventory.update(existing[0].id, { cases: Math.max(0, base) });
+      } else {
+        await base44.entities.Inventory.create({ flavor_id: flavorId, cases: newCases });
       }
     }
 
