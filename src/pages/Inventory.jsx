@@ -54,6 +54,25 @@ export default function Inventory() {
 
   const [saving, setSaving] = useState(false);
 
+  // Password gate for default freezer
+  const [freezerPwOpen, setFreezerPwOpen] = useState(false);
+  const [freezerPwInput, setFreezerPwInput] = useState("");
+  const [freezerPwError, setFreezerPwError] = useState("");
+  const [freezerPwTarget, setFreezerPwTarget] = useState(null);
+  const [freezerSelectUnlocked, setFreezerSelectUnlocked] = useState(false);
+
+  function openFreezerPw() {
+    setFreezerPwInput("");
+    setFreezerPwError("");
+    setFreezerPwOpen(true);
+  }
+
+  function confirmFreezerPw() {
+    if (freezerPwInput !== "ecap") { setFreezerPwError("Incorrect password."); return; }
+    setFreezerPwOpen(false);
+    setFreezerSelectUnlocked(true);
+  }
+
   useEffect(() => { load(); }, []);
 
   async function load() {
@@ -285,13 +304,20 @@ export default function Inventory() {
                 </span>
               </span>
             </div>
-            <Select value={defaultFreezer || ""} onValueChange={(v) => handleSetDefault(v || null)}>
-              <SelectTrigger className="w-full sm:w-48 h-8 text-xs"><SelectValue placeholder="Set default freezer" /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>None</SelectItem>
-                {freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            {freezerSelectUnlocked ? (
+              <div className="flex items-center gap-2">
+                <Select value={defaultFreezer || ""} onValueChange={(v) => handleSetDefault(v || null)}>
+                  <SelectTrigger className="w-full sm:w-48 h-8 text-xs"><SelectValue placeholder="Set default freezer" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={null}>None</SelectItem>
+                    {freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => setFreezerSelectUnlocked(false)}>Lock</Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" className="text-xs h-8 gap-1" onClick={openFreezerPw}>🔒 Change</Button>
+            )}
           </div>
 
           <div className="flex justify-end mb-4">
@@ -740,6 +766,29 @@ export default function Inventory() {
           )}
         </TabsContent>
       </Tabs>
+
+      {freezerPwOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h3 className="font-heading font-semibold text-lg mb-1">Change Default Freezer</h3>
+            <p className="text-sm text-muted-foreground mb-4">Enter the admin password to continue.</p>
+            <input
+              type="password"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mb-2"
+              placeholder="Admin password"
+              value={freezerPwInput}
+              onChange={(e) => { setFreezerPwInput(e.target.value); setFreezerPwError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && confirmFreezerPw()}
+              autoFocus
+            />
+            {freezerPwError && <p className="text-xs text-destructive mb-2">{freezerPwError}</p>}
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setFreezerPwOpen(false)}>Cancel</Button>
+              <Button size="sm" onClick={confirmFreezerPw}>Confirm</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
