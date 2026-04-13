@@ -45,10 +45,7 @@ export default function Layout() {
       {/* Mobile Header */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-sidebar border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-            <IceCreamCone className="w-4 h-4 text-primary-foreground" />
-          </div>
-          <span className="font-heading font-bold text-sidebar-foreground text-lg">Pace Intelligence</span>
+          <img src="https://media.base44.com/images/public/69daba0a36b037ad40a9ae2d/4ee4e771c_PaceL-removebg-preview.png" alt="Pace Bars" className="h-8 w-auto" />
         </div>
         <button onClick={() => setMobileOpen(!mobileOpen)} className="text-sidebar-foreground">
           {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -62,15 +59,7 @@ export default function Layout() {
         mobileOpen ? "flex absolute inset-0 top-[65px] z-50" : "hidden"
       )}>
         <div className="p-6 hidden lg:block">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <IceCreamCone className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <h1 className="font-heading font-bold text-sidebar-foreground text-lg leading-tight">Pace</h1>
-              <p className="text-xs text-sidebar-foreground/60 font-medium">Intelligence</p>
-            </div>
-          </div>
+          <img src="https://media.base44.com/images/public/69daba0a36b037ad40a9ae2d/4ee4e771c_PaceL-removebg-preview.png" alt="Pace Bars" className="h-12 w-auto" />
         </div>
 
         <nav className="flex-1 px-3 py-2 space-y-1">
