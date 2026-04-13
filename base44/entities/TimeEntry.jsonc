@@ -1,0 +1,41 @@
+{
+  "name": "TimeEntry",
+  "type": "object",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "title": "User ID"
+    },
+    "employee_id": {
+      "type": "string",
+      "title": "Employee ID"
+    },
+    "employee_name": {
+      "type": "string",
+      "title": "Employee Name"
+    },
+    "employee_number": {
+      "type": "string",
+      "title": "Employee Number"
+    },
+    "clock_in": {
+      "type": "string",
+      "title": "Clock In (ISO datetime)"
+    },
+    "clock_out": {
+      "type": "string",
+      "title": "Clock Out (ISO datetime)"
+    },
+    "total_hours": {
+      "type": "number",
+      "title": "Total Hours"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "clock_in"
+  ]
+}

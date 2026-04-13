@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Users, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Check, X, Star } from "lucide-react";
+import { getBestPosition } from "../lib/analyticsHelpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -19,6 +20,7 @@ import {
 
 export default function Employees() {
   const [employees, setEmployees] = useState([]);
+  const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
@@ -26,8 +28,12 @@ export default function Employees() {
 
   useEffect(() => {
     async function load() {
-      const data = await base44.entities.Employee.list("name", 500);
+      const [data, prodShifts] = await Promise.all([
+        base44.entities.Employee.list("name", 500),
+        base44.entities.Shift.list("-shift_date", 500),
+      ]);
       setEmployees(data);
+      setShifts(prodShifts);
       setLoading(false);
     }
     load();
@@ -123,51 +129,59 @@ export default function Employees() {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {employees.map((emp) => (
-            <div
-              key={emp.id}
-              className="bg-card rounded-2xl border border-border p-5 hover:shadow-md transition-shadow"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary">
-                    {emp.name?.charAt(0) || "?"}
+          {employees.map((emp) => {
+            const bestPos = getBestPosition(shifts, emp.id);
+            return (
+              <div
+                key={emp.id}
+                className="bg-card rounded-2xl border border-border p-5 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary">
+                      {emp.name?.charAt(0) || "?"}
+                    </div>
+                    <div>
+                      <p className="font-medium">{emp.name}</p>
+                      <p className="text-xs text-muted-foreground">#{emp.employee_number}</p>
+                      {bestPos && (
+                        <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
+                          <Star className="w-3 h-3" />{bestPos}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{emp.name}</p>
-                    <p className="text-xs text-muted-foreground">#{emp.employee_number}</p>
+                  <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${emp.active !== false ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
+                    {emp.active !== false ? "Active" : "Inactive"}
                   </div>
                 </div>
-                <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${emp.active !== false ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
-                  {emp.active !== false ? "Active" : "Inactive"}
+                <div className="flex gap-2 mt-4">
+                  <Button variant="ghost" size="sm" onClick={() => startEdit(emp)} className="gap-1 text-xs">
+                    <Pencil className="w-3 h-3" /> Edit
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="ghost" size="sm" className="gap-1 text-xs text-destructive hover:text-destructive">
+                        <Trash2 className="w-3 h-3" /> Delete
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+                        <AlertDialogDescription>Remove {emp.name} from the system? Past shift data will retain their ID.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleDelete(emp.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
               </div>
-              <div className="flex gap-2 mt-4">
-                <Button variant="ghost" size="sm" onClick={() => startEdit(emp)} className="gap-1 text-xs">
-                  <Pencil className="w-3 h-3" /> Edit
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="ghost" size="sm" className="gap-1 text-xs text-destructive hover:text-destructive">
-                      <Trash2 className="w-3 h-3" /> Delete
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Employee</AlertDialogTitle>
-                      <AlertDialogDescription>Remove {emp.name} from the system? Past shift data will retain their ID.</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleDelete(emp.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

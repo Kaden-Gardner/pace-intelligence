@@ -135,6 +135,26 @@ export function findBestPairings(shifts, employees) {
     .slice(0, 5);
 }
 
+export function getBestPosition(shifts, employeeId) {
+  const positionCph = {};
+  shifts.forEach((shift) => {
+    const positions = getEmployeePosition(shift, employeeId);
+    const cph = getCasesPerHour(shift);
+    positions.forEach((pos) => {
+      if (!positionCph[pos]) positionCph[pos] = { total: 0, count: 0 };
+      positionCph[pos].total += cph;
+      positionCph[pos].count += 1;
+    });
+  });
+  let best = null;
+  let bestAvg = 0;
+  Object.entries(positionCph).forEach(([pos, data]) => {
+    const avg = data.total / data.count;
+    if (avg > bestAvg) { bestAvg = avg; best = pos; }
+  });
+  return best;
+}
+
 export function getWeeklyProductionData(shifts) {
   const now = new Date();
   const days = [];
