@@ -24,7 +24,7 @@ export default function Flavors() {
   // FlavorSet form
   const [showSetForm, setShowSetForm] = useState(false);
   const [editingSetId, setEditingSetId] = useState(null);
-  const [setForm, setSetForm] = useState({ name: "", flavor_1: "", flavor_2: "", flavor_3: "", flavor_4: "" });
+  const [setForm, setSetForm] = useState({ name: "", color: "", flavor_1: "", flavor_2: "", flavor_3: "", flavor_4: "" });
 
   useEffect(() => {
     async function load() {
@@ -81,7 +81,7 @@ export default function Flavors() {
   }
 
   function resetSetForm() {
-    setSetForm({ name: "", flavor_1: "", flavor_2: "", flavor_3: "", flavor_4: "" });
+    setSetForm({ name: "", color: "", flavor_1: "", flavor_2: "", flavor_3: "", flavor_4: "" });
     setEditingSetId(null);
     setShowSetForm(false);
   }
@@ -196,9 +196,16 @@ export default function Flavors() {
             <div className="bg-card rounded-2xl border border-border p-6 mb-6">
               <h3 className="font-heading font-semibold mb-4">{editingSetId ? "Edit" : "New"} Flavorset</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
+                <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Set Name</label>
                   <Input value={setForm.name} onChange={(e) => setSetForm({ ...setForm, name: e.target.value })} placeholder="Summer Mix" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Chart Color</label>
+                  <div className="flex gap-2">
+                    <input type="color" value={setForm.color || "#f59e0b"} onChange={(e) => setSetForm({ ...setForm, color: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                    <Input value={setForm.color} onChange={(e) => setSetForm({ ...setForm, color: e.target.value })} placeholder="#f59e0b" className="flex-1" />
+                  </div>
                 </div>
                 {[1, 2, 3, 4].map((n) => (
                   <div key={n}>
@@ -229,7 +236,10 @@ export default function Flavors() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {flavorSets.map((fs) => (
                 <div key={fs.id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-md transition-shadow">
-                  <h4 className="font-heading font-semibold mb-3">{fs.name}</h4>
+                  <div className="flex items-center gap-2 mb-3">
+                    {fs.color && <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: fs.color }} />}
+                    <h4 className="font-heading font-semibold">{fs.name}</h4>
+                  </div>
                   <div className="flex flex-wrap gap-2 mb-4">
                     {[fs.flavor_1, fs.flavor_2, fs.flavor_3, fs.flavor_4].filter(Boolean).map((fId, i) => {
                       const fl = flavorMap[fId];
@@ -243,7 +253,7 @@ export default function Flavors() {
                   </div>
                   <div className="flex gap-2">
                     <Button variant="ghost" size="sm" className="text-xs" onClick={() => {
-                      setSetForm({ name: fs.name, flavor_1: fs.flavor_1 || "", flavor_2: fs.flavor_2 || "", flavor_3: fs.flavor_3 || "", flavor_4: fs.flavor_4 || "" });
+                      setSetForm({ name: fs.name, color: fs.color || "", flavor_1: fs.flavor_1 || "", flavor_2: fs.flavor_2 || "", flavor_3: fs.flavor_3 || "", flavor_4: fs.flavor_4 || "" });
                       setEditingSetId(fs.id);
                       setShowSetForm(true);
                     }}>

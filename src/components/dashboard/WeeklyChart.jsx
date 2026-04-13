@@ -1,16 +1,16 @@
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import { getTotalCases } from "../../lib/analyticsHelpers";
 
-// Brand-themed palette matching Pace Bars logo/design system
+// Brand-themed fallback palette (used when flavorset has no color set)
 const FLAVORSET_COLORS = [
-  "hsl(3 79% 51%)",    // primary red
-  "hsl(285 63% 49%)",  // accent purple
-  "hsl(192 75% 42%)",  // teal
-  "hsl(40 85% 55%)",   // amber
-  "hsl(160 50% 45%)",  // green
-  "hsl(210 70% 55%)",  // blue
-  "hsl(20 80% 55%)",   // orange
-  "hsl(300 50% 50%)",  // magenta
+  "#f59e0b",  // amber (original)
+  "#dc2626",  // red (juice)
+  "#7c3aed",  // purple (individual)
+  "#0d9488",  // teal
+  "#16a34a",  // green
+  "#2563eb",  // blue
+  "#ea580c",  // orange
+  "#db2777",  // pink
 ];
 
 export default function WeeklyChart({ data, shifts = [], flavorSets = [] }) {
@@ -34,6 +34,11 @@ export default function WeeklyChart({ data, shifts = [], flavorSets = [] }) {
   const keys = flavorSets.map((fs) => fs.name);
   if (shifts.some((s) => (s.individual_flavor_1_cases || 0) + (s.individual_flavor_2_cases || 0) + (s.individual_flavor_3_cases || 0) + (s.individual_flavor_4_cases || 0) > 0)) {
     keys.push("Individual");
+  }
+
+  function getFlavorsetColor(name, i) {
+    const fs = flavorSets.find((f) => f.name === name);
+    return fs?.color || FLAVORSET_COLORS[i % FLAVORSET_COLORS.length];
   }
 
   // Fallback: if no flavorsets, show plain bar
@@ -63,11 +68,10 @@ export default function WeeklyChart({ data, shifts = [], flavorSets = [] }) {
                     key={key}
                     dataKey={key}
                     stackId="a"
-                    fill={FLAVORSET_COLORS[i % FLAVORSET_COLORS.length]}
+                    fill={getFlavorsetColor(key, i)}
                     radius={i === keys.length - 1 ? [8, 8, 0, 0] : [0, 0, 0, 0]}
                   />
                 ))}
-                <Legend />
               </>
             ) : (
               <Bar dataKey="cases" fill="hsl(3 79% 51%)" radius={[8, 8, 0, 0]} />

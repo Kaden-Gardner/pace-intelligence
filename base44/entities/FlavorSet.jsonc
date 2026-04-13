@@ -6,6 +6,11 @@
       "type": "string",
       "title": "Flavorset Name"
     },
+    "color": {
+      "type": "string",
+      "title": "Chart Color (hex)",
+      "description": "Color used in dashboard charts"
+    },
     "flavor_1": {
       "type": "string",
       "title": "Flavor 1"
