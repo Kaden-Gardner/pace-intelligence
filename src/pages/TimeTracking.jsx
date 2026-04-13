@@ -121,11 +121,16 @@ export default function TimeTracking() {
       setDeleteError(true);
       return;
     }
-    await base44.entities.TimeEntry.delete(entry.id);
-    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
-    setDeleteTarget(null);
-    setDeletePassword("");
-    setDeleteError(false);
+    try {
+      await base44.entities.TimeEntry.delete(entry.id);
+      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+      setDeleteTarget(null);
+      setDeletePassword("");
+      setDeleteError(false);
+    } catch (err) {
+      console.error("Delete failed:", err);
+      setDeleteError("failed");
+    }
   }
 
   async function saveEdit(entry) {
@@ -340,7 +345,8 @@ export default function TimeTracking() {
               onKeyDown={(e) => e.key === "Enter" && handleDelete(deleteTarget)}
               className={deleteError ? "border-destructive" : ""}
             />
-            {deleteError && <p className="text-xs text-destructive mt-1">Incorrect password.</p>}
+            {deleteError === true && <p className="text-xs text-destructive mt-1">Incorrect password.</p>}
+            {deleteError === "failed" && <p className="text-xs text-destructive mt-1">Delete failed — you may not have permission to delete this entry.</p>}
             <div className="flex gap-2 mt-4">
               <Button variant="destructive" onClick={() => handleDelete(deleteTarget)} className="gap-2">
                 <Trash2 className="w-4 h-4" /> Delete
