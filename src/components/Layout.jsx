@@ -45,7 +45,7 @@ export default function Layout() {
       {/* Mobile Header */}
       <div className="lg:hidden flex items-center justify-between p-4 bg-sidebar border-b border-sidebar-border">
         <div className="flex items-center gap-3">
-          <img src="https://media.base44.com/images/public/69daba0a36b037ad40a9ae2d/4ee4e771c_PaceL-removebg-preview.png" alt="Pace Bars" className="h-12 w-auto" />
+          <img src="https://media.base44.com/images/public/69daba0a36b037ad40a9ae2d/4ee4e771c_PaceL-removebg-preview.png" alt="Pace Bars" className="w-full h-auto" />
         </div>
         <button onClick={() => setMobileOpen(!mobileOpen)} className="text-sidebar-foreground">
           {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -59,7 +59,7 @@ export default function Layout() {
         mobileOpen ? "flex absolute inset-0 top-[65px] z-50" : "hidden"
       )}>
         <div className="p-6 hidden lg:block">
-          <img src="https://media.base44.com/images/public/69daba0a36b037ad40a9ae2d/4ee4e771c_PaceL-removebg-preview.png" alt="Pace Bars" className="h-16 w-auto" />
+          <img src="https://media.base44.com/images/public/69daba0a36b037ad40a9ae2d/4ee4e771c_PaceL-removebg-preview.png" alt="Pace Bars" className="w-full h-auto" />
         </div>
 
         <nav className="flex-1 px-3 py-2 space-y-1">
