@@ -116,7 +116,8 @@ export default function Dashboard() {
 
   // Individual flavor breakdown
   const flavorMap = {};
-  flavors.forEach(f => { flavorMap[f.id] = f.name; });
+  const flavorColorMap = {};
+  flavors.forEach(f => { flavorMap[f.id] = f.name; if (f.color) flavorColorMap[f.name] = f.color; });
   
   const flavorCases = {};
   shifts.forEach((s) => {
@@ -186,7 +187,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <WeeklyChart data={weeklyData} />
+        <WeeklyChart data={weeklyData} shifts={shifts} flavorSets={flavorSets} />
       </div>
 
       {/* Team Performance */}
@@ -202,7 +203,7 @@ export default function Dashboard() {
       {/* Flavor Breakdown */}
       <div>
         <h2 className="font-heading font-semibold text-lg mb-4">Flavor Breakdown</h2>
-        <FlavorBreakdownCard flavorCases={flavorCases} />
+        <FlavorBreakdownCard flavorCases={flavorCases} flavorColorMap={flavorColorMap} />
       </div>
 
       {/* Inventory Summary */}

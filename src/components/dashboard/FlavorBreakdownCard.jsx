@@ -1,7 +1,7 @@
 import { IceCreamCone } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
-const COLORS = [
+const FALLBACK_COLORS = [
   "hsl(192 75% 42%)",
   "hsl(340 65% 55%)",
   "hsl(160 50% 45%)",
@@ -12,9 +12,13 @@ const COLORS = [
   "hsl(300 50% 50%)",
 ];
 
-export default function FlavorBreakdownCard({ flavorCases }) {
+export default function FlavorBreakdownCard({ flavorCases, flavorColorMap = {} }) {
   const data = Object.entries(flavorCases).map(([name, cases]) => ({ name, cases }));
   data.sort((a, b) => b.cases - a.cases);
+
+  function getColor(name, i) {
+    return flavorColorMap[name] || FALLBACK_COLORS[i % FALLBACK_COLORS.length];
+  }
 
   return (
     <div className="bg-card rounded-2xl border border-border p-6">
@@ -31,8 +35,8 @@ export default function FlavorBreakdownCard({ flavorCases }) {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={data} dataKey="cases" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40}>
-                  {data.map((_, i) => (
-                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  {data.map((item, i) => (
+                    <Cell key={i} fill={getColor(item.name, i)} />
                   ))}
                 </Pie>
                 <Tooltip />
@@ -42,7 +46,7 @@ export default function FlavorBreakdownCard({ flavorCases }) {
           <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
             {data.map((item, i) => (
               <div key={item.name} className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: getColor(item.name, i) }} />
                 <div>
                   <p className="text-sm font-medium">{item.name}</p>
                   <p className="text-xs text-muted-foreground">{item.cases.toLocaleString()} cases</p>
