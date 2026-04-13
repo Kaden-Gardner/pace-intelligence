@@ -21,11 +21,12 @@ export default function Schedule() {
   const [availabilities, setAvailabilities] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [shifts, setShifts] = useState([]);
+  const [flavorSets, setFlavorSets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(null);
   const [editShift, setEditShift] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ shift_time: "08:00", shift_duration: 8, mixer_employee: "", assigned_employees: [], on_call_employees: [], notes: "" });
+  const [form, setForm] = useState({ shift_time: "08:00", flavorset_id: "", mixer_employee: "", assigned_employees: [], on_call_employees: [], notes: "" });
 
   function getMixerArrivalTime(shiftTime) {
     if (!shiftTime) return "";
@@ -38,16 +39,18 @@ export default function Schedule() {
 
   useEffect(() => {
     async function load() {
-      const [ss, avails, emps, prodShifts] = await Promise.all([
+      const [ss, avails, emps, prodShifts, fs] = await Promise.all([
         base44.entities.ScheduledShift.list("-shift_date", 500),
         base44.entities.Availability.list("-date", 1000),
         base44.entities.Employee.list("name"),
         base44.entities.Shift.list("-shift_date", 500),
+        base44.entities.FlavorSet.list("name"),
       ]);
       setScheduledShifts(ss);
       setAvailabilities(avails);
       setEmployees(emps);
       setShifts(prodShifts);
+      setFlavorSets(fs);
       setLoading(false);
     }
     load();
@@ -92,7 +95,7 @@ export default function Schedule() {
     const suggested = getSuggestedEmployees(date);
     setForm({
       shift_time: "08:00",
-      shift_duration: 8,
+      flavorset_id: "",
       mixer_employee: "",
       assigned_employees: suggested.map((e) => e.id),
       on_call_employees: [],
@@ -106,7 +109,7 @@ export default function Schedule() {
     setEditShift(shift);
     setForm({
       shift_time: shift.shift_time || "08:00",
-      shift_duration: shift.shift_duration || 8,
+      flavorset_id: shift.flavorset_id || "",
       mixer_employee: shift.mixer_employee || "",
       assigned_employees: shift.assigned_employees || [],
       on_call_employees: shift.on_call_employees || [],
@@ -260,8 +263,14 @@ export default function Schedule() {
                 <Input type="time" value={form.shift_time} onChange={(e) => setForm((f) => ({ ...f, shift_time: e.target.value }))} required />
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Duration (hours)</label>
-                <Input type="number" min="0.5" step="0.5" value={form.shift_duration} onChange={(e) => setForm((f) => ({ ...f, shift_duration: parseFloat(e.target.value) || 8 }))} />
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Flavorset</label>
+                <Select value={form.flavorset_id || ""} onValueChange={(v) => setForm((f) => ({ ...f, flavorset_id: v === "none" ? "" : v }))}>
+                  <SelectTrigger><SelectValue placeholder="Select flavorset..." /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {flavorSets.map((fs) => <SelectItem key={fs.id} value={fs.id}>{fs.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -375,7 +384,7 @@ export default function Schedule() {
                   <p className="font-heading font-semibold">
                     {new Date(s.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                   </p>
-                  <p className="text-xs text-muted-foreground">{s.shift_time} · {s.shift_duration}h</p>
+                  <p className="text-xs text-muted-foreground">{s.shift_time}{s.flavorset_id && flavorSets.find(fs => fs.id === s.flavorset_id) ? ` · ${flavorSets.find(fs => fs.id === s.flavorset_id).name}` : ""}</p>
                 </div>
               </div>
               {s.mixer_employee && empMap[s.mixer_employee] && (
