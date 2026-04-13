@@ -1,4 +1,5 @@
 import { IceCreamCone } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
 
 const COLORS = [
   "hsl(192 75% 42%)",
@@ -14,8 +15,6 @@ const COLORS = [
 export default function FlavorBreakdownCard({ flavorCases }) {
   const data = Object.entries(flavorCases).map(([name, cases]) => ({ name, cases }));
   data.sort((a, b) => b.cases - a.cases);
-  const total = data.reduce((sum, d) => sum + d.cases, 0);
-  const max = data[0]?.cases || 1;
 
   return (
     <div className="bg-card rounded-2xl border border-border p-6">
@@ -27,28 +26,30 @@ export default function FlavorBreakdownCard({ flavorCases }) {
       {data.length === 0 ? (
         <p className="text-sm text-muted-foreground">No individual flavor data recorded yet</p>
       ) : (
-        <div className="space-y-4">
-          {data.map((item, i) => {
-            const pct = (item.cases / max) * 100;
-            const share = total > 0 ? ((item.cases / total) * 100).toFixed(1) : 0;
-            return (
-              <div key={item.name}>
-                <div className="flex items-center justify-between mb-1">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <p className="text-sm font-medium">{item.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm font-heading font-bold">{item.cases.toLocaleString()}</span>
-                    <span className="text-xs text-muted-foreground ml-1">cases ({share}%)</span>
-                  </div>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2.5">
-                  <div className="h-2.5 rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }} />
+        <div className="flex flex-col md:flex-row items-center gap-8">
+          <div className="w-48 h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={data} dataKey="cases" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40}>
+                  {data.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {data.map((item, i) => (
+              <div key={item.name} className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                <div>
+                  <p className="text-sm font-medium">{item.name}</p>
+                  <p className="text-xs text-muted-foreground">{item.cases.toLocaleString()} cases</p>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
     </div>
