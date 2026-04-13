@@ -14,6 +14,10 @@
       "type": "boolean",
       "title": "Active",
       "default": true
+    },
+    "favorite_flavor": {
+      "type": "string",
+      "title": "Favorite Popsicle Flavor"
     }
   },
   "required": [

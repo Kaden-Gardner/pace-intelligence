@@ -16,6 +16,7 @@ import BaseMixingShiftForm from './pages/BaseMixingShiftForm';
 import Availability from './pages/Availability';
 import Schedule from './pages/Schedule';
 import TimeTracking from './pages/TimeTracking';
+import MyInfo from './pages/MyInfo';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -57,6 +58,7 @@ const AuthenticatedApp = () => {
         <Route path="/availability" element={<Availability />} />
         <Route path="/schedule" element={<Schedule />} />
         <Route path="/time-tracking" element={<TimeTracking />} />
+        <Route path="/my-info" element={<MyInfo />} />
         <Route path="*" element={<PageNotFound />} />
       </Route>
     </Routes>

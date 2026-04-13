@@ -8,12 +8,15 @@
       "enum": [
         "admin",
         "user"
-      ],
-      "default": "user"
+      ]
     },
     "employee_number": {
       "type": "string",
       "title": "Employee Number"
+    },
+    "favorite_flavor": {
+      "type": "string",
+      "title": "Favorite Popsicle Flavor"
     }
   }
 }
