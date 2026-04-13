@@ -2,18 +2,23 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, IceCream, Hash, Save } from "lucide-react";
 
 export default function MyInfo() {
   const { user } = useAuth();
   const [favFlavor, setFavFlavor] = useState(user?.favorite_flavor || "");
+  const [flavors, setFlavors] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     setFavFlavor(user?.favorite_flavor || "");
   }, [user]);
+
+  useEffect(() => {
+    base44.entities.Flavor.list("name").then(setFlavors);
+  }, []);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -72,11 +77,16 @@ export default function MyInfo() {
                 <IceCream className="w-4 h-4 text-primary" />
                 <label className="text-sm font-medium">Favorite Popsicle Flavor</label>
               </div>
-              <Input
-                value={favFlavor}
-                onChange={(e) => setFavFlavor(e.target.value)}
-                placeholder="e.g. Strawberry, Mango..."
-              />
+              <Select value={favFlavor} onValueChange={setFavFlavor}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a flavor..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {flavors.map((f) => (
+                    <SelectItem key={f.id} value={f.name}>{f.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button type="submit" disabled={saving} className="gap-2">
               <Save className="w-4 h-4" />
