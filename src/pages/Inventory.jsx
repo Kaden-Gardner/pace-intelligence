@@ -351,7 +351,10 @@ export default function Inventory() {
                   return (
                     <div key={inv.id} className="bg-card rounded-2xl border border-border p-5">
                       <div className="flex items-start justify-between mb-3">
-                        <h4 className="font-heading font-semibold">{fs?.name || "Unknown Flavorset"}</h4>
+                        <div className="flex items-center gap-2">
+                          {fs?.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: fs.color }} />}
+                          <h4 className="font-heading font-semibold">{fs?.name || "Unknown Flavorset"}</h4>
+                        </div>
                         <div className="flex gap-1">
                           {editingInvId !== inv.id && (
                             <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditingInvId(inv.id); setEditCases(inv.cases || 0); }}>
@@ -466,7 +469,10 @@ export default function Inventory() {
                 const batches = (bi.gallons || 0) / GALLONS_PER_BATCH;
                 return (
                   <div key={bi.id} className="bg-card rounded-2xl border border-border p-5">
-                    <h4 className="font-heading font-semibold mb-3">{fs?.name || "Unknown"}</h4>
+                    <div className="flex items-center gap-2 mb-3">
+                      {fs?.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: fs.color }} />}
+                      <h4 className="font-heading font-semibold">{fs?.name || "Unknown"}</h4>
+                    </div>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="bg-muted rounded-xl p-3 text-center">
                         <p className="text-2xl font-heading font-bold">{batches.toFixed(2)}</p>
@@ -559,7 +565,13 @@ export default function Inventory() {
                           <div key={item.id} className="bg-muted rounded-xl px-3 py-2">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
-                                <p className="text-xs font-medium truncate">
+                                <p className="text-xs font-medium truncate flex items-center gap-1">
+                                  {item.type === "pallet" && fsMap[item.flavorset_id]?.color && (
+                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: fsMap[item.flavorset_id].color }} />
+                                  )}
+                                  {item.type === "individual" && flMap[item.flavor_id]?.color && (
+                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: flMap[item.flavor_id].color }} />
+                                  )}
                                   {item.type === "pallet"
                                     ? `${fsMap[item.flavorset_id]?.name || "?"} — Pallets`
                                     : `${flMap[item.flavor_id]?.name || "?"} — Cases`}
