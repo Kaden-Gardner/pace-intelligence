@@ -90,6 +90,8 @@ export default function Inventory() {
     if (action === "add-freezer") { setFreezerForm({ name: "", notes: "" }); setEditingFreezerId(null); setShowFreezerForm(true); }
     else if (action === "edit-freezer") { setFreezerForm({ name: data.name, notes: data.notes || "" }); setEditingFreezerId(data.id); setShowFreezerForm(true); }
     else if (action === "delete-freezer") { deleteFreezer(data.id); }
+    else if (action === "add-pickup") { setShowPickupForm(true); }
+    else if (action === "delete-pickup") { deletePickup(data); }
   }
 
   useEffect(() => { load(); }, []);
@@ -700,7 +702,7 @@ export default function Inventory() {
         {/* ====== ORDER PICKUPS TAB ====== */}
         <TabsContent value="pickups">
           <div className="flex justify-end mb-4">
-            <Button className="gap-2" onClick={() => setShowPickupForm(true)}>
+            <Button className="gap-2" onClick={() => openCrudPw("add-pickup")}>
               <Plus className="w-4 h-4" /> Record Pickup
             </Button>
           </div>
@@ -760,15 +762,7 @@ export default function Inventory() {
                       {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}
                     </div>
                   </div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive flex-shrink-0"><Trash2 className="w-4 h-4" /></Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader><AlertDialogTitle>Delete Pickup</AlertDialogTitle><AlertDialogDescription>This will restore {p.cases} cases back to inventory.</AlertDialogDescription></AlertDialogHeader>
-                      <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deletePickup(p)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive flex-shrink-0" onClick={() => openCrudPw("delete-pickup", p)}><Trash2 className="w-4 h-4" /></Button>
                 </div>
               ))}
             </div>
@@ -780,7 +774,11 @@ export default function Inventory() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
             <h3 className="font-heading font-semibold text-lg mb-1">
-              {crudPw.action === "add-freezer" ? "Add Freezer" : crudPw.action === "edit-freezer" ? `Edit ${crudPw.data?.name}` : `Delete ${crudPw.data?.name}`}
+              {crudPw.action === "add-freezer" ? "Add Freezer" :
+               crudPw.action === "edit-freezer" ? `Edit ${crudPw.data?.name}` :
+               crudPw.action === "delete-freezer" ? `Delete ${crudPw.data?.name}` :
+               crudPw.action === "add-pickup" ? "Record Pickup" :
+               `Delete Pickup — ${crudPw.data?.vendor_name}`}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">Enter the admin password to continue.</p>
             <input
@@ -795,7 +793,7 @@ export default function Inventory() {
             {crudPwError && <p className="text-xs text-destructive mb-2">{crudPwError}</p>}
             <div className="flex gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={() => setCrudPw(null)}>Cancel</Button>
-              <Button size="sm" className={crudPw.action === "delete-freezer" ? "bg-red-600 hover:bg-red-700 text-white" : ""} onClick={confirmCrudPw}>Confirm</Button>
+              <Button size="sm" className={(crudPw.action === "delete-freezer" || crudPw.action === "delete-pickup") ? "bg-red-600 hover:bg-red-700 text-white" : ""} onClick={confirmCrudPw}>Confirm</Button>
             </div>
           </div>
         </div>
