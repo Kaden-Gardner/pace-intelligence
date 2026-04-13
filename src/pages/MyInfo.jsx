@@ -3,7 +3,18 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, IceCream, Hash, Save } from "lucide-react";
+import { User, IceCream, Hash, Save, CalendarClock } from "lucide-react";
+
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function formatTime(t) {
+  if (!t) return "";
+  const [h, m] = t.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const h12 = hour % 12 || 12;
+  return `${h12}:${m} ${ampm}`;
+}
 
 export default function MyInfo() {
   const { user } = useAuth();
@@ -11,6 +22,7 @@ export default function MyInfo() {
   const [flavors, setFlavors] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [upcomingShifts, setUpcomingShifts] = useState([]);
 
   useEffect(() => {
     setFavFlavor(user?.favorite_flavor || "");
@@ -19,6 +31,25 @@ export default function MyInfo() {
   useEffect(() => {
     base44.entities.Flavor.list("name").then(setFlavors);
   }, []);
+
+  useEffect(() => {
+    if (!user?.employee_number) return;
+    const today = new Date().toISOString().split("T")[0];
+    base44.entities.ScheduledShift.list("shift_date", 100).then((shifts) => {
+      const mine = shifts.filter((s) => {
+        const emp = user.employee_number;
+        return (
+          s.shift_date >= today &&
+          (
+            (s.assigned_employees || []).includes(emp) ||
+            (s.on_call_employees || []).includes(emp) ||
+            s.mixer_employee === emp
+          )
+        );
+      });
+      setUpcomingShifts(mine);
+    });
+  }, [user]);
 
   async function handleSave(e) {
     e.preventDefault();
@@ -93,6 +124,46 @@ export default function MyInfo() {
               {saved ? "Saved!" : saving ? "Saving..." : "Save"}
             </Button>
           </form>
+        </div>
+
+        {/* When Do I Work? */}
+        <div className="bg-card rounded-2xl border border-border p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <CalendarClock className="w-4 h-4 text-primary" />
+            <h2 className="font-heading font-semibold text-base">When Do I Work?</h2>
+          </div>
+          {!user?.employee_number ? (
+            <p className="text-sm text-muted-foreground italic">Set your employee number to see your upcoming shifts.</p>
+          ) : upcomingShifts.length === 0 ? (
+            <p className="text-sm text-muted-foreground italic">No upcoming shifts scheduled.</p>
+          ) : (
+            <div className="space-y-2">
+              {upcomingShifts.map((shift) => {
+                const date = new Date(shift.shift_date + "T00:00:00");
+                const dayName = DAYS[date.getDay()];
+                const dateStr = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+                const isOnCall = (shift.on_call_employees || []).includes(user.employee_number);
+                const isMixer = shift.mixer_employee === user.employee_number;
+                return (
+                  <div key={shift.id} className="flex items-center justify-between rounded-xl bg-muted px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium">{dayName}, {dateStr}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {formatTime(shift.shift_time)}
+                        {isMixer ? " · Mixer" : isOnCall ? " · On Call" : ""}
+                      </p>
+                    </div>
+                    {isOnCall && (
+                      <span className="text-xs bg-yellow-100 text-yellow-700 rounded-full px-2 py-0.5 font-medium">On Call</span>
+                    )}
+                    {isMixer && (
+                      <span className="text-xs bg-blue-100 text-blue-700 rounded-full px-2 py-0.5 font-medium">Mixer</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>
