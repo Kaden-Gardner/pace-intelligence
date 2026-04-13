@@ -21,6 +21,8 @@ export default function ShiftForm() {
   const [caseSizes, setCaseSizes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [scheduledShifts, setScheduledShifts] = useState([]);
+  const [selectedScheduledShiftId, setSelectedScheduledShiftId] = useState("");
 
   const [form, setForm] = useState({
     shift_date: new Date().toISOString().split("T")[0],
@@ -53,16 +55,23 @@ export default function ShiftForm() {
 
   useEffect(() => {
     async function load() {
-      const [e, f, fs, cs] = await Promise.all([
+      const [e, f, fs, cs, allProdShifts, allSchedShifts] = await Promise.all([
         base44.entities.Employee.list("name"),
         base44.entities.Flavor.list("name"),
         base44.entities.FlavorSet.list("name"),
         base44.entities.CaseSize.list("name"),
+        base44.entities.Shift.list("shift_date", 500),
+        base44.entities.ScheduledShift.list("shift_date", 500),
       ]);
       setEmployees(e.filter((emp) => emp.active !== false));
       setFlavors(f);
       setFlavorSets(fs);
       setCaseSizes(cs);
+      // Only show scheduled shifts that don't already have a recorded production shift on same date
+      const usedDates = new Set(allProdShifts.map((s) => s.shift_date));
+      const today = new Date().toISOString().split("T")[0];
+      const available = allSchedShifts.filter((s) => !usedDates.has(s.shift_date) && s.shift_date >= today);
+      setScheduledShifts(available);
 
       if (editId) {
         const shifts = await base44.entities.Shift.filter({ id: editId });
@@ -110,6 +119,27 @@ export default function ShiftForm() {
   function updateForm(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
   }
+
+  function applyScheduledShift(id) {
+    setSelectedScheduledShiftId(id);
+    if (!id) return;
+    const ss = scheduledShifts.find((s) => s.id === id);
+    if (!ss) return;
+    setForm((prev) => ({
+      ...prev,
+      shift_date: ss.shift_date || prev.shift_date,
+      shift_time: ss.shift_time || prev.shift_time,
+      flavorset_id: ss.flavorset_id || prev.flavorset_id,
+    }));
+  }
+
+  // Employees to show in position dropdowns and training when a scheduled shift is selected
+  const scheduledEmpIds = selectedScheduledShiftId
+    ? (scheduledShifts.find((s) => s.id === selectedScheduledShiftId)?.assigned_employees || [])
+    : null;
+  const positionEmployees = scheduledEmpIds
+    ? employees.filter((e) => scheduledEmpIds.includes(e.id))
+    : employees;
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -250,6 +280,31 @@ export default function ShiftForm() {
       <h1 className="font-heading text-3xl font-bold mb-2">{editId ? "Edit" : "New"} Shift</h1>
       <p className="text-muted-foreground mb-8">Fill in the shift details below</p>
 
+      {!editId && scheduledShifts.length > 0 && (
+        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-8">
+          <label className="text-sm font-medium mb-2 block">Autopopulate from Scheduled Shift</label>
+          <Select value={selectedScheduledShiftId} onValueChange={applyScheduledShift}>
+            <SelectTrigger>
+              <SelectValue placeholder="Select a scheduled shift to prefill..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={null}>— None —</SelectItem>
+              {scheduledShifts.map((ss) => {
+                const fs = flavorSets.find((f) => f.id === ss.flavorset_id);
+                return (
+                  <SelectItem key={ss.id} value={ss.id}>
+                    {ss.shift_date} · {ss.shift_time}{fs ? ` · ${fs.name}` : ""}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+          {selectedScheduledShiftId && (
+            <p className="text-xs text-muted-foreground mt-2">Date, time, flavorset, and working employees have been prefilled. You can still edit anything below.</p>
+          )}
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Basic Info */}
         <section className="bg-card rounded-2xl border border-border p-6">
@@ -283,7 +338,7 @@ export default function ShiftForm() {
         <ShiftPositionsSection
           form={form}
           updateForm={updateForm}
-          employees={employees}
+          employees={positionEmployees}
         />
 
         {/* Notes */}
