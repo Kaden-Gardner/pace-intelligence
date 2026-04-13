@@ -58,7 +58,6 @@ export default function Inventory() {
   const [freezerPwOpen, setFreezerPwOpen] = useState(false);
   const [freezerPwInput, setFreezerPwInput] = useState("");
   const [freezerPwError, setFreezerPwError] = useState("");
-  const [freezerPwTarget, setFreezerPwTarget] = useState(null);
   const [freezerSelectUnlocked, setFreezerSelectUnlocked] = useState(false);
 
   function openFreezerPw() {
@@ -71,6 +70,26 @@ export default function Inventory() {
     if (freezerPwInput !== "ecap") { setFreezerPwError("Incorrect password."); return; }
     setFreezerPwOpen(false);
     setFreezerSelectUnlocked(true);
+  }
+
+  // Password gate for freezer CRUD
+  const [crudPw, setCrudPw] = useState(null); // { action, data }
+  const [crudPwInput, setCrudPwInput] = useState("");
+  const [crudPwError, setCrudPwError] = useState("");
+
+  function openCrudPw(action, data = null) {
+    setCrudPw({ action, data });
+    setCrudPwInput("");
+    setCrudPwError("");
+  }
+
+  function confirmCrudPw() {
+    if (crudPwInput !== "ecap") { setCrudPwError("Incorrect password."); return; }
+    const { action, data } = crudPw;
+    setCrudPw(null);
+    if (action === "add-freezer") { setFreezerForm({ name: "", notes: "" }); setEditingFreezerId(null); setShowFreezerForm(true); }
+    else if (action === "edit-freezer") { setFreezerForm({ name: data.name, notes: data.notes || "" }); setEditingFreezerId(data.id); setShowFreezerForm(true); }
+    else if (action === "delete-freezer") { deleteFreezer(data.id); }
   }
 
   useEffect(() => { load(); }, []);
@@ -519,7 +538,7 @@ export default function Inventory() {
         {/* ====== FREEZERS TAB ====== */}
         <TabsContent value="freezers">
           <div className="flex justify-end mb-4">
-            <Button className="gap-2" onClick={() => { setFreezerForm({ name: "", notes: "" }); setEditingFreezerId(null); setShowFreezerForm(true); }}>
+            <Button className="gap-2" onClick={() => openCrudPw("add-freezer")}>
               <Plus className="w-4 h-4" /> Add Freezer
             </Button>
           </div>
@@ -569,18 +588,12 @@ export default function Inventory() {
                             <Star className="w-3 h-3" /> Set Default
                           </Button>
                         )}
-                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => { setFreezerForm({ name: freezer.name, notes: freezer.notes || "" }); setEditingFreezerId(freezer.id); setShowFreezerForm(true); }}>
+                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => openCrudPw("edit-freezer", freezer)}>
                           <Pencil className="w-3 h-3 mr-1" /> Edit
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm" className="text-xs h-7 text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Delete Freezer</AlertDialogTitle><AlertDialogDescription>This will delete "{freezer.name}" and all its stored items.</AlertDialogDescription></AlertDialogHeader>
-                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteFreezer(freezer.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                        <Button variant="ghost" size="sm" className="text-xs h-7 text-destructive hover:text-destructive" onClick={() => openCrudPw("delete-freezer", freezer)}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
                       </div>
                     </div>
 
@@ -766,6 +779,31 @@ export default function Inventory() {
           )}
         </TabsContent>
       </Tabs>
+
+      {crudPw && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h3 className="font-heading font-semibold text-lg mb-1">
+              {crudPw.action === "add-freezer" ? "Add Freezer" : crudPw.action === "edit-freezer" ? `Edit ${crudPw.data?.name}` : `Delete ${crudPw.data?.name}`}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">Enter the admin password to continue.</p>
+            <input
+              type="password"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mb-2"
+              placeholder="Admin password"
+              value={crudPwInput}
+              onChange={(e) => { setCrudPwInput(e.target.value); setCrudPwError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && confirmCrudPw()}
+              autoFocus
+            />
+            {crudPwError && <p className="text-xs text-destructive mb-2">{crudPwError}</p>}
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setCrudPw(null)}>Cancel</Button>
+              <Button size="sm" className={crudPw.action === "delete-freezer" ? "bg-red-600 hover:bg-red-700 text-white" : ""} onClick={confirmCrudPw}>Confirm</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {freezerPwOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
