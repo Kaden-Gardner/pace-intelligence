@@ -40,12 +40,12 @@ export default function Layout() {
   }, [user]);
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-background">
+    <div className="min-h-screen flex flex-col xl:flex-row bg-background">
       {needsEmployeeNumber && (
         <EmployeeNumberSetup user={user} onComplete={() => setNeedsEmployeeNumber(false)} />
       )}
       {/* Mobile Header */}
-      <div className="lg:hidden flex items-center justify-between p-3 bg-sidebar border-b border-sidebar-border">
+      <div className="xl:hidden flex items-center justify-between p-3 bg-sidebar border-b border-sidebar-border">
         <div className="flex items-center gap-3">
           <img src="https://media.base44.com/images/public/69daba0a36b037ad40a9ae2d/4ee4e771c_PaceL-removebg-preview.png" alt="Pace Bars" className="h-8 w-auto" />
         </div>
@@ -57,10 +57,10 @@ export default function Layout() {
       {/* Sidebar */}
       <aside className={cn(
         "w-64 bg-sidebar flex-shrink-0 border-r border-sidebar-border flex flex-col",
-        "lg:flex",
+        "xl:flex",
         mobileOpen ? "flex absolute inset-0 top-[65px] z-50" : "hidden"
       )}>
-        <div className="p-6 hidden lg:block">
+        <div className="p-6 hidden xl:block">
           <img src="https://media.base44.com/images/public/69daba0a36b037ad40a9ae2d/4ee4e771c_PaceL-removebg-preview.png" alt="Pace Bars" className="w-full h-auto" />
         </div>
 
@@ -102,7 +102,7 @@ export default function Layout() {
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
-        <div className="max-w-7xl mx-auto p-4 lg:p-8">
+        <div className="max-w-7xl mx-auto p-4 xl:p-8">
           <Outlet />
         </div>
       </main>
