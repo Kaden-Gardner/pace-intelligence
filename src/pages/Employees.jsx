@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Users, Plus, Pencil, Trash2, Check, X, Star } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck } from "lucide-react";
 import { getBestPosition } from "../lib/analyticsHelpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,9 @@ export default function Employees() {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({ name: "", employee_number: "", active: true });
+  const [passwordDialog, setPasswordDialog] = useState(null); // { empId, action: 'terminate'|'reinstate' }
+  const [passwordInput, setPasswordInput] = useState("");
+  const [passwordError, setPasswordError] = useState("");
 
   useEffect(() => {
     async function load() {
@@ -68,6 +71,34 @@ export default function Employees() {
   async function handleDelete(id) {
     await base44.entities.Employee.delete(id);
     setEmployees((prev) => prev.filter((e) => e.id !== id));
+  }
+
+  function openPasswordDialog(emp, action) {
+    setPasswordDialog({ emp, action });
+    setPasswordInput("");
+    setPasswordError("");
+  }
+
+  async function handlePasswordConfirm() {
+    if (passwordInput !== "ecap") {
+      setPasswordError("Incorrect password.");
+      return;
+    }
+    const { emp, action } = passwordDialog;
+    const isTerminating = action === "terminate";
+
+    // Update employee record
+    await base44.entities.Employee.update(emp.id, { terminated: isTerminating, active: !isTerminating });
+    setEmployees((prev) => prev.map((e) => e.id === emp.id ? { ...e, terminated: isTerminating, active: !isTerminating } : e));
+
+    // Find the linked user by employee_number and update their role
+    const users = await base44.entities.User.list();
+    const linked = users.find((u) => u.employee_number === emp.employee_number);
+    if (linked) {
+      await base44.entities.User.update(linked.id, { role: isTerminating ? "terminated" : "user" });
+    }
+
+    setPasswordDialog(null);
   }
 
   if (loading) {
@@ -154,14 +185,26 @@ export default function Employees() {
                       )}
                     </div>
                   </div>
-                  <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${emp.active !== false ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
-                    {emp.active !== false ? "Active" : "Inactive"}
+                  <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                    emp.terminated ? "bg-red-100 text-red-700" :
+                    emp.active !== false ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
+                  }`}>
+                    {emp.terminated ? "Terminated" : emp.active !== false ? "Active" : "Inactive"}
                   </div>
                 </div>
-                <div className="flex gap-2 mt-4">
+                <div className="flex gap-2 mt-4 flex-wrap">
                   <Button variant="ghost" size="sm" onClick={() => startEdit(emp)} className="gap-1 text-xs">
                     <Pencil className="w-3 h-3" /> Edit
                   </Button>
+                  {!emp.terminated ? (
+                    <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "terminate")} className="gap-1 text-xs text-red-600 hover:text-red-700">
+                      <UserX className="w-3 h-3" /> Terminate
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "reinstate")} className="gap-1 text-xs text-green-600 hover:text-green-700">
+                      <UserCheck className="w-3 h-3" /> Reinstate
+                    </Button>
+                  )}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="ghost" size="sm" className="gap-1 text-xs text-destructive hover:text-destructive">
@@ -185,6 +228,42 @@ export default function Employees() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Password Dialog */}
+      {passwordDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h3 className="font-heading font-semibold text-lg mb-1">
+              {passwordDialog.action === "terminate" ? "Terminate" : "Reinstate"} {passwordDialog.emp.name}
+            </h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              {passwordDialog.action === "terminate"
+                ? "This will revoke their access to the app. Enter the admin password to confirm."
+                : "This will restore their access to the app. Enter the admin password to confirm."}
+            </p>
+            <input
+              type="password"
+              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mb-2"
+              placeholder="Admin password"
+              value={passwordInput}
+              onChange={(e) => { setPasswordInput(e.target.value); setPasswordError(""); }}
+              onKeyDown={(e) => e.key === "Enter" && handlePasswordConfirm()}
+              autoFocus
+            />
+            {passwordError && <p className="text-xs text-destructive mb-2">{passwordError}</p>}
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" size="sm" onClick={() => setPasswordDialog(null)}>Cancel</Button>
+              <Button
+                size="sm"
+                className={passwordDialog.action === "terminate" ? "bg-red-600 hover:bg-red-700 text-white" : ""}
+                onClick={handlePasswordConfirm}
+              >
+                {passwordDialog.action === "terminate" ? "Terminate" : "Reinstate"}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

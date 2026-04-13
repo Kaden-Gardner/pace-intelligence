@@ -39,6 +39,20 @@ export default function Layout() {
     }
   }, [user]);
 
+  if (user?.role === "terminated") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center max-w-sm mx-auto p-8">
+          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+            <span className="text-3xl">🚫</span>
+          </div>
+          <h1 className="font-heading text-2xl font-bold mb-2">Access Revoked</h1>
+          <p className="text-muted-foreground text-sm">Your employment has been terminated and your access to this app has been revoked. Please contact your manager if you believe this is a mistake.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col xl:flex-row bg-background">
       {needsEmployeeNumber && (

@@ -15,6 +15,11 @@
       "title": "Active",
       "default": true
     },
+    "terminated": {
+      "type": "boolean",
+      "title": "Terminated",
+      "default": false
+    },
     "favorite_flavor": {
       "type": "string",
       "title": "Favorite Popsicle Flavor"
