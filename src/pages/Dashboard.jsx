@@ -141,74 +141,75 @@ export default function Dashboard() {
   empEntries.sort((a, b) => (b.totalCases / b.totalHours) - (a.totalCases / a.totalHours));
 
   return (
-    <div>
-      <div className="mb-8">
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
         <h1 className="font-heading text-3xl font-bold">Dashboard</h1>
         <p className="text-muted-foreground mt-1">Production analytics at a glance</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        <StatCard title="Total Cases" value={totalCases.toLocaleString()} subtitle="Annual production" icon={Package} />
-        <StatCard title="Avg Cases/Hour" value={avgCph.toFixed(1)} subtitle="Across all shifts" icon={TrendingUp} />
-        <StatCard title="Total Shifts" value={shifts.length} subtitle={`${employees.length} employees`} icon={BarChart3} />
-        <StatCard title="Total Waste" value={totalWaste.toLocaleString()} subtitle="Gallons wasted" icon={Trash2} />
+      {/* Top KPIs */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard title="Total Cases" value={totalCases.toLocaleString()} subtitle="All time" icon={Package} />
+        <StatCard title="Avg Cases / Hour" value={avgCph.toFixed(1)} subtitle="Across all shifts" icon={TrendingUp} />
+        <StatCard title="Total Shifts" value={shifts.length} subtitle={`${employees.length} active employees`} icon={BarChart3} />
+        <StatCard title="Total Waste" value={`${totalWaste.toLocaleString()} gal`} subtitle="Gallons wasted" icon={Trash2} />
       </div>
 
-      {/* Gallons / Popsicles toggle card */}
-      <div className="bg-card rounded-2xl border border-border p-6 mb-6">
-        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-4">
+      {/* Production Volume */}
+      <div className="bg-card rounded-2xl border border-border p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Production</p>
-            <p className="text-3xl font-heading font-bold">{productionDisplay}</p>
+            <p className="text-4xl font-heading font-bold">{productionDisplay}</p>
             <p className="text-sm text-muted-foreground mt-1">{productionUnit === "gallons" ? "Gallons produced" : "Popsicles produced"}</p>
           </div>
-          <div className="flex gap-2">
-            <button onClick={() => setProductionUnit("gallons")} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${productionUnit === "gallons" ? "bg-primary text-primary-foreground shadow" : "bg-muted text-muted-foreground hover:text-foreground"}`}>Gallons</button>
-            <button onClick={() => setProductionUnit("popsicles")} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${productionUnit === "popsicles" ? "bg-primary text-primary-foreground shadow" : "bg-muted text-muted-foreground hover:text-foreground"}`}>Popsicles</button>
+          <div className="flex flex-col gap-3 items-start sm:items-end">
+            <div className="flex gap-2">
+              <button onClick={() => setProductionUnit("gallons")} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${productionUnit === "gallons" ? "bg-primary text-primary-foreground shadow" : "bg-muted text-muted-foreground hover:text-foreground"}`}>Gallons</button>
+              <button onClick={() => setProductionUnit("popsicles")} className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${productionUnit === "popsicles" ? "bg-primary text-primary-foreground shadow" : "bg-muted text-muted-foreground hover:text-foreground"}`}>Popsicles</button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {PERIODS.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => setProductionPeriod(p.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    productionPeriod === p.key
+                      ? "bg-foreground text-background"
+                      : "bg-muted text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {PERIODS.map((p) => (
-            <button
-              key={p.key}
-              onClick={() => setProductionPeriod(p.key)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                productionPeriod === p.key
-                  ? "bg-foreground text-background"
-                  : "bg-muted text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        <WeeklyChart data={weeklyData} />
+      </div>
+
+      {/* Team Performance */}
+      <div>
+        <h2 className="font-heading font-semibold text-lg mb-4">Team Performance</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <DreamTeamCard dreamTeam={dreamTeam} />
+          <TopEmployeesCard empStats={empEntries} />
+          <BestPairingsCard shifts={shifts} employees={employees} />
         </div>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
-        <div className="xl:col-span-2">
-          <WeeklyChart data={weeklyData} />
-        </div>
-        <DreamTeamCard dreamTeam={dreamTeam} />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <TopEmployeesCard empStats={empEntries} />
-        <BestPairingsCard shifts={shifts} employees={employees} />
-      </div>
-
-      <div className="mt-6">
+      {/* Flavor Breakdown */}
+      <div>
+        <h2 className="font-heading font-semibold text-lg mb-4">Flavor Breakdown</h2>
         <FlavorBreakdownCard flavorCases={flavorCases} />
       </div>
 
-      {/* Inventory Pallet Summary */}
+      {/* Inventory Summary */}
       {inventory.length > 0 && (
-        <div className="mt-6">
+        <div>
+          <h2 className="font-heading font-semibold text-lg mb-4">Inventory — Pallets on Hand</h2>
           <div className="bg-card rounded-2xl border border-border p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <Package className="w-5 h-5 text-primary" />
-              <h2 className="font-heading font-semibold text-lg">Inventory — Pallets on Hand</h2>
-              <span className="text-xs text-muted-foreground ml-1">(66 cases / pallet)</span>
-            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {inventory.filter((inv) => inv.flavorset_id && flavorSets.some((fs) => fs.id === inv.flavorset_id)).map((inv) => {
                 const fs = flavorSets.find((f) => f.id === inv.flavorset_id);
@@ -218,7 +219,7 @@ export default function Dashboard() {
                   <div key={inv.id} className="bg-muted rounded-xl p-4 text-center">
                     <p className="text-3xl font-heading font-bold">{pallets}</p>
                     <p className="text-xs font-medium mt-1">{fs?.name || "Unknown"}</p>
-                    <p className="text-xs text-muted-foreground">{inv.cases} cases total</p>
+                    <p className="text-xs text-muted-foreground">{inv.cases} cases</p>
                     {remainder > 0 && <p className="text-xs text-muted-foreground">+{remainder} partial</p>}
                   </div>
                 );
