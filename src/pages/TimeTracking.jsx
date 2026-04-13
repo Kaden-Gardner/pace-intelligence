@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, LogIn, LogOut, Pencil, Check, X } from "lucide-react";
+import { Clock, LogIn, LogOut, Pencil, Check, X, Trash2 } from "lucide-react";
 import { format, parseISO, differenceInMinutes, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 const PERIODS = [
@@ -58,7 +58,10 @@ export default function TimeTracking() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ clock_in: "", clock_out: "", notes: "" });
   const [saving, setSaving] = useState(false);
-  const [adminView, setAdminView] = useState("my"); // "my" | "all"
+  const [adminView, setAdminView] = useState("my");
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState(false); // "my" | "all"
 
   useEffect(() => {
     async function load() {
@@ -111,6 +114,18 @@ export default function TimeTracking() {
       clock_out: entry.clock_out ? entry.clock_out.slice(0, 16) : "",
       notes: entry.notes || "",
     });
+  }
+
+  async function handleDelete(entry) {
+    if (deletePassword !== "ecap") {
+      setDeleteError(true);
+      return;
+    }
+    await base44.entities.TimeEntry.delete(entry.id);
+    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    setDeleteTarget(null);
+    setDeletePassword("");
+    setDeleteError(false);
   }
 
   async function saveEdit(entry) {
@@ -292,11 +307,18 @@ export default function TimeTracking() {
                       </div>
                       {entry.notes && <p className="text-xs text-muted-foreground mt-1">{entry.notes}</p>}
                     </div>
-                    {(isAdmin || entry.user_id === user?.id) && (
-                      <Button variant="ghost" size="sm" onClick={() => startEdit(entry)} className="shrink-0">
-                        <Pencil className="w-3 h-3" />
-                      </Button>
-                    )}
+                    <div className="flex gap-1 shrink-0">
+                      {(isAdmin || entry.user_id === user?.id) && (
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(entry)}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive" onClick={() => { setDeleteTarget(entry); setDeletePassword(""); setDeleteError(false); }}>
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -304,6 +326,30 @@ export default function TimeTracking() {
           </div>
         )}
       </div>
+      {/* Delete confirmation dialog */}
+      {deleteTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
+            <h3 className="font-heading font-semibold mb-1">Delete Time Entry</h3>
+            <p className="text-sm text-muted-foreground mb-4">Enter the admin password to delete this entry for <span className="font-medium text-foreground">{deleteTarget.employee_name}</span>.</p>
+            <Input
+              type="password"
+              placeholder="Password"
+              value={deletePassword}
+              onChange={(e) => { setDeletePassword(e.target.value); setDeleteError(false); }}
+              onKeyDown={(e) => e.key === "Enter" && handleDelete(deleteTarget)}
+              className={deleteError ? "border-destructive" : ""}
+            />
+            {deleteError && <p className="text-xs text-destructive mt-1">Incorrect password.</p>}
+            <div className="flex gap-2 mt-4">
+              <Button variant="destructive" onClick={() => handleDelete(deleteTarget)} className="gap-2">
+                <Trash2 className="w-4 h-4" /> Delete
+              </Button>
+              <Button variant="outline" onClick={() => { setDeleteTarget(null); setDeletePassword(""); setDeleteError(false); }}>Cancel</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
