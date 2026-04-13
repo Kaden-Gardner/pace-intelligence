@@ -583,11 +583,7 @@ export default function Inventory() {
                         {freezer.notes && <span className="text-xs text-muted-foreground">· {freezer.notes}</span>}
                       </div>
                       <div className="flex gap-1 flex-wrap justify-end">
-                        {!isDefault && (
-                          <Button variant="outline" size="sm" className="text-xs h-7 gap-1" onClick={() => handleSetDefault(freezer.id)}>
-                            <Star className="w-3 h-3" /> Set Default
-                          </Button>
-                        )}
+
                         <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => openCrudPw("edit-freezer", freezer)}>
                           <Pencil className="w-3 h-3 mr-1" /> Edit
                         </Button>
