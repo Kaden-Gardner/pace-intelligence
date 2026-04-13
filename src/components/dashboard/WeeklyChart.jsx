@@ -13,7 +13,7 @@ const FLAVORSET_COLORS = [
   "#db2777",  // pink
 ];
 
-export default function WeeklyChart({ data, shifts = [], flavorSets = [] }) {
+export default function WeeklyChart({ data, shifts = [], flavorSets = [], individualColor }) {
   // Build stacked data: per day, cases broken down by flavorset
   const stackedData = data.map((day) => {
     const dayShifts = shifts.filter((s) => s.shift_date === day.date);
@@ -37,6 +37,7 @@ export default function WeeklyChart({ data, shifts = [], flavorSets = [] }) {
   }
 
   function getFlavorsetColor(name, i) {
+    if (name === "Individual" && individualColor) return individualColor;
     const fs = flavorSets.find((f) => f.name === name);
     return fs?.color || FLAVORSET_COLORS[i % FLAVORSET_COLORS.length];
   }

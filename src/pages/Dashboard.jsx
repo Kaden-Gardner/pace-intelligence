@@ -113,6 +113,7 @@ export default function Dashboard() {
     : totalPopsicles.toLocaleString();
 
   const weeklyData = getWeeklyProductionData(shifts);
+  const individualColor = localStorage.getItem("individualCasesColor") || "#7c3aed";
 
   // Individual flavor breakdown
   const flavorMap = {};
@@ -187,7 +188,7 @@ export default function Dashboard() {
             </div>
           </div>
         </div>
-        <WeeklyChart data={weeklyData} shifts={shifts} flavorSets={flavorSets} />
+        <WeeklyChart data={weeklyData} shifts={shifts} flavorSets={flavorSets} individualColor={individualColor} />
       </div>
 
       {/* Team Performance */}

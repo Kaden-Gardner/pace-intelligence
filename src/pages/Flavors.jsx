@@ -21,6 +21,13 @@ export default function Flavors() {
   const [editingFlavorId, setEditingFlavorId] = useState(null);
   const [flavorForm, setFlavorForm] = useState({ name: "", color: "#1BABAB" });
 
+  const [individualColor, setIndividualColor] = useState(() => localStorage.getItem("individualCasesColor") || "#7c3aed");
+
+  function saveIndividualColor(color) {
+    setIndividualColor(color);
+    localStorage.setItem("individualCasesColor", color);
+  }
+
   // FlavorSet form
   const [showSetForm, setShowSetForm] = useState(false);
   const [editingSetId, setEditingSetId] = useState(null);
@@ -229,6 +236,20 @@ export default function Flavors() {
               </div>
             </div>
           )}
+
+          {/* Individual Cases Color */}
+          <div className="bg-card rounded-2xl border border-border p-5 mb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium text-sm">Individual Cases</p>
+                <p className="text-xs text-muted-foreground">Color used in the dashboard chart for individual flavor cases</p>
+              </div>
+              <div className="flex gap-2 items-center">
+                <input type="color" value={individualColor} onChange={(e) => saveIndividualColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                <span className="text-xs text-muted-foreground font-mono">{individualColor}</span>
+              </div>
+            </div>
+          </div>
 
           {flavorSets.length === 0 && !showSetForm ? (
             <EmptyState icon={Palette} title="No flavorsets yet" description="Create flavorsets to assign to shifts (up to 4 flavors each)." />
