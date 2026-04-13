@@ -85,20 +85,25 @@ export default function Employees() {
       return;
     }
     const { emp, action } = passwordDialog;
-    const isTerminating = action === "terminate";
-
-    // Update employee record
-    await base44.entities.Employee.update(emp.id, { terminated: isTerminating, active: !isTerminating });
-    setEmployees((prev) => prev.map((e) => e.id === emp.id ? { ...e, terminated: isTerminating, active: !isTerminating } : e));
-
-    // Find the linked user by employee_number and update their role
-    const users = await base44.entities.User.list();
-    const linked = users.find((u) => u.employee_number === emp.employee_number);
-    if (linked) {
-      await base44.entities.User.update(linked.id, { role: isTerminating ? "terminated" : "user" });
-    }
-
     setPasswordDialog(null);
+
+    if (action === "add") {
+      resetForm();
+      setShowForm(true);
+    } else if (action === "edit") {
+      startEdit(emp);
+    } else if (action === "delete") {
+      await handleDelete(emp.id);
+    } else if (action === "terminate" || action === "reinstate") {
+      const isTerminating = action === "terminate";
+      await base44.entities.Employee.update(emp.id, { terminated: isTerminating, active: !isTerminating });
+      setEmployees((prev) => prev.map((e) => e.id === emp.id ? { ...e, terminated: isTerminating, active: !isTerminating } : e));
+      const users = await base44.entities.User.list();
+      const linked = users.find((u) => u.employee_number === emp.employee_number);
+      if (linked) {
+        await base44.entities.User.update(linked.id, { role: isTerminating ? "terminated" : "user" });
+      }
+    }
   }
 
   if (loading) {
@@ -116,7 +121,7 @@ export default function Employees() {
           <h1 className="font-heading text-3xl font-bold">Employees</h1>
           <p className="text-muted-foreground mt-1">Manage your workforce</p>
         </div>
-        <Button className="gap-2" onClick={() => { resetForm(); setShowForm(true); }}>
+        <Button className="gap-2" onClick={() => openPasswordDialog(null, "add")}>
           <Plus className="w-4 h-4" /> Add Employee
         </Button>
       </div>
@@ -193,7 +198,7 @@ export default function Employees() {
                   </div>
                 </div>
                 <div className="flex gap-2 mt-4 flex-wrap">
-                  <Button variant="ghost" size="sm" onClick={() => startEdit(emp)} className="gap-1 text-xs">
+                  <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "edit")} className="gap-1 text-xs">
                     <Pencil className="w-3 h-3" /> Edit
                   </Button>
                   {!emp.terminated ? (
@@ -205,25 +210,9 @@ export default function Employees() {
                       <UserCheck className="w-3 h-3" /> Reinstate
                     </Button>
                   )}
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="sm" className="gap-1 text-xs text-destructive hover:text-destructive">
-                        <Trash2 className="w-3 h-3" /> Delete
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Employee</AlertDialogTitle>
-                        <AlertDialogDescription>Remove {emp.name} from the system? Past shift data will retain their ID.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => handleDelete(emp.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                          Delete
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
+                  <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "delete")} className="gap-1 text-xs text-destructive hover:text-destructive">
+                    <Trash2 className="w-3 h-3" /> Delete
+                  </Button>
                 </div>
               </div>
             );
@@ -236,12 +225,18 @@ export default function Employees() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
             <h3 className="font-heading font-semibold text-lg mb-1">
-              {passwordDialog.action === "terminate" ? "Terminate" : "Reinstate"} {passwordDialog.emp.name}
+              {passwordDialog.action === "add" ? "Add Employee" :
+               passwordDialog.action === "edit" ? `Edit ${passwordDialog.emp?.name}` :
+               passwordDialog.action === "delete" ? `Delete ${passwordDialog.emp?.name}` :
+               passwordDialog.action === "terminate" ? `Terminate ${passwordDialog.emp?.name}` :
+               `Reinstate ${passwordDialog.emp?.name}`}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {passwordDialog.action === "terminate"
-                ? "This will revoke their access to the app. Enter the admin password to confirm."
-                : "This will restore their access to the app. Enter the admin password to confirm."}
+              {passwordDialog.action === "add" ? "Enter the admin password to add a new employee." :
+               passwordDialog.action === "edit" ? "Enter the admin password to edit this employee." :
+               passwordDialog.action === "delete" ? "This will permanently remove the employee. Enter the admin password to confirm." :
+               passwordDialog.action === "terminate" ? "This will revoke their access to the app. Enter the admin password to confirm." :
+               "This will restore their access to the app. Enter the admin password to confirm."}
             </p>
             <input
               type="password"
@@ -257,10 +252,13 @@ export default function Employees() {
               <Button variant="outline" size="sm" onClick={() => setPasswordDialog(null)}>Cancel</Button>
               <Button
                 size="sm"
-                className={passwordDialog.action === "terminate" ? "bg-red-600 hover:bg-red-700 text-white" : ""}
+                className={passwordDialog.action === "terminate" || passwordDialog.action === "delete" ? "bg-red-600 hover:bg-red-700 text-white" : ""}
                 onClick={handlePasswordConfirm}
               >
-                {passwordDialog.action === "terminate" ? "Terminate" : "Reinstate"}
+                {passwordDialog.action === "add" ? "Continue" :
+                 passwordDialog.action === "edit" ? "Continue" :
+                 passwordDialog.action === "delete" ? "Delete" :
+                 passwordDialog.action === "terminate" ? "Terminate" : "Reinstate"}
               </Button>
             </div>
           </div>
