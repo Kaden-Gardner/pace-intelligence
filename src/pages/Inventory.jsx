@@ -718,7 +718,8 @@ export default function Inventory() {
                     </div>
                     <div>
                       <p className="font-medium">{p.vendor_name}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        {fsMap[p.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[p.flavorset_id].color }} />}
                         {fsMap[p.flavorset_id]?.name || "Unknown"} · {p.pallets} pallet{p.pallets !== 1 ? "s" : ""} ({p.cases} cases) · {p.pickup_date}
                       </p>
                       {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}

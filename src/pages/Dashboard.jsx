@@ -220,7 +220,10 @@ export default function Dashboard() {
                 return (
                   <div key={inv.id} className="bg-muted rounded-xl p-4 text-center">
                     <p className="text-3xl font-heading font-bold">{pallets}</p>
-                    <p className="text-xs font-medium mt-1">{fs?.name || "Unknown"}</p>
+                    <p className="text-xs font-medium mt-1 flex items-center justify-center gap-1">
+                      {fs?.color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fs.color }} />}
+                      {fs?.name || "Unknown"}
+                    </p>
                     <p className="text-xs text-muted-foreground">{inv.cases} cases</p>
                     {remainder > 0 && <p className="text-xs text-muted-foreground">+{remainder} partial</p>}
                   </div>

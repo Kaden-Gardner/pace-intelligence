@@ -38,7 +38,7 @@ export default function Shifts() {
   const empMap = {};
   employees.forEach((e) => { empMap[e.id] = e.name; });
   const fsMap = {};
-  flavorSets.forEach((fs) => { fsMap[fs.id] = fs.name; });
+  flavorSets.forEach((fs) => { fsMap[fs.id] = fs; });
 
   async function handleDelete(id) {
     await base44.entities.Shift.delete(id);
@@ -116,9 +116,15 @@ export default function Shifts() {
                             <p className="font-heading font-semibold">
                               {new Date(shift.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                             </p>
-                            <p className="text-xs text-muted-foreground">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1">
                               {shift.shift_time} · {shift.shift_duration}h
-                              {shift.flavorset_id && fsMap[shift.flavorset_id] ? ` · ${fsMap[shift.flavorset_id]}` : ""}
+                              {shift.flavorset_id && fsMap[shift.flavorset_id] && (
+                                <>
+                                  {" · "}
+                                  {fsMap[shift.flavorset_id].color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[shift.flavorset_id].color }} />}
+                                  {fsMap[shift.flavorset_id].name}
+                                </>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -176,9 +182,15 @@ export default function Shifts() {
                           <p className="font-heading font-semibold">
                             {new Date(shift.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
                             {shift.shift_time} · {shift.shift_duration}h
-                            {shift.flavorset_id && fsMap[shift.flavorset_id] ? ` · ${fsMap[shift.flavorset_id]}` : ""}
+                            {shift.flavorset_id && fsMap[shift.flavorset_id] && (
+                              <>
+                                {" · "}
+                                {fsMap[shift.flavorset_id].color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[shift.flavorset_id].color }} />}
+                                {fsMap[shift.flavorset_id].name}
+                              </>
+                            )}
                           </p>
                         </div>
                       </div>

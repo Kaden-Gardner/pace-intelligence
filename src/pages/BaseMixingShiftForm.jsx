@@ -163,10 +163,24 @@ export default function BaseMixingShiftForm() {
           <h2 className="font-heading font-semibold text-lg mb-4">Production</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Flavorset</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 flex items-center gap-1.5">
+                {form.flavorset_id && flavorSets.find((fs) => fs.id === form.flavorset_id)?.color && (
+                  <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: flavorSets.find((fs) => fs.id === form.flavorset_id).color }} />
+                )}
+                Flavorset
+              </label>
               <Select value={form.flavorset_id || undefined} onValueChange={(v) => updateForm("flavorset_id", v)}>
                 <SelectTrigger><SelectValue placeholder="Select flavorset" /></SelectTrigger>
-                <SelectContent>{flavorSets.map((fs) => <SelectItem key={fs.id} value={fs.id}>{fs.name}</SelectItem>)}</SelectContent>
+                <SelectContent>
+                  {flavorSets.map((fs) => (
+                    <SelectItem key={fs.id} value={fs.id}>
+                      <span className="flex items-center gap-2">
+                        {fs.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fs.color }} />}
+                        {fs.name}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div>
