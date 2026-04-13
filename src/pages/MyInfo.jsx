@@ -35,20 +35,23 @@ export default function MyInfo() {
   useEffect(() => {
     if (!user?.employee_number) return;
     const today = new Date().toISOString().split("T")[0];
-    base44.entities.ScheduledShift.list("shift_date", 100).then((shifts) => {
-      const mine = shifts.filter((s) => {
-        const emp = user.employee_number;
-        return (
-          s.shift_date >= today &&
-          (
-            (s.assigned_employees || []).includes(emp) ||
-            (s.on_call_employees || []).includes(emp) ||
-            s.mixer_employee === emp
-          )
-        );
-      });
+    async function loadShifts() {
+      // Find this user's Employee record to get their ID (Schedule stores IDs)
+      const emps = await base44.entities.Employee.filter({ employee_number: user.employee_number });
+      if (emps.length === 0) return;
+      const empId = emps[0].id;
+      const shifts = await base44.entities.ScheduledShift.list("shift_date", 500);
+      const mine = shifts.filter((s) =>
+        s.shift_date >= today &&
+        (
+          (s.assigned_employees || []).includes(empId) ||
+          (s.on_call_employees || []).includes(empId) ||
+          s.mixer_employee === empId
+        )
+      );
       setUpcomingShifts(mine);
-    });
+    }
+    loadShifts();
   }, [user]);
 
   async function handleSave(e) {
