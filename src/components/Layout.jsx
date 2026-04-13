@@ -8,21 +8,21 @@ import { cn } from "@/lib/utils";
 
 const adminNavItems = [
   { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
+  { path: "/my-info", label: "My Info", icon: UserCircle },
+  { path: "/schedule", label: "Schedule", icon: CalendarClock },
+  { path: "/availability", label: "Availability", icon: CalendarDays },
+  { path: "/time-tracking", label: "Time Tracking", icon: Clock },
   { path: "/shifts", label: "Shifts", icon: Calendar },
+  { path: "/inventory", label: "Inventory", icon: Package },
   { path: "/employees", label: "Employees", icon: Users },
   { path: "/flavors", label: "Flavors", icon: IceCreamCone },
-  { path: "/inventory", label: "Inventory", icon: Package },
-  { path: "/availability", label: "Availability", icon: CalendarDays },
-  { path: "/schedule", label: "Schedule", icon: CalendarClock },
-  { path: "/time-tracking", label: "Time Tracking", icon: Clock },
-  { path: "/my-info", label: "My Info", icon: UserCircle },
 ];
 
 const userNavItems = [
-  { path: "/availability", label: "Availability", icon: CalendarDays },
-  { path: "/schedule", label: "Schedule", icon: CalendarClock },
-  { path: "/time-tracking", label: "Time Tracking", icon: Clock },
   { path: "/my-info", label: "My Info", icon: UserCircle },
+  { path: "/schedule", label: "Schedule", icon: CalendarClock },
+  { path: "/availability", label: "Availability", icon: CalendarDays },
+  { path: "/time-tracking", label: "Time Tracking", icon: Clock },
 ];
 
 export default function Layout() {
