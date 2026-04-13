@@ -33,6 +33,7 @@ export default function Flavors() {
   const [pwDialog, setPwDialog] = useState(null); // { action, data }
   const [pwInput, setPwInput] = useState("");
   const [pwError, setPwError] = useState("");
+  const [colorUnlocked, setColorUnlocked] = useState(false);
 
   function openPw(action, data = null) {
     setPwDialog({ action, data });
@@ -44,7 +45,8 @@ export default function Flavors() {
     if (pwInput !== "ecap") { setPwError("Incorrect password."); return; }
     const { action, data } = pwDialog;
     setPwDialog(null);
-    if (action === "add-flavor") { resetFlavorForm(); setShowFlavorForm(true); }
+    if (action === "change-color") { setColorUnlocked(true); }
+    else if (action === "add-flavor") { resetFlavorForm(); setShowFlavorForm(true); }
     else if (action === "edit-flavor") { setFlavorForm({ name: data.name, color: data.color || "#1BABAB" }); setEditingFlavorId(data.id); setShowFlavorForm(true); }
     else if (action === "delete-flavor") { deleteFlavor(data.id); }
     else if (action === "add-set") { resetSetForm(); setShowSetForm(true); }
@@ -131,6 +133,7 @@ export default function Flavors() {
   }
 
   const pwLabels = {
+    "change-color": "Change Individual Cases Color",
     "add-flavor": "Add Flavor", "edit-flavor": "Edit Flavor", "delete-flavor": "Delete Flavor",
     "add-set": "Add Flavorset", "edit-set": "Edit Flavorset", "delete-set": "Delete Flavorset",
   };
@@ -255,8 +258,18 @@ export default function Flavors() {
                 <p className="text-xs text-muted-foreground">Color used in the dashboard chart for individual flavor cases</p>
               </div>
               <div className="flex gap-2 items-center">
-                <input type="color" value={individualColor} onChange={(e) => saveIndividualColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
-                <span className="text-xs text-muted-foreground font-mono">{individualColor}</span>
+                {colorUnlocked ? (
+                  <>
+                    <input type="color" value={individualColor} onChange={(e) => saveIndividualColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                    <span className="text-xs text-muted-foreground font-mono">{individualColor}</span>
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => setColorUnlocked(false)}>Lock</Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xs text-muted-foreground font-mono">{individualColor}</span>
+                    <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => openPw("change-color")}>🔒 Change</Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
