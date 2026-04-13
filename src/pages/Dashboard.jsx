@@ -38,7 +38,7 @@ function filterShiftsByPeriod(shifts, period) {
 }
 
 export default function Dashboard() {
-  const [productionUnit, setProductionUnit] = useState("gallons");
+  const [productionUnit, setProductionUnit] = useState("popsicles");
   const [productionPeriod, setProductionPeriod] = useState("year");
   const [shifts, setShifts] = useState([]);
   const [employees, setEmployees] = useState([]);
