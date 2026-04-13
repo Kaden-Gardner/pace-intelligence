@@ -84,6 +84,7 @@ export default function Layout() {
           })}
         </nav>
 
+        {isAdmin && (
         <div className="p-3 mt-auto">
           <Link
             to="/shifts/new"
@@ -94,6 +95,7 @@ export default function Layout() {
             New Shift
           </Link>
         </div>
+        )}
       </aside>
 
       {/* Main Content */}
