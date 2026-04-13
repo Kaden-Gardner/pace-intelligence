@@ -16,6 +16,10 @@
       "title": "Duration (hours)",
       "default": 8
     },
+    "flavorset_id": {
+      "type": "string",
+      "title": "Flavorset"
+    },
     "mixer_employee": {
       "type": "string",
       "title": "Mixer Employee"
