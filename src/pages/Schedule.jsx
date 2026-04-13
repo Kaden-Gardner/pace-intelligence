@@ -233,7 +233,10 @@ export default function Schedule() {
                     onClick={(e) => { e.stopPropagation(); openEdit(s, day); }}
                     className="text-left w-full mb-0.5"
                   >
-                    <span className="text-xs px-1 py-0.5 rounded bg-primary/15 text-primary font-medium block truncate">
+                    <span className="text-xs px-1 py-0.5 rounded bg-primary/15 text-primary font-medium flex items-center gap-1 truncate">
+                      {s.flavorset_id && flavorSets.find(fs => fs.id === s.flavorset_id)?.color && (
+                        <span className="w-2 h-2 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: flavorSets.find(fs => fs.id === s.flavorset_id).color }} />
+                      )}
                       {s.shift_time} · {(s.assigned_employees || []).length} working{(s.on_call_employees || []).length > 0 ? ` · ${s.on_call_employees.length} on call` : ""}
                     </span>
                   </button>
@@ -384,7 +387,12 @@ export default function Schedule() {
                   <p className="font-heading font-semibold">
                     {new Date(s.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
                   </p>
-                  <p className="text-xs text-muted-foreground">{s.shift_time}{s.flavorset_id && flavorSets.find(fs => fs.id === s.flavorset_id) ? ` · ${flavorSets.find(fs => fs.id === s.flavorset_id).name}` : ""}</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    {s.flavorset_id && flavorSets.find(fs => fs.id === s.flavorset_id)?.color && (
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: flavorSets.find(fs => fs.id === s.flavorset_id).color }} />
+                    )}
+                    {s.shift_time}{s.flavorset_id && flavorSets.find(fs => fs.id === s.flavorset_id) ? ` · ${flavorSets.find(fs => fs.id === s.flavorset_id).name}` : ""}
+                  </p>
                 </div>
               </div>
               {s.mixer_employee && empMap[s.mixer_employee] && (
