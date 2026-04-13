@@ -331,50 +331,48 @@ export default function Schedule() {
         </div>
       )}
 
-      {/* View-only shift details for non-admins */}
-      {!isAdmin && (
-        <div className="mt-6 space-y-3">
-          {scheduledShifts.filter((s) => s.shift_date >= format(TODAY, "yyyy-MM-dd")).slice(0, 20).map((s) => {
-            const assignedEmps = (s.assigned_employees || []).map((id) => empMap[id]).filter(Boolean);
-            return (
-              <div key={s.id} className="bg-card rounded-2xl border border-border p-5">
-                <div className="flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <CalendarClock className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-heading font-semibold">
-                      {new Date(s.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                    </p>
-                    <p className="text-xs text-muted-foreground">{s.shift_time} · {s.shift_duration}h</p>
+      {/* Upcoming shifts list — visible to all */}
+      <div className="mt-6 space-y-3">
+        {scheduledShifts.filter((s) => s.shift_date >= format(TODAY, "yyyy-MM-dd")).slice(0, 20).map((s) => {
+          const assignedEmps = (s.assigned_employees || []).map((id) => empMap[id]).filter(Boolean);
+          return (
+            <div key={s.id} className="bg-card rounded-2xl border border-border p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <CalendarClock className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-heading font-semibold">
+                    {new Date(s.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{s.shift_time} · {s.shift_duration}h</p>
+                </div>
+              </div>
+              {assignedEmps.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Working</p>
+                  <div className="flex flex-wrap gap-2">
+                    {assignedEmps.map((emp) => (
+                      <span key={emp.id} className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg">{emp.name}</span>
+                    ))}
                   </div>
                 </div>
-                {assignedEmps.length > 0 && (
-                  <div className="mb-2">
-                    <p className="text-xs font-medium text-muted-foreground mb-1">Working</p>
-                    <div className="flex flex-wrap gap-2">
-                      {assignedEmps.map((emp) => (
-                        <span key={emp.id} className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg">{emp.name}</span>
-                      ))}
-                    </div>
+              )}
+              {(s.on_call_employees || []).length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">On Call</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(s.on_call_employees || []).map((id) => empMap[id]).filter(Boolean).map((emp) => (
+                      <span key={emp.id} className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-lg">{emp.name}</span>
+                    ))}
                   </div>
-                )}
-                {(s.on_call_employees || []).length > 0 && (
-                  <div>
-                    <p className="text-xs font-medium text-muted-foreground mb-1">On Call</p>
-                    <div className="flex flex-wrap gap-2">
-                      {(s.on_call_employees || []).map((id) => empMap[id]).filter(Boolean).map((emp) => (
-                        <span key={emp.id} className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-lg">{emp.name}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {s.notes && <p className="text-xs text-muted-foreground mt-2">{s.notes}</p>}
-              </div>
-            );
-          })}
-        </div>
-      )}
+                </div>
+              )}
+              {s.notes && <p className="text-xs text-muted-foreground mt-2">{s.notes}</p>}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
