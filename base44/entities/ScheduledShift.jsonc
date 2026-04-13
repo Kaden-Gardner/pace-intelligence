@@ -16,6 +16,10 @@
       "title": "Duration (hours)",
       "default": 8
     },
+    "mixer_employee": {
+      "type": "string",
+      "title": "Mixer Employee"
+    },
     "assigned_employees": {
       "type": "array",
       "title": "Working Employees",

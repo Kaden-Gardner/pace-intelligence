@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight, CalendarClock, Sparkles, X, Save } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addYears, isSameMonth } from "date-fns";
 import { findDreamTeam } from "../lib/analyticsHelpers";
 
@@ -24,7 +25,16 @@ export default function Schedule() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [editShift, setEditShift] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ shift_time: "08:00", shift_duration: 8, assigned_employees: [], on_call_employees: [], notes: "" });
+  const [form, setForm] = useState({ shift_time: "08:00", shift_duration: 8, mixer_employee: "", assigned_employees: [], on_call_employees: [], notes: "" });
+
+  function getMixerArrivalTime(shiftTime) {
+    if (!shiftTime) return "";
+    const [h, m] = shiftTime.split(":").map(Number);
+    const totalMins = h * 60 + m - 90;
+    const hh = Math.floor(((totalMins % 1440) + 1440) % 1440 / 60);
+    const mm = ((totalMins % 60) + 60) % 60;
+    return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+  }
 
   useEffect(() => {
     async function load() {
@@ -83,6 +93,7 @@ export default function Schedule() {
     setForm({
       shift_time: "08:00",
       shift_duration: 8,
+      mixer_employee: "",
       assigned_employees: suggested.map((e) => e.id),
       on_call_employees: [],
       notes: "",
@@ -96,6 +107,7 @@ export default function Schedule() {
     setForm({
       shift_time: shift.shift_time || "08:00",
       shift_duration: shift.shift_duration || 8,
+      mixer_employee: shift.mixer_employee || "",
       assigned_employees: shift.assigned_employees || [],
       on_call_employees: shift.on_call_employees || [],
       notes: shift.notes || "",
@@ -254,6 +266,24 @@ export default function Schedule() {
             </div>
 
             <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Mixer</label>
+              <Select value={form.mixer_employee || ""} onValueChange={(v) => setForm((f) => ({ ...f, mixer_employee: v === "none" ? "" : v }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select mixer..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— None —</SelectItem>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {form.mixer_employee && (
+                <p className="text-xs text-muted-foreground mt-1">Mixer arrives at <span className="font-medium text-foreground">{getMixerArrivalTime(form.shift_time)}</span> (1.5 hrs before shift)</p>
+              )}
+            </div>
+
+            <div>
               <div className="flex items-center gap-2 mb-2">
                 <label className="text-xs font-medium text-muted-foreground">Working Employees ({(form.assigned_employees || []).length}/9)</label>
                 {suggestedForSelected.length > 0 && (
@@ -348,6 +378,16 @@ export default function Schedule() {
                   <p className="text-xs text-muted-foreground">{s.shift_time} · {s.shift_duration}h</p>
                 </div>
               </div>
+              {s.mixer_employee && empMap[s.mixer_employee] && (
+                <div className="mb-2">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Mixer</p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-lg">
+                      {empMap[s.mixer_employee].name} · arrives {getMixerArrivalTime(s.shift_time)}
+                    </span>
+                  </div>
+                </div>
+              )}
               {assignedEmps.length > 0 && (
                 <div className="mb-2">
                   <p className="text-xs font-medium text-muted-foreground mb-1">Working</p>
