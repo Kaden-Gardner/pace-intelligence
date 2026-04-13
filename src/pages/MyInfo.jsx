@@ -23,6 +23,7 @@ export default function MyInfo() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [upcomingShifts, setUpcomingShifts] = useState([]);
+  const [flavorSets, setFlavorSets] = useState([]);
 
   useEffect(() => {
     setFavFlavor(user?.favorite_flavor || "");
@@ -30,6 +31,7 @@ export default function MyInfo() {
 
   useEffect(() => {
     base44.entities.Flavor.list("name").then(setFlavors);
+    base44.entities.FlavorSet.list("name").then(setFlavorSets);
   }, []);
 
   useEffect(() => {
@@ -150,9 +152,15 @@ export default function MyInfo() {
                 return (
                   <div key={shift.id} className="flex items-center justify-between rounded-xl bg-muted px-4 py-3">
                     <div>
-                      <p className="text-sm font-medium">{dayName}, {dateStr}</p>
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        {shift.flavorset_id && flavorSets.find(fs => fs.id === shift.flavorset_id)?.color && (
+                          <span className="w-3 h-3 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: flavorSets.find(fs => fs.id === shift.flavorset_id).color }} />
+                        )}
+                        {dayName}, {dateStr}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {formatTime(shift.shift_time)}
+                        {shift.flavorset_id && flavorSets.find(fs => fs.id === shift.flavorset_id) ? ` · ${flavorSets.find(fs => fs.id === shift.flavorset_id).name}` : ""}
                         {isMixer ? " · Mixer" : isOnCall ? " · On Call" : ""}
                       </p>
                     </div>
