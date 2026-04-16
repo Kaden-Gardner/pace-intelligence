@@ -11,7 +11,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import EmptyState from "../components/EmptyState";
-import { getDefaultFreezerId, setDefaultFreezerId, syncToDefaultFreezer } from "../lib/freezerSync";
+import { getDefaultFreezerIdFromDB, setDefaultFreezerInDB, addToDefaultFreezer } from "../lib/freezerSync";
 
 const GALLONS_PER_BATCH = 240;
 
@@ -26,7 +26,7 @@ export default function Inventory() {
   const [freezerItems, setFreezerItems] = useState([]);
   const [baseInventory, setBaseInventory] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [defaultFreezer, setDefaultFreezer] = useState(() => getDefaultFreezerId());
+  const [defaultFreezer, setDefaultFreezer] = useState(null);
 
   // Inventory edit
   const [editingInvId, setEditingInvId] = useState(null);
@@ -94,6 +94,10 @@ export default function Inventory() {
     else if (action === "delete-pickup") { deletePickup(data); }
   }
 
+  // Base inventory edit/delete
+  const [editingBaseId, setEditingBaseId] = useState(null);
+  const [editBaseGallons, setEditBaseGallons] = useState(0);
+
   useEffect(() => { load(); }, []);
 
   async function load() {
@@ -113,6 +117,9 @@ export default function Inventory() {
     setFreezers(frz);
     setFreezerItems(fi);
     setBaseInventory(bi);
+    // Load default freezer from DB
+    const defaultId = frz.find((f) => f.is_default)?.id || null;
+    setDefaultFreezer(defaultId);
     setLoading(false);
   }
 
@@ -121,20 +128,26 @@ export default function Inventory() {
   const flMap = {};
   flavors.forEach((f) => { flMap[f.id] = f; });
 
-  function handleSetDefault(freezerId) {
-    setDefaultFreezerId(freezerId);
-    setDefaultFreezer(freezerId);
+  async function handleSetDefault(freezerId) {
+    await setDefaultFreezerInDB(freezerId || null);
+    // Update local state
+    setFreezers((prev) => prev.map((f) => ({ ...f, is_default: f.id === freezerId })));
+    setDefaultFreezer(freezerId || null);
   }
 
   // ---- INVENTORY HELPERS ----
   async function saveEditInv(inv) {
+    const oldCases = inv.cases || 0;
     await base44.entities.Inventory.update(inv.id, { cases: editCases });
     const updated = { ...inv, cases: editCases };
     setInventory((prev) => prev.map((i) => (i.id === inv.id ? updated : i)));
     setEditingInvId(null);
-    // Sync to default freezer
-    await syncToDefaultFreezer({ flavorset_id: inv.flavorset_id, flavor_id: inv.flavor_id, cases: editCases });
-    setFreezerItems(await base44.entities.FreezerItem.list());
+    // Add the delta to default freezer (manual inventory adjustment)
+    const delta = editCases - oldCases;
+    if (delta > 0) {
+      await addToDefaultFreezer({ flavorset_id: inv.flavorset_id, flavor_id: inv.flavor_id, deltaCases: delta });
+      setFreezerItems(await base44.entities.FreezerItem.list());
+    }
   }
 
   async function saveAddInv() {
@@ -153,7 +166,7 @@ export default function Inventory() {
         record = await base44.entities.Inventory.create({ flavorset_id: addInvForm.flavorset_id, cases: Number(addInvForm.cases) });
         setInventory((prev) => [...prev, record]);
       }
-      await syncToDefaultFreezer({ flavorset_id: record.flavorset_id, cases: record.cases });
+      if (Number(addInvForm.cases) > 0) await addToDefaultFreezer({ flavorset_id: record.flavorset_id, deltaCases: Number(addInvForm.cases) });
     } else {
       const existing = inventory.find((i) => i.flavor_id === addInvForm.flavor_id && !i.flavorset_id);
       if (existing) {
@@ -165,7 +178,7 @@ export default function Inventory() {
         record = await base44.entities.Inventory.create({ flavor_id: addInvForm.flavor_id, cases: Number(addInvForm.cases) });
         setInventory((prev) => [...prev, record]);
       }
-      await syncToDefaultFreezer({ flavor_id: record.flavor_id, cases: record.cases });
+      if (Number(addInvForm.cases) > 0) await addToDefaultFreezer({ flavor_id: record.flavor_id, deltaCases: Number(addInvForm.cases) });
     }
     setFreezerItems(await base44.entities.FreezerItem.list());
     setAddInvForm({ flavorset_id: "", flavor_id: "", cases: 0 });
@@ -190,7 +203,6 @@ export default function Inventory() {
       const newCases = Math.max(0, (invRecord.cases || 0) - pickupCases);
       await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
       setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
-      await syncToDefaultFreezer({ flavorset_id: invRecord.flavorset_id, cases: newCases });
       setFreezerItems(await base44.entities.FreezerItem.list());
     }
     setPickupForm({ vendor_name: "", flavorset_id: "", pallets: 1, pickup_date: new Date().toISOString().split("T")[0], notes: "" });
@@ -232,7 +244,7 @@ export default function Inventory() {
     await Promise.all(items.map((fi) => base44.entities.FreezerItem.delete(fi.id)));
     setFreezers((prev) => prev.filter((f) => f.id !== id));
     setFreezerItems((prev) => prev.filter((fi) => fi.freezer_id !== id));
-    if (defaultFreezer === id) handleSetDefault(null);
+    if (defaultFreezer === id) { setDefaultFreezer(null); }
   }
 
   async function saveFreezerItem(freezer_id) {
@@ -327,10 +339,10 @@ export default function Inventory() {
             </div>
             {freezerSelectUnlocked ? (
               <div className="flex items-center gap-2">
-                <Select value={defaultFreezer || ""} onValueChange={(v) => handleSetDefault(v || null)}>
+                <Select value={defaultFreezer || "__none__"} onValueChange={(v) => handleSetDefault(v === "__none__" ? null : v)}>
                   <SelectTrigger className="w-full sm:w-48 h-8 text-xs"><SelectValue placeholder="Set default freezer" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={null}>None</SelectItem>
+                    <SelectItem value="__none__">None</SelectItem>
                     {freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -516,20 +528,59 @@ export default function Inventory() {
                 const batches = (bi.gallons || 0) / GALLONS_PER_BATCH;
                 return (
                   <div key={bi.id} className="bg-card rounded-2xl border border-border p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      {fs?.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: fs.color }} />}
-                      <h4 className="font-heading font-semibold">{fs?.name || "Unknown"}</h4>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-muted rounded-xl p-3 text-center">
-                        <p className="text-2xl font-heading font-bold">{batches.toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Batches</p>
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        {fs?.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: fs.color }} />}
+                        <h4 className="font-heading font-semibold">{fs?.name || "Unknown"}</h4>
                       </div>
-                      <div className="bg-muted rounded-xl p-3 text-center">
-                        <p className="text-2xl font-heading font-bold">{bi.gallons || 0}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Gallons</p>
+                      <div className="flex gap-1">
+                        {editingBaseId !== bi.id && (
+                          <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setEditingBaseId(bi.id); setEditBaseGallons(bi.gallons || 0); }}>
+                            <Pencil className="w-3 h-3" />
+                          </Button>
+                        )}
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Delete Base Inventory</AlertDialogTitle><AlertDialogDescription>Remove this base inventory record for {fs?.name}?</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={async () => {
+                                await base44.entities.BaseInventory.delete(bi.id);
+                                setBaseInventory((prev) => prev.filter((b) => b.id !== bi.id));
+                              }}>Delete</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </div>
+                    {editingBaseId === bi.id ? (
+                      <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground block">Gallons on hand</label>
+                        <Input type="number" min="0" step="0.25" value={editBaseGallons} onChange={(e) => setEditBaseGallons(parseFloat(e.target.value) || 0)} autoFocus />
+                        <div className="flex gap-2">
+                          <Button size="sm" className="gap-1" onClick={async () => {
+                            await base44.entities.BaseInventory.update(bi.id, { gallons: editBaseGallons });
+                            setBaseInventory((prev) => prev.map((b) => b.id === bi.id ? { ...b, gallons: editBaseGallons } : b));
+                            setEditingBaseId(null);
+                          }}><Check className="w-3 h-3" /> Save</Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingBaseId(null)}><X className="w-3 h-3" /></Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-muted rounded-xl p-3 text-center">
+                          <p className="text-2xl font-heading font-bold">{batches.toFixed(2)}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Batches</p>
+                        </div>
+                        <div className="bg-muted rounded-xl p-3 text-center">
+                          <p className="text-2xl font-heading font-bold">{bi.gallons || 0}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Gallons</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

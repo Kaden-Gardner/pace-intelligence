@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import ShiftPositionsSection from "../components/shift-form/ShiftPositionsSection";
 import ShiftProductionSection from "../components/shift-form/ShiftProductionSection";
-import { syncToDefaultFreezer } from "../lib/freezerSync";
+import { addToDefaultFreezer } from "../lib/freezerSync";
 
 export default function ShiftForm() {
   const navigate = useNavigate();
@@ -169,19 +169,21 @@ export default function ShiftForm() {
     if (payload.flavorset_id) {
       const allInv = await base44.entities.Inventory.filter({ flavorset_id: payload.flavorset_id });
       const newCases = payload.flavorset_cases || 0;
+      // Delta = cases produced this shift (not the running total)
+      const deltaCases = editId && previousFlavorsetId === payload.flavorset_id
+        ? newCases - previousFlavorsetCases
+        : newCases;
       if (allInv.length > 0) {
         let base = allInv[0].cases || 0;
-        if (editId && previousFlavorsetId === payload.flavorset_id) {
-          base = base - previousFlavorsetCases + newCases;
-        } else {
-          base = base + newCases;
-        }
-        const finalCases = Math.max(0, base);
+        const finalCases = Math.max(0, editId && previousFlavorsetId === payload.flavorset_id
+          ? base - previousFlavorsetCases + newCases
+          : base + newCases);
         await base44.entities.Inventory.update(allInv[0].id, { cases: finalCases });
-        await syncToDefaultFreezer({ flavorset_id: payload.flavorset_id, cases: finalCases });
       } else {
         await base44.entities.Inventory.create({ flavorset_id: payload.flavorset_id, cases: newCases });
-        await syncToDefaultFreezer({ flavorset_id: payload.flavorset_id, cases: newCases });
+      }
+      if (deltaCases > 0) {
+        await addToDefaultFreezer({ flavorset_id: payload.flavorset_id, deltaCases });
       }
     }
 
@@ -253,9 +255,10 @@ export default function ShiftForm() {
           base = base + newCases;
         }
         await base44.entities.Inventory.update(existing[0].id, { cases: Math.max(0, base) });
+        if (!editId && newCases > 0) await addToDefaultFreezer({ flavor_id: flavorId, deltaCases: newCases });
       } else {
         await base44.entities.Inventory.create({ flavor_id: flavorId, cases: newCases });
-        await syncToDefaultFreezer({ flavor_id: flavorId, cases: newCases });
+        if (newCases > 0) await addToDefaultFreezer({ flavor_id: flavorId, deltaCases: newCases });
       }
     }
 
@@ -320,7 +323,7 @@ export default function ShiftForm() {
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Duration (hours)</label>
-              <Input type="number" step="0.5" min="0.5" value={form.shift_duration} onChange={(e) => updateForm("shift_duration", parseFloat(e.target.value) || 0)} required />
+              <Input type="number" step="0.25" min="0.25" value={form.shift_duration} onChange={(e) => updateForm("shift_duration", parseFloat(e.target.value) || 0)} required />
             </div>
           </div>
         </section>

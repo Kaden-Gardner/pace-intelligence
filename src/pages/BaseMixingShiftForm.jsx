@@ -153,7 +153,7 @@ export default function BaseMixingShiftForm() {
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Duration (hours)</label>
-              <Input type="number" step="0.5" min="0.5" value={form.shift_duration} onChange={(e) => updateForm("shift_duration", e.target.value)} required />
+              <Input type="number" step="0.25" min="0.25" value={form.shift_duration} onChange={(e) => updateForm("shift_duration", e.target.value)} required />
             </div>
           </div>
         </section>
@@ -185,7 +185,7 @@ export default function BaseMixingShiftForm() {
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Number of Batches</label>
-              <Input type="number" min="1" step="1" value={form.batch_size} onChange={(e) => updateForm("batch_size", e.target.value)} required />
+              <Input type="number" min="0.25" step="0.25" value={form.batch_size} onChange={(e) => updateForm("batch_size", e.target.value)} required />
               {form.batch_size > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">= {Number(form.batch_size) * GALLONS_PER_BATCH} gallons total</p>
               )}

@@ -6,6 +6,11 @@
       "type": "string",
       "title": "Freezer Name"
     },
+    "is_default": {
+      "type": "boolean",
+      "title": "Default Freezer",
+      "default": false
+    },
     "notes": {
       "type": "string",
       "title": "Notes"
