@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck } from "lucide-react";
+import { useAuth } from "@/lib/AuthContext";
+import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield } from "lucide-react";
 import { getBestPosition } from "../lib/analyticsHelpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import EmptyState from "../components/EmptyState";
 import {
   AlertDialog,
@@ -19,13 +21,16 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function Employees() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
+
   const [employees, setEmployees] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: "", employee_number: "", active: true });
-  const [passwordDialog, setPasswordDialog] = useState(null); // { empId, action: 'terminate'|'reinstate' }
+  const [form, setForm] = useState({ name: "", employee_number: "", phone_number: "", active: true, app_role: "user" });
+  const [passwordDialog, setPasswordDialog] = useState(null);
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState("");
 
@@ -46,9 +51,13 @@ export default function Employees() {
     if (!form.name || !form.employee_number) return;
     if (editingId) {
       await base44.entities.Employee.update(editingId, form);
-      setEmployees((prev) =>
-        prev.map((e) => (e.id === editingId ? { ...e, ...form } : e))
-      );
+      setEmployees((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...form } : e)));
+      // Sync role to User entity if linked
+      const users = await base44.entities.User.list();
+      const linked = users.find((u) => u.employee_number === form.employee_number);
+      if (linked) {
+        await base44.entities.User.update(linked.id, { role: form.app_role });
+      }
     } else {
       const created = await base44.entities.Employee.create(form);
       setEmployees((prev) => [...prev, created]);
@@ -57,13 +66,19 @@ export default function Employees() {
   }
 
   function startEdit(emp) {
-    setForm({ name: emp.name, employee_number: emp.employee_number, active: emp.active !== false });
+    setForm({
+      name: emp.name,
+      employee_number: emp.employee_number,
+      phone_number: emp.phone_number || "",
+      active: emp.active !== false,
+      app_role: emp.app_role || "user",
+    });
     setEditingId(emp.id);
     setShowForm(true);
   }
 
   function resetForm() {
-    setForm({ name: "", employee_number: "", active: true });
+    setForm({ name: "", employee_number: "", phone_number: "", active: true, app_role: "user" });
     setEditingId(null);
     setShowForm(false);
   }
@@ -101,7 +116,7 @@ export default function Employees() {
       const users = await base44.entities.User.list();
       const linked = users.find((u) => u.employee_number === emp.employee_number);
       if (linked) {
-        await base44.entities.User.update(linked.id, { role: isTerminating ? "terminated" : "user" });
+        await base44.entities.User.update(linked.id, { role: isTerminating ? "terminated" : (emp.app_role || "user") });
       }
     }
   }
@@ -119,17 +134,19 @@ export default function Employees() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="font-heading text-3xl font-bold">Employees</h1>
-          <p className="text-muted-foreground mt-1">Manage your workforce</p>
+          <p className="text-muted-foreground mt-1">{isAdmin ? "Manage your workforce" : "Team contact directory"}</p>
         </div>
-        <Button className="gap-2" onClick={() => openPasswordDialog(null, "add")}>
-          <Plus className="w-4 h-4" /> Add Employee
-        </Button>
+        {isAdmin && (
+          <Button className="gap-2" onClick={() => openPasswordDialog(null, "add")}>
+            <Plus className="w-4 h-4" /> Add Employee
+          </Button>
+        )}
       </div>
 
-      {showForm && (
+      {isAdmin && showForm && (
         <div className="bg-card rounded-2xl border border-border p-6 mb-6">
           <h3 className="font-heading font-semibold mb-4">{editingId ? "Edit" : "New"} Employee</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
               <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Doe" />
@@ -137,6 +154,20 @@ export default function Employees() {
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Employee Number</label>
               <Input value={form.employee_number} onChange={(e) => setForm({ ...form, employee_number: e.target.value })} placeholder="EMP001" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Phone Number</label>
+              <Input type="tel" value={form.phone_number} onChange={(e) => setForm({ ...form, phone_number: e.target.value })} placeholder="(555) 123-4567" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">App Role</label>
+              <Select value={form.app_role} onValueChange={(v) => setForm({ ...form, app_role: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="user">User</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-end gap-4">
               <div className="flex items-center gap-2">
@@ -161,7 +192,6 @@ export default function Employees() {
           icon={Users}
           title="No employees yet"
           description="Add employees to assign them to shifts."
-          actionLabel="Add Employee"
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -190,30 +220,49 @@ export default function Employees() {
                       )}
                     </div>
                   </div>
-                  <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    emp.terminated ? "bg-red-100 text-red-700" :
-                    emp.active !== false ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
-                  }`}>
-                    {emp.terminated ? "Terminated" : emp.active !== false ? "Active" : "Inactive"}
+                  <div className="flex flex-col items-end gap-1">
+                    <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      emp.terminated ? "bg-red-100 text-red-700" :
+                      emp.active !== false ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
+                    }`}>
+                      {emp.terminated ? "Terminated" : emp.active !== false ? "Active" : "Inactive"}
+                    </div>
+                    {emp.app_role === "admin" && (
+                      <div className="flex items-center gap-1 text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full font-medium">
+                        <Shield className="w-3 h-3" /> Admin
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="flex gap-2 mt-4 flex-wrap">
-                  <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "edit")} className="gap-1 text-xs">
-                    <Pencil className="w-3 h-3" /> Edit
-                  </Button>
-                  {!emp.terminated ? (
-                    <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "terminate")} className="gap-1 text-xs text-red-600 hover:text-red-700">
-                      <UserX className="w-3 h-3" /> Terminate
+
+                {/* Phone number — visible to all */}
+                {emp.phone_number && (
+                  <div className="flex items-center gap-1.5 mt-3 text-sm text-muted-foreground">
+                    <Phone className="w-3.5 h-3.5 flex-shrink-0" />
+                    <a href={`tel:${emp.phone_number}`} className="hover:text-foreground transition-colors">{emp.phone_number}</a>
+                  </div>
+                )}
+
+                {/* Admin actions only */}
+                {isAdmin && (
+                  <div className="flex gap-2 mt-4 flex-wrap">
+                    <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "edit")} className="gap-1 text-xs">
+                      <Pencil className="w-3 h-3" /> Edit
                     </Button>
-                  ) : (
-                    <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "reinstate")} className="gap-1 text-xs text-green-600 hover:text-green-700">
-                      <UserCheck className="w-3 h-3" /> Reinstate
+                    {!emp.terminated ? (
+                      <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "terminate")} className="gap-1 text-xs text-red-600 hover:text-red-700">
+                        <UserX className="w-3 h-3" /> Terminate
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "reinstate")} className="gap-1 text-xs text-green-600 hover:text-green-700">
+                        <UserCheck className="w-3 h-3" /> Reinstate
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "delete")} className="gap-1 text-xs text-destructive hover:text-destructive">
+                      <Trash2 className="w-3 h-3" /> Delete
                     </Button>
-                  )}
-                  <Button variant="ghost" size="sm" onClick={() => openPasswordDialog(emp, "delete")} className="gap-1 text-xs text-destructive hover:text-destructive">
-                    <Trash2 className="w-3 h-3" /> Delete
-                  </Button>
-                </div>
+                  </div>
+                )}
               </div>
             );
           })}

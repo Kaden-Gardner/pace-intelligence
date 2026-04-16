@@ -23,6 +23,7 @@ const userNavItems = [
   { path: "/schedule", label: "Schedule", icon: CalendarClock },
   { path: "/availability", label: "Availability", icon: CalendarDays },
   { path: "/time-tracking", label: "Time Tracking", icon: Clock },
+  { path: "/employees", label: "Employees", icon: Users },
 ];
 
 export default function Layout() {

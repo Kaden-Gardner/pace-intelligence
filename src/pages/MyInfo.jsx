@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, IceCream, Hash, Save, CalendarClock } from "lucide-react";
+import { User, IceCream, Hash, Save, CalendarClock, Phone } from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -19,6 +20,7 @@ function formatTime(t) {
 export default function MyInfo() {
   const { user } = useAuth();
   const [favFlavor, setFavFlavor] = useState(user?.favorite_flavor || "");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [flavors, setFlavors] = useState([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -27,6 +29,12 @@ export default function MyInfo() {
 
   useEffect(() => {
     setFavFlavor(user?.favorite_flavor || "");
+    // Load phone number from Employee record
+    if (user?.employee_number) {
+      base44.entities.Employee.filter({ employee_number: user.employee_number }).then((emps) => {
+        if (emps.length > 0) setPhoneNumber(emps[0].phone_number || "");
+      });
+    }
   }, [user]);
 
   useEffect(() => {
@@ -64,7 +72,7 @@ export default function MyInfo() {
     if (user?.employee_number) {
       const emps = await base44.entities.Employee.filter({ employee_number: user.employee_number });
       if (emps.length > 0) {
-        await base44.entities.Employee.update(emps[0].id, { favorite_flavor: favFlavor });
+        await base44.entities.Employee.update(emps[0].id, { favorite_flavor: favFlavor, phone_number: phoneNumber });
       }
     }
     setSaving(false);
@@ -108,6 +116,18 @@ export default function MyInfo() {
 
         <div className="bg-card rounded-2xl border border-border p-6">
           <form onSubmit={handleSave} className="space-y-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Phone className="w-4 h-4 text-primary" />
+                <label className="text-sm font-medium">Phone Number</label>
+              </div>
+              <Input
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="(555) 123-4567"
+              />
+            </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <IceCream className="w-4 h-4 text-primary" />

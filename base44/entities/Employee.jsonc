@@ -10,6 +10,10 @@
       "type": "string",
       "title": "Employee Number"
     },
+    "phone_number": {
+      "type": "string",
+      "title": "Phone Number"
+    },
     "active": {
       "type": "boolean",
       "title": "Active",
@@ -23,6 +27,15 @@
     "favorite_flavor": {
       "type": "string",
       "title": "Favorite Popsicle Flavor"
+    },
+    "app_role": {
+      "type": "string",
+      "title": "App Role",
+      "enum": [
+        "user",
+        "admin"
+      ],
+      "default": "user"
     }
   },
   "required": [
