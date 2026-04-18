@@ -1,7 +1,10 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
+import PageTransition from './components/PageTransition';
+import { useEffect } from 'react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -18,10 +21,45 @@ import Schedule from './pages/Schedule';
 import TimeTracking from './pages/TimeTracking';
 import MyInfo from './pages/MyInfo';
 
+const AnimatedRoutes = () => {
+  const location = useLocation();
+  return (
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
+        <Route element={<Layout />}>
+          <Route path="/" element={<PageTransition><Schedule /></PageTransition>} />
+          <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
+          <Route path="/shifts" element={<PageTransition><Shifts /></PageTransition>} />
+          <Route path="/shifts/new" element={<PageTransition><ShiftForm /></PageTransition>} />
+          <Route path="/shifts/edit" element={<PageTransition><ShiftForm /></PageTransition>} />
+          <Route path="/employees" element={<PageTransition><Employees /></PageTransition>} />
+          <Route path="/flavors" element={<PageTransition><Flavors /></PageTransition>} />
+          <Route path="/inventory" element={<PageTransition><Inventory /></PageTransition>} />
+          <Route path="/shifts/new-base-mix" element={<PageTransition><BaseMixingShiftForm /></PageTransition>} />
+          <Route path="/shifts/edit-base-mix" element={<PageTransition><BaseMixingShiftForm /></PageTransition>} />
+          <Route path="/availability" element={<PageTransition><Availability /></PageTransition>} />
+          <Route path="/schedule" element={<PageTransition><Schedule /></PageTransition>} />
+          <Route path="/time-tracking" element={<PageTransition><TimeTracking /></PageTransition>} />
+          <Route path="/my-info" element={<PageTransition><MyInfo /></PageTransition>} />
+          <Route path="*" element={<PageTransition><PageNotFound /></PageTransition>} />
+        </Route>
+      </Routes>
+    </AnimatePresence>
+  );
+};
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
-  // Show loading spinner while checking app public settings or auth
+  // Apply dark mode based on system preference
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const apply = (e) => document.documentElement.classList.toggle("dark", e.matches);
+    apply(mq);
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
@@ -30,44 +68,19 @@ const AuthenticatedApp = () => {
     );
   }
 
-  // Handle authentication errors
   if (authError) {
     if (authError.type === 'user_not_registered') {
       return <UserNotRegisteredError />;
     } else if (authError.type === 'auth_required') {
-      // Redirect to login automatically
       navigateToLogin();
       return null;
     }
   }
 
-  // Render the main app
-  return (
-    <Routes>
-      <Route element={<Layout />}>
-        <Route path="/" element={<Schedule />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/shifts" element={<Shifts />} />
-        <Route path="/shifts/new" element={<ShiftForm />} />
-        <Route path="/shifts/edit" element={<ShiftForm />} />
-        <Route path="/employees" element={<Employees />} />
-        <Route path="/flavors" element={<Flavors />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/shifts/new-base-mix" element={<BaseMixingShiftForm />} />
-        <Route path="/shifts/edit-base-mix" element={<BaseMixingShiftForm />} />
-        <Route path="/availability" element={<Availability />} />
-        <Route path="/schedule" element={<Schedule />} />
-        <Route path="/time-tracking" element={<TimeTracking />} />
-        <Route path="/my-info" element={<MyInfo />} />
-        <Route path="*" element={<PageNotFound />} />
-      </Route>
-    </Routes>
-  );
+  return <AnimatedRoutes />;
 };
 
-
 function App() {
-
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
@@ -77,7 +90,7 @@ function App() {
         <Toaster />
       </QueryClientProvider>
     </AuthProvider>
-  )
+  );
 }
 
-export default App
+export default App;

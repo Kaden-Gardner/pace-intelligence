@@ -1,5 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import MobileSelect from "@/components/MobileSelect";
 
 export default function ShiftProductionSection({ form, updateForm, flavors, flavorSets, caseSizes }) {
   const selectedSet = flavorSets.find((fs) => fs.id === form.flavorset_id);
@@ -32,19 +33,18 @@ export default function ShiftProductionSection({ form, updateForm, flavors, flav
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1 block">Case Size (popsicles per case)</label>
         {caseSizes && caseSizes.length > 0 ? (
-          <Select
+          <MobileSelect
             value={String(form.popsicles_per_case || 144)}
             onValueChange={(v) => updateForm("popsicles_per_case", Number(v))}
+            label="Case Size"
+            triggerClassName="max-w-xs"
           >
-            <SelectTrigger className="max-w-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {caseSizes.map((cs) => (
-                <SelectItem key={cs.id} value={String(cs.popsicles_per_case)}>
-                  {cs.name} — {cs.popsicles_per_case} pops/case
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            {caseSizes.map((cs) => (
+              <SelectItem key={cs.id} value={String(cs.popsicles_per_case)}>
+                {cs.name} — {cs.popsicles_per_case} pops/case
+              </SelectItem>
+            ))}
+          </MobileSelect>
         ) : (
           <div className="flex items-center gap-2 max-w-xs">
             <input
@@ -65,19 +65,18 @@ export default function ShiftProductionSection({ form, updateForm, flavors, flav
             {selectedSet?.color && <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: selectedSet.color }} />}
             Flavorset
           </label>
-          <Select value={form.flavorset_id || undefined} onValueChange={(v) => updateForm("flavorset_id", v)}>
-            <SelectTrigger><SelectValue placeholder="Select flavorset" /></SelectTrigger>
-            <SelectContent>
-              {flavorSets.map((fs) => (
-                <SelectItem key={fs.id} value={fs.id}>
-                  <span className="flex items-center gap-2">
-                    {fs.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fs.color }} />}
-                    {fs.name}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MobileSelect
+            value={form.flavorset_id || undefined}
+            onValueChange={(v) => updateForm("flavorset_id", v)}
+            placeholder="Select flavorset"
+            label="Flavorset"
+          >
+            {flavorSets.map((fs) => (
+              <SelectItem key={fs.id} value={fs.id}>
+                {fs.name}
+              </SelectItem>
+            ))}
+          </MobileSelect>
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">Flavorset Cases</label>
@@ -121,14 +120,16 @@ export default function ShiftProductionSection({ form, updateForm, flavors, flav
         <div className="space-y-3">
           {[1, 2, 3, 4].map((n) => (
             <div key={n} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Select value={form[`individual_flavor_${n}`] || undefined} onValueChange={(v) => updateForm(`individual_flavor_${n}`, v)}>
-                <SelectTrigger><SelectValue placeholder={`Flavor ${n}`} /></SelectTrigger>
-                <SelectContent>
-                  {flavors.map((f) => (
-                    <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <MobileSelect
+                value={form[`individual_flavor_${n}`] || undefined}
+                onValueChange={(v) => updateForm(`individual_flavor_${n}`, v)}
+                placeholder={`Flavor ${n}`}
+                label={`Individual Flavor ${n}`}
+              >
+                {flavors.map((f) => (
+                  <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                ))}
+              </MobileSelect>
               <Input
                 type="number"
                 min="0"

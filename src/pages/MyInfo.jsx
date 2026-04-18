@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { User, IceCream, Hash, Save, CalendarClock, Phone } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -26,6 +27,12 @@ export default function MyInfo() {
   const [saved, setSaved] = useState(false);
   const [upcomingShifts, setUpcomingShifts] = useState([]);
   const [flavorSets, setFlavorSets] = useState([]);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  async function handleDeleteAccount() {
+    setDeletingAccount(true);
+    await base44.auth.logout();
+  }
 
   useEffect(() => {
     setFavFlavor(user?.favorite_flavor || "");
@@ -195,6 +202,39 @@ export default function MyInfo() {
               })}
             </div>
           )}
+        </div>
+        {/* Delete Account */}
+        <div className="bg-card rounded-2xl border border-destructive/30 p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <Trash2 className="w-4 h-4 text-destructive" />
+            <h2 className="font-heading font-semibold text-base text-destructive">Delete Account</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">Permanently remove your account and all associated data. This action cannot be undone.</p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" className="select-none gap-2">
+                <Trash2 className="w-4 h-4" /> Delete My Account
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Account</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete your account? This action is permanent and cannot be undone. You will lose access immediately.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteAccount}
+                  disabled={deletingAccount}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  {deletingAccount ? "Deleting..." : "Yes, Delete Account"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import MobileSelect from "@/components/MobileSelect";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import ShiftPositionsSection from "../components/shift-form/ShiftPositionsSection";
@@ -286,22 +287,22 @@ export default function ShiftForm() {
       {!editId && scheduledShifts.length > 0 && (
         <div className="bg-primary/5 border border-primary/20 rounded-2xl p-5 mb-8">
           <label className="text-sm font-medium mb-2 block">Autopopulate from Scheduled Shift</label>
-          <Select value={selectedScheduledShiftId} onValueChange={applyScheduledShift}>
-            <SelectTrigger>
-              <SelectValue placeholder="Select a scheduled shift to prefill..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={null}>— None —</SelectItem>
-              {scheduledShifts.map((ss) => {
-                const fs = flavorSets.find((f) => f.id === ss.flavorset_id);
-                return (
-                  <SelectItem key={ss.id} value={ss.id}>
-                    {ss.shift_date} · {ss.shift_time}{fs ? ` · ${fs.name}` : ""}
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+          <MobileSelect
+            value={selectedScheduledShiftId}
+            onValueChange={applyScheduledShift}
+            placeholder="Select a scheduled shift to prefill..."
+            label="Scheduled Shift"
+          >
+            <SelectItem value={null}>— None —</SelectItem>
+            {scheduledShifts.map((ss) => {
+              const fs = flavorSets.find((f) => f.id === ss.flavorset_id);
+              return (
+                <SelectItem key={ss.id} value={ss.id}>
+                  {ss.shift_date} · {ss.shift_time}{fs ? ` · ${fs.name}` : ""}
+                </SelectItem>
+              );
+            })}
+          </MobileSelect>
           {selectedScheduledShiftId && (
             <p className="text-xs text-muted-foreground mt-2">Date, time, flavorset, and working employees have been prefilled. You can still edit anything below.</p>
           )}
