@@ -1,0 +1,56 @@
+{
+  "name": "ScheduledBaseMixShift",
+  "type": "object",
+  "properties": {
+    "shift_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Shift Date"
+    },
+    "flavorset_id": {
+      "type": "string",
+      "title": "Flavorset"
+    },
+    "batch_size": {
+      "type": "number",
+      "title": "Number of Batches",
+      "default": 1
+    },
+    "admin_employee": {
+      "type": "string",
+      "title": "Admin Working"
+    },
+    "us_foods": {
+      "type": "boolean",
+      "title": "U.S. Foods Order",
+      "default": false
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "shift_date",
+    "flavorset_id",
+    "batch_size"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Sparkles, FlaskConical } from "lucide-react";
 
 const GALLONS_PER_BATCH = 240;
 
@@ -18,6 +18,7 @@ export default function BaseMixingShiftForm() {
   const [flavorSets, setFlavorSets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [scheduledBaseMix, setScheduledBaseMix] = useState([]);
 
   const [form, setForm] = useState({
     shift_date: new Date().toISOString().split("T")[0],
@@ -34,12 +35,14 @@ export default function BaseMixingShiftForm() {
 
   useEffect(() => {
     async function load() {
-      const [e, fs] = await Promise.all([
+      const [e, fs, sbm] = await Promise.all([
         base44.entities.Employee.list("name"),
         base44.entities.FlavorSet.list("name"),
+        base44.entities.ScheduledBaseMixShift.list("-shift_date", 200),
       ]);
       setEmployees(e.filter((emp) => emp.active !== false));
       setFlavorSets(fs);
+      setScheduledBaseMix(sbm);
 
       if (editId) {
         const rows = await base44.entities.BaseMixingShift.filter({ id: editId });
@@ -66,6 +69,19 @@ export default function BaseMixingShiftForm() {
 
   function updateForm(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  // Find matching scheduled base mix shift for the selected date
+  const matchingScheduled = scheduledBaseMix.find((s) => s.shift_date === form.shift_date);
+
+  function applyAutofill() {
+    if (!matchingScheduled) return;
+    setForm((prev) => ({
+      ...prev,
+      flavorset_id: matchingScheduled.flavorset_id || prev.flavorset_id,
+      batch_size: matchingScheduled.batch_size || prev.batch_size,
+      mixer_1: matchingScheduled.admin_employee || prev.mixer_1,
+    }));
   }
 
   async function handleSubmit(e) {
@@ -137,6 +153,28 @@ export default function BaseMixingShiftForm() {
 
       <h1 className="font-heading text-3xl font-bold mb-2">{editId ? "Edit" : "New"} Base Mixing Shift</h1>
       <p className="text-muted-foreground mb-8">Record base mixing production — 1 batch = {GALLONS_PER_BATCH} gallons</p>
+
+      {matchingScheduled && !editId && (
+        <div className="mb-6 flex items-center justify-between gap-4 bg-purple-50 border border-purple-200 rounded-2xl p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center flex-shrink-0">
+              <FlaskConical className="w-4 h-4 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-purple-900">Scheduled base mix found for this date</p>
+              <p className="text-xs text-purple-600">
+                {flavorSets.find((fs) => fs.id === matchingScheduled.flavorset_id)?.name || "Unknown flavorset"} · {matchingScheduled.batch_size} batch{matchingScheduled.batch_size !== 1 ? "es" : ""}
+                {matchingScheduled.admin_employee && employees.find((e) => e.id === matchingScheduled.admin_employee) && (
+                  <> · {employees.find((e) => e.id === matchingScheduled.admin_employee).name}</>
+                )}
+              </p>
+            </div>
+          </div>
+          <Button type="button" size="sm" onClick={applyAutofill} className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white flex-shrink-0">
+            <Sparkles className="w-3.5 h-3.5" /> Autofill
+          </Button>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Shift Details */}
