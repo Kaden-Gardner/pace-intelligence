@@ -32,10 +32,10 @@ export default function Schedule() {
 
   const [form, setForm] = useState({
     shift_time: "08:00", flavorset_id: "", mixer_employee: "",
-    assigned_employees: [], on_call_employees: [], notes: "",
+    assigned_employees: [], on_call_employees: [], us_foods: false, notes: "",
   });
   const [baseMixForm, setBaseMixForm] = useState({
-    flavorset_id: "", batch_size: 1, admin_employee: "", us_foods: false, notes: "",
+    flavorset_id: "", batch_size: 1, admin_employee: "", notes: "",
   });
 
   function getMixerArrivalTime(shiftTime) {
@@ -115,9 +115,9 @@ export default function Schedule() {
     const suggested = getSuggestedEmployees(date);
     setForm({
       shift_time: "08:00", flavorset_id: "", mixer_employee: "",
-      assigned_employees: suggested.map((e) => e.id), on_call_employees: [], notes: "",
+      assigned_employees: suggested.map((e) => e.id), on_call_employees: [], us_foods: false, notes: "",
     });
-    setBaseMixForm({ flavorset_id: "", batch_size: 1, admin_employee: "", us_foods: false, notes: "" });
+    setBaseMixForm({ flavorset_id: "", batch_size: 1, admin_employee: "", notes: "" });
   }
 
   function openEdit(shift, date) {
@@ -132,6 +132,7 @@ export default function Schedule() {
       mixer_employee: shift.mixer_employee || "",
       assigned_employees: shift.assigned_employees || [],
       on_call_employees: shift.on_call_employees || [],
+      us_foods: shift.us_foods || false,
       notes: shift.notes || "",
     });
   }
@@ -146,7 +147,6 @@ export default function Schedule() {
       flavorset_id: bm.flavorset_id || "",
       batch_size: bm.batch_size || 1,
       admin_employee: bm.admin_employee || "",
-      us_foods: bm.us_foods || false,
       notes: bm.notes || "",
     });
   }
@@ -291,25 +291,28 @@ export default function Schedule() {
                 className={`rounded-xl p-2 min-h-[70px] flex flex-col transition-all ${bgClass}`}
               >
                 <span className={`text-xs font-medium mb-1 ${isToday && !isSelected ? "text-primary font-bold" : ""}`}>{format(day, "d")}</span>
-                {dayShifts.map((s) => (
+                {dayShifts.map((s) => {
+                  const prodDotColor = s.us_foods ? "#22c55e" : fsMap[s.flavorset_id]?.color;
+                  return (
                   <button key={s.id} onClick={(e) => { e.stopPropagation(); openEdit(s, day); }} className="text-left w-full mb-0.5">
                     <span className="text-xs px-1 py-0.5 rounded bg-primary/15 text-primary font-medium flex items-center gap-1 truncate">
-                      {s.flavorset_id && fsMap[s.flavorset_id]?.color && (
-                        <span className="w-2 h-2 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: fsMap[s.flavorset_id].color }} />
+                      {prodDotColor && (
+                        <span className="w-2 h-2 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: prodDotColor }} />
                       )}
                       {s.shift_time} · {(s.assigned_employees || []).length}w
                     </span>
                   </button>
-                ))}
+                  );
+                })}
                 {dayBaseMix.map((bm) => {
                   const fs = fsMap[bm.flavorset_id];
-                  const dotColor = bm.us_foods ? "#22c55e" : fs?.color;
+                  const dotColor = fs?.color;
                   return (
                     <button key={bm.id} onClick={(e) => { e.stopPropagation(); openEditBaseMix(bm, day); }} className="text-left w-full mb-0.5">
                       <span className="text-xs px-1 py-0.5 rounded bg-purple-100 text-purple-700 font-medium flex items-center gap-1 truncate">
                         {dotColor && <span className="w-2 h-2 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: dotColor }} />}
                         <FlaskConical className="w-2.5 h-2.5 flex-shrink-0" />
-                        {bm.batch_size}b{bm.us_foods ? " · US" : ""}
+                        {bm.batch_size}b
                       </span>
                     </button>
                   );
@@ -428,6 +431,23 @@ export default function Schedule() {
                 <p className="text-xs text-muted-foreground mt-1">★ = Dream team · ✓ = Available · Max 9 working, unlimited on call</p>
               </div>
 
+              {/* U.S. Foods toggle — only shown if flavorset name includes "original" */}
+              {form.flavorset_id && fsMap[form.flavorset_id]?.name?.toLowerCase().includes("original") && (
+                <div className="flex items-center gap-3 p-3 rounded-xl border border-green-200 bg-green-50">
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, us_foods: !f.us_foods }))}
+                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${form.us_foods ? "bg-green-500" : "bg-gray-300"}`}
+                  >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${form.us_foods ? "translate-x-5" : "translate-x-0"}`} />
+                  </button>
+                  <div>
+                    <p className="text-sm font-medium text-green-800">U.S. Foods Order</p>
+                    <p className="text-xs text-green-600">Toggle on to mark this as a U.S. Foods order (shows green indicator)</p>
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
                 <Input value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="Optional notes..." />
@@ -491,23 +511,6 @@ export default function Schedule() {
                 </div>
               </div>
 
-              {/* U.S. Foods toggle — only shown if flavorset name includes "original" */}
-              {baseMixForm.flavorset_id && fsMap[baseMixForm.flavorset_id]?.name?.toLowerCase().includes("original") && (
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-green-200 bg-green-50">
-                  <button
-                    type="button"
-                    onClick={() => setBaseMixForm((f) => ({ ...f, us_foods: !f.us_foods }))}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${baseMixForm.us_foods ? "bg-green-500" : "bg-gray-300"}`}
-                  >
-                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${baseMixForm.us_foods ? "translate-x-5" : "translate-x-0"}`} />
-                  </button>
-                  <div>
-                    <p className="text-sm font-medium text-green-800">U.S. Foods Order</p>
-                    <p className="text-xs text-green-600">Toggle on to mark this as a U.S. Foods order (shows green indicator)</p>
-                  </div>
-                </div>
-              )}
-
               <div className="flex gap-2">
                 <Button type="submit" disabled={saving} className="gap-2 bg-purple-600 hover:bg-purple-700 text-white">
                   <Save className="w-4 h-4" />
@@ -533,12 +536,13 @@ export default function Schedule() {
                     <CalendarClock className="w-5 h-5 text-primary" />
                   </div>
                   <div>
-                    <p className="font-heading font-semibold">
+                    <p className="font-heading font-semibold flex items-center gap-2">
                       {new Date(s.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                      {s.us_foods && <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">U.S. Foods</span>}
                     </p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      {s.flavorset_id && fsMap[s.flavorset_id]?.color && (
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: fsMap[s.flavorset_id].color }} />
+                      {s.flavorset_id && (s.us_foods ? "#22c55e" : fsMap[s.flavorset_id]?.color) && (
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: s.us_foods ? "#22c55e" : fsMap[s.flavorset_id]?.color }} />
                       )}
                       {s.shift_time}{s.flavorset_id && fsMap[s.flavorset_id] ? ` · ${fsMap[s.flavorset_id].name}` : ""}
                     </p>
@@ -578,7 +582,7 @@ export default function Schedule() {
           } else {
             // Base mix shift
             const fs = fsMap[s.flavorset_id];
-            const dotColor = s.us_foods ? "#22c55e" : fs?.color;
+            const dotColor = fs?.color;
             const adminEmp = s.admin_employee ? empMap[s.admin_employee] : null;
             return (
               <div key={`bm-${s.id}`} className="bg-card rounded-2xl border border-border p-5">
@@ -587,9 +591,8 @@ export default function Schedule() {
                     <FlaskConical className="w-5 h-5 text-purple-600" />
                   </div>
                   <div>
-                    <p className="font-heading font-semibold flex items-center gap-2">
+                    <p className="font-heading font-semibold">
                       {new Date(s.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                      {s.us_foods && <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">U.S. Foods</span>}
                     </p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       {dotColor && <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: dotColor }} />}

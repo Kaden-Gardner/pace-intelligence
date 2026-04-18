@@ -20,11 +20,6 @@
       "type": "string",
       "title": "Admin Working"
     },
-    "us_foods": {
-      "type": "boolean",
-      "title": "U.S. Foods Order",
-      "default": false
-    },
     "notes": {
       "type": "string",
       "title": "Notes"

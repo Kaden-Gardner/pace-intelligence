@@ -38,6 +38,11 @@
         "type": "string"
       }
     },
+    "us_foods": {
+      "type": "boolean",
+      "title": "U.S. Foods Order",
+      "default": false
+    },
     "notes": {
       "type": "string",
       "title": "Notes"
@@ -46,5 +51,23 @@
   "required": [
     "shift_date",
     "shift_time"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
 }

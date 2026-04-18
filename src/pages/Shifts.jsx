@@ -13,7 +13,6 @@ import {
 export default function Shifts() {
   const [shifts, setShifts] = useState([]);
   const [baseMixShifts, setBaseMixShifts] = useState([]);
-  const [scheduledBaseMix, setScheduledBaseMix] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [flavorSets, setFlavorSets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,16 +20,14 @@ export default function Shifts() {
 
   useEffect(() => {
     async function load() {
-      const [s, bms, sbm, e, fs] = await Promise.all([
+      const [s, bms, e, fs] = await Promise.all([
         base44.entities.Shift.list("-shift_date", 200),
         base44.entities.BaseMixingShift.list("-shift_date", 200),
-        base44.entities.ScheduledBaseMixShift.list("-shift_date", 200),
         base44.entities.Employee.list(),
         base44.entities.FlavorSet.list(),
       ]);
       setShifts(s);
       setBaseMixShifts(bms);
-      setScheduledBaseMix(sbm);
       setEmployees(e);
       setFlavorSets(fs);
       setLoading(false);
@@ -108,6 +105,7 @@ export default function Shifts() {
                 {shifts.map((shift) => {
                   const totalCases = getTotalCases(shift);
                   const cph = getCasesPerHour(shift);
+                  const dotColor = shift.us_foods ? "#22c55e" : fsMap[shift.flavorset_id]?.color;
                   return (
                     <div key={shift.id} className="bg-card rounded-2xl border border-border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md transition-shadow">
                       <div className="flex-1 min-w-0">
@@ -116,15 +114,16 @@ export default function Shifts() {
                             <Calendar className="w-5 h-5 text-primary" />
                           </div>
                           <div>
-                            <p className="font-heading font-semibold">
+                            <p className="font-heading font-semibold flex items-center gap-2">
                               {new Date(shift.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
+                              {shift.us_foods && <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">U.S. Foods</span>}
                             </p>
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                               {shift.shift_time} · {shift.shift_duration}h
                               {shift.flavorset_id && fsMap[shift.flavorset_id] && (
                                 <>
                                   {" · "}
-                                  {fsMap[shift.flavorset_id].color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[shift.flavorset_id].color }} />}
+                                  {dotColor && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: dotColor }} />}
                                   {fsMap[shift.flavorset_id].name}
                                 </>
                               )}
@@ -175,9 +174,7 @@ export default function Shifts() {
               </h2>
               <div className="space-y-3">
                 {baseMixShifts.map((shift) => {
-                  // Check if a scheduled base mix for this date was marked U.S. Foods
-                  const matchedScheduled = scheduledBaseMix.find((s) => s.shift_date === shift.shift_date && s.flavorset_id === shift.flavorset_id && s.us_foods);
-                  const dotColor = matchedScheduled ? "#22c55e" : fsMap[shift.flavorset_id]?.color;
+                  const dotColor = fsMap[shift.flavorset_id]?.color;
                   return (
                   <div key={shift.id} className="bg-card rounded-2xl border border-border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md transition-shadow">
                     <div className="flex-1 min-w-0">
@@ -186,9 +183,8 @@ export default function Shifts() {
                           <FlaskConical className="w-5 h-5 text-accent" />
                         </div>
                         <div>
-                          <p className="font-heading font-semibold flex items-center gap-2">
+                          <p className="font-heading font-semibold">
                             {new Date(shift.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                            {matchedScheduled && <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">U.S. Foods</span>}
                           </p>
                           <p className="text-xs text-muted-foreground flex items-center gap-1">
                             {shift.shift_time} · {shift.shift_duration}h
