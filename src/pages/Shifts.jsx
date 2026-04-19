@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Link } from "react-router-dom";
 import { Calendar, Plus, Pencil, Trash2, Clock, Package, FlaskConical, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,22 +19,21 @@ export default function Shifts() {
   const [loading, setLoading] = useState(true);
   const [showNewMenu, setShowNewMenu] = useState(false);
 
-  useEffect(() => {
-    async function load() {
-      const [s, bms, e, fs] = await Promise.all([
-        base44.entities.Shift.list("-shift_date", 200),
-        base44.entities.BaseMixingShift.list("-shift_date", 200),
-        base44.entities.Employee.list(),
-        base44.entities.FlavorSet.list(),
-      ]);
-      setShifts(s);
-      setBaseMixShifts(bms);
-      setEmployees(e);
-      setFlavorSets(fs);
-      setLoading(false);
-    }
-    load();
+  const loadData = useCallback(async () => {
+    const [s, bms, e, fs] = await Promise.all([
+      base44.entities.Shift.list("-shift_date", 200),
+      base44.entities.BaseMixingShift.list("-shift_date", 200),
+      base44.entities.Employee.list(),
+      base44.entities.FlavorSet.list(),
+    ]);
+    setShifts(s);
+    setBaseMixShifts(bms);
+    setEmployees(e);
+    setFlavorSets(fs);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const empMap = {};
   employees.forEach((e) => { empMap[e.id] = e.name; });
@@ -59,6 +59,7 @@ export default function Shifts() {
   }
 
   return (
+    <PullToRefresh onRefresh={loadData}>
     <div>
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -107,7 +108,7 @@ export default function Shifts() {
                   const cph = getCasesPerHour(shift);
                   const dotColor = shift.us_foods ? "#22c55e" : fsMap[shift.flavorset_id]?.color;
                   return (
-                    <div key={shift.id} className="bg-card rounded-2xl border border-border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md transition-shadow">
+                    <div key={shift.id} className="bg-card rounded-2xl border border-border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md active:bg-muted/50 transition-all">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
                           <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -176,7 +177,7 @@ export default function Shifts() {
                 {baseMixShifts.map((shift) => {
                   const dotColor = fsMap[shift.flavorset_id]?.color;
                   return (
-                  <div key={shift.id} className="bg-card rounded-2xl border border-border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md transition-shadow">
+                  <div key={shift.id} className="bg-card rounded-2xl border border-border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md active:bg-muted/50 transition-all">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3 mb-2">
                         <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center">
@@ -232,5 +233,6 @@ export default function Shifts() {
         </div>
       )}
     </div>
+    </PullToRefresh>
   );
 }

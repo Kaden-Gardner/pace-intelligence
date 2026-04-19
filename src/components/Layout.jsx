@@ -3,6 +3,7 @@ import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, Calend
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import EmployeeNumberSetup from "./EmployeeNumberSetup";
+import MobileHeader from "./MobileHeader";
 import { cn } from "@/lib/utils";
 
 const adminNavItems = [
@@ -85,6 +86,9 @@ export default function Layout() {
           })}
         </nav>
       </aside>
+
+      {/* Mobile Header */}
+      <MobileHeader />
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto pb-[calc(64px+env(safe-area-inset-bottom))] xl:pb-0">

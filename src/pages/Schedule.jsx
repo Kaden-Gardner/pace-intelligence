@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import PullToRefresh from "@/components/PullToRefresh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronLeft, ChevronRight, CalendarClock, Sparkles, X, Save, FlaskConical } from "lucide-react";
@@ -47,26 +48,25 @@ export default function Schedule() {
     return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
   }
 
-  useEffect(() => {
-    async function load() {
-      const [ss, sbm, avails, emps, prodShifts, fs] = await Promise.all([
-        base44.entities.ScheduledShift.list("-shift_date", 500),
-        base44.entities.ScheduledBaseMixShift.list("-shift_date", 500),
-        base44.entities.Availability.list("-date", 1000),
-        base44.entities.Employee.list("name"),
-        base44.entities.Shift.list("-shift_date", 500),
-        base44.entities.FlavorSet.list("name"),
-      ]);
-      setScheduledShifts(ss);
-      setScheduledBaseMix(sbm);
-      setAvailabilities(avails);
-      setEmployees(emps);
-      setShifts(prodShifts);
-      setFlavorSets(fs);
-      setLoading(false);
-    }
-    load();
+  const loadData = useCallback(async () => {
+    const [ss, sbm, avails, emps, prodShifts, fs] = await Promise.all([
+      base44.entities.ScheduledShift.list("-shift_date", 500),
+      base44.entities.ScheduledBaseMixShift.list("-shift_date", 500),
+      base44.entities.Availability.list("-date", 1000),
+      base44.entities.Employee.list("name"),
+      base44.entities.Shift.list("-shift_date", 500),
+      base44.entities.FlavorSet.list("name"),
+    ]);
+    setScheduledShifts(ss);
+    setScheduledBaseMix(sbm);
+    setAvailabilities(avails);
+    setEmployees(emps);
+    setShifts(prodShifts);
+    setFlavorSets(fs);
+    setLoading(false);
   }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
   const startPad = getDay(startOfMonth(currentMonth));
@@ -242,6 +242,7 @@ export default function Schedule() {
   ].sort((a, b) => a.shift_date.localeCompare(b.shift_date)).slice(0, 30);
 
   return (
+    <PullToRefresh onRefresh={loadData}>
     <div>
       <div className="mb-8">
         <h1 className="font-heading text-3xl font-bold">Schedule</h1>
@@ -530,7 +531,7 @@ export default function Schedule() {
           if (s._type === "production") {
             const assignedEmps = (s.assigned_employees || []).map((id) => empMap[id]).filter(Boolean);
             return (
-              <div key={`p-${s.id}`} className="bg-card rounded-2xl border border-border p-5">
+              <div key={`p-${s.id}`} className="bg-card rounded-2xl border border-border p-5 active:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                     <CalendarClock className="w-5 h-5 text-primary" />
@@ -585,7 +586,7 @@ export default function Schedule() {
             const dotColor = fs?.color;
             const adminEmp = s.admin_employee ? empMap[s.admin_employee] : null;
             return (
-              <div key={`bm-${s.id}`} className="bg-card rounded-2xl border border-border p-5">
+              <div key={`bm-${s.id}`} className="bg-card rounded-2xl border border-border p-5 active:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-3 mb-2">
                   <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
                     <FlaskConical className="w-5 h-5 text-purple-600" />
@@ -610,5 +611,6 @@ export default function Schedule() {
         })}
       </div>
     </div>
+    </PullToRefresh>
   );
 }
