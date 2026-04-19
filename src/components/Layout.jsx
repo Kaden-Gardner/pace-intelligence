@@ -1,6 +1,6 @@
-import { Outlet, Link, useLocation } from "react-router-dom";
+import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, CalendarClock, Clock, UserCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import EmployeeNumberSetup from "./EmployeeNumberSetup";
 import MobileHeader from "./MobileHeader";
@@ -28,16 +28,65 @@ const userNavItems = [
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const navItems = isAdmin ? adminNavItems : userNavItems;
   const [needsEmployeeNumber, setNeedsEmployeeNumber] = useState(false);
+
+  // Tab stack memory: remembers last visited sub-route and scroll position per root tab
+  const tabMemory = useRef({}); // { [rootPath]: { path, scroll } }
+  const mainRef = useRef(null);
 
   useEffect(() => {
     if (user && !user.employee_number) {
       setNeedsEmployeeNumber(true);
     }
   }, [user]);
+
+  // Save scroll position when navigating away
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const rootTab = navItems.find(
+      (item) => location.pathname === item.path || location.pathname.startsWith(item.path + "/")
+    );
+    if (!rootTab) return;
+    // On each path change, store the current scroll before it updates
+    return () => {
+      tabMemory.current[rootTab.path] = {
+        path: location.pathname + location.search,
+        scroll: el.scrollTop,
+      };
+    };
+  }, [location.pathname, location.search]);
+
+  // Restore scroll position after navigation
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const rootTab = navItems.find(
+      (item) => location.pathname === item.path || location.pathname.startsWith(item.path + "/")
+    );
+    if (!rootTab) return;
+    const saved = tabMemory.current[rootTab.path];
+    const savedScroll = saved?.path === location.pathname + location.search ? saved.scroll : 0;
+    requestAnimationFrame(() => { el.scrollTop = savedScroll; });
+  }, [location.pathname]);
+
+  const handleMobileTabPress = useCallback((item) => {
+    const isActive = location.pathname === item.path || location.pathname.startsWith(item.path + "/");
+    if (isActive) {
+      // Reset: clear memory for this tab and go to root
+      tabMemory.current[item.path] = null;
+      if (location.pathname !== item.path) navigate(item.path);
+      else if (mainRef.current) mainRef.current.scrollTop = 0;
+    } else {
+      // Restore last remembered sub-route for this tab
+      const memory = tabMemory.current[item.path];
+      navigate(memory?.path || item.path);
+    }
+  }, [location.pathname, navigate]);
 
   if (user?.role === "terminated") {
     return (
@@ -91,7 +140,7 @@ export default function Layout() {
       <MobileHeader />
 
       {/* Main Content */}
-      <main className="flex-1 overflow-auto pb-[calc(64px+env(safe-area-inset-bottom))] xl:pb-0">
+      <main ref={mainRef} className="flex-1 overflow-auto pb-[calc(64px+env(safe-area-inset-bottom))] xl:pb-0">
         <div className="max-w-7xl mx-auto p-4 xl:p-8">
           <Outlet />
         </div>
@@ -106,9 +155,9 @@ export default function Layout() {
           {navItems.map((item) => {
             const isActive = location.pathname === item.path || (item.path !== "/dashboard" && location.pathname.startsWith(item.path));
             return (
-              <Link
+              <button
                 key={item.path}
-                to={item.path}
+                onClick={() => handleMobileTabPress(item)}
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 py-3 px-4 text-xs font-medium transition-colors select-none min-w-[72px]",
                   isActive
@@ -118,7 +167,7 @@ export default function Layout() {
               >
                 <item.icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
                 <span className="whitespace-nowrap">{item.label}</span>
-              </Link>
+              </button>
             );
           })}
         </div>

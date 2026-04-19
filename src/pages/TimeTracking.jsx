@@ -85,15 +85,28 @@ export default function TimeTracking() {
   async function handleClockIn() {
     setSaving(true);
     const linkedEmp = employees.find((e) => e.employee_number === user?.employee_number);
-    const payload = {
+    const now = new Date().toISOString();
+    const optimisticEntry = {
+      id: `optimistic-${Date.now()}`,
       user_id: user.id,
       employee_id: linkedEmp?.id || "",
       employee_name: linkedEmp?.name || user?.full_name || "",
       employee_number: linkedEmp?.employee_number || user?.employee_number || "",
-      clock_in: new Date().toISOString(),
+      clock_in: now,
+      clock_out: null,
+      total_hours: null,
     };
-    const created = await base44.entities.TimeEntry.create(payload);
-    setEntries((prev) => [created, ...prev]);
+    // Optimistic update: show clocked-in state immediately
+    setEntries((prev) => [optimisticEntry, ...prev]);
+    const created = await base44.entities.TimeEntry.create({
+      user_id: optimisticEntry.user_id,
+      employee_id: optimisticEntry.employee_id,
+      employee_name: optimisticEntry.employee_name,
+      employee_number: optimisticEntry.employee_number,
+      clock_in: now,
+    });
+    // Replace optimistic entry with real one
+    setEntries((prev) => prev.map((e) => e.id === optimisticEntry.id ? created : e));
     setSaving(false);
   }
 
@@ -102,8 +115,9 @@ export default function TimeTracking() {
     setSaving(true);
     const clockOut = new Date().toISOString();
     const total_hours = calcHours(activeEntry.clock_in, clockOut);
-    await base44.entities.TimeEntry.update(activeEntry.id, { clock_out: clockOut, total_hours });
+    // Optimistic update: reflect clocked-out state immediately
     setEntries((prev) => prev.map((e) => e.id === activeEntry.id ? { ...e, clock_out: clockOut, total_hours } : e));
+    await base44.entities.TimeEntry.update(activeEntry.id, { clock_out: clockOut, total_hours });
     setSaving(false);
   }
 

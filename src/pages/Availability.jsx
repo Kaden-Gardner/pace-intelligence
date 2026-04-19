@@ -75,8 +75,6 @@ export default function Availability() {
     setSaving(true);
     const ds = format(selectedDate, "yyyy-MM-dd");
     const existing = myAvailabilities.find((a) => a.date === ds);
-
-    // Find employee linked to this user
     const linkedEmployee = employees.find((emp) => emp.employee_number === user?.employee_number);
 
     const payload = {
@@ -89,24 +87,34 @@ export default function Availability() {
     };
 
     if (existing) {
-      await base44.entities.Availability.update(existing.id, payload);
+      // Optimistic update immediately
       setAvailabilities((prev) => prev.map((a) => a.id === existing.id ? { ...a, ...payload } : a));
+      setSelectedDate(null);
+      setSaving(false);
+      await base44.entities.Availability.update(existing.id, payload);
     } else {
+      const optimisticId = `optimistic-${Date.now()}`;
+      // Optimistic insert immediately
+      setAvailabilities((prev) => [...prev, { ...payload, id: optimisticId }]);
+      setSelectedDate(null);
+      setSaving(false);
       const created = await base44.entities.Availability.create(payload);
-      setAvailabilities((prev) => [...prev, created]);
+      // Replace optimistic entry with real one
+      setAvailabilities((prev) => prev.map((a) => a.id === optimisticId ? created : a));
     }
-    setSaving(false);
-    setSelectedDate(null);
   }
 
   async function handleDelete() {
     const ds = format(selectedDate, "yyyy-MM-dd");
     const existing = myAvailabilities.find((a) => a.date === ds);
     if (existing) {
-      await base44.entities.Availability.delete(existing.id);
+      // Optimistic remove immediately
       setAvailabilities((prev) => prev.filter((a) => a.id !== existing.id));
+      setSelectedDate(null);
+      await base44.entities.Availability.delete(existing.id);
+    } else {
+      setSelectedDate(null);
     }
-    setSelectedDate(null);
   }
 
   if (loading) return (
