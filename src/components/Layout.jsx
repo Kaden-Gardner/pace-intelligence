@@ -5,13 +5,6 @@ import { useAuth } from "@/lib/AuthContext";
 import EmployeeNumberSetup from "./EmployeeNumberSetup";
 import { cn } from "@/lib/utils";
 
-// Bottom nav items (mobile) — 4 key tabs
-const bottomNavItems = [
-  { path: "/schedule", label: "Schedule", icon: CalendarClock },
-  { path: "/shifts", label: "Shifts", icon: Calendar },
-  { path: "/my-info", label: "Info", icon: UserCircle },
-];
-
 const adminNavItems = [
   { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { path: "/my-info", label: "My Info", icon: UserCircle },
@@ -100,27 +93,31 @@ export default function Layout() {
         </div>
       </main>
 
-      {/* Mobile Bottom Navigation */}
-      <nav className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar border-t border-sidebar-border flex items-stretch"
-        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}>
-        {bottomNavItems.map((item) => {
-          const isActive = location.pathname === item.path || (item.path !== "/schedule" && location.pathname.startsWith(item.path));
-          return (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex-1 flex flex-col items-center justify-center gap-1 py-3 text-xs font-medium transition-colors select-none",
-                isActive
-                  ? "text-sidebar-primary"
-                  : "text-sidebar-foreground/60 active:text-sidebar-foreground"
-              )}
-            >
-              <item.icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
-              {item.label}
-            </Link>
-          );
-        })}
+      {/* Mobile Bottom Navigation — horizontally scrollable */}
+      <nav
+        className="xl:hidden fixed bottom-0 left-0 right-0 z-50 bg-sidebar border-t border-sidebar-border overflow-x-auto"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)", scrollbarWidth: "none" }}
+      >
+        <div className="flex items-stretch min-w-max">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path || (item.path !== "/dashboard" && location.pathname.startsWith(item.path));
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex flex-col items-center justify-center gap-1 py-3 px-4 text-xs font-medium transition-colors select-none min-w-[72px]",
+                  isActive
+                    ? "text-sidebar-primary"
+                    : "text-sidebar-foreground/60 active:text-sidebar-foreground"
+                )}
+              >
+                <item.icon className={cn("w-5 h-5", isActive && "stroke-[2.5]")} />
+                <span className="whitespace-nowrap">{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );
