@@ -779,8 +779,8 @@ export default function Inventory() {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Pallets ({CASES_PER_PALLET} cases each)</label>
-                  <Input type="number" min="1" step="1" value={pickupForm.pallets} onChange={(e) => setPickupForm({ ...pickupForm, pallets: parseFloat(e.target.value) || 1 })} required />
-                  {pickupForm.pallets > 0 && <p className="text-xs text-muted-foreground mt-1">= {pickupForm.pallets * CASES_PER_PALLET} cases</p>}
+                  <Input type="number" min="0" step="any" value={pickupForm.pallets} onChange={(e) => setPickupForm({ ...pickupForm, pallets: parseFloat(e.target.value) || 0 })} required />
+                  {pickupForm.pallets > 0 && <p className="text-xs text-muted-foreground mt-1">= {(pickupForm.pallets * CASES_PER_PALLET).toFixed(2).replace(/\.00$/, "")} cases</p>}
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes (optional)</label>
