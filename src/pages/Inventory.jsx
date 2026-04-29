@@ -813,7 +813,7 @@ export default function Inventory() {
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Pallets ({CASES_PER_PALLET} cases each)</label>
                   <Input type="number" min="0" step="any" value={pickupForm.pallets} onChange={(e) => setPickupForm({ ...pickupForm, pallets: parseFloat(e.target.value) || 0 })} required />
-                  {pickupForm.pallets > 0 && <p className="text-xs text-muted-foreground mt-1">= {Math.round(pickupForm.pallets * CASES_PER_PALLET)} cases (rounded to nearest)</p>}
+                  {pickupForm.pallets > 0 && <p className="text-xs text-muted-foreground mt-1">= {Math.round(pickupForm.pallets * CASES_PER_PALLET)} cases</p>}
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes (optional)</label>
@@ -847,7 +847,7 @@ export default function Inventory() {
                       </p>
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         {fsMap[p.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[p.flavorset_id].color }} />}
-                        {fsMap[p.flavorset_id]?.name || "Unknown"} · {p.pallets} pallet{p.pallets !== 1 ? "s" : ""} ({p.cases} cases) · {p.pickup_date}
+                        {fsMap[p.flavorset_id]?.name || "Unknown"} · {p.pallets} pallet{p.pallets !== 1 ? "s" : ""} ({Math.round(p.cases)} cases) · {p.pickup_date}
                       </p>
                       {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}
                     </div>
