@@ -36,7 +36,7 @@ export default function Schedule() {
     assigned_employees: [], on_call_employees: [], special_order: false, special_order_name: "", notes: "",
   });
   const [baseMixForm, setBaseMixForm] = useState({
-    flavorset_id: "", batch_size: 1, admin_employee: "", notes: "",
+    flavorset_id: "", batch_size: 1, admin_employee: "", mixer_1: "", mixer_2: "", mixer_3: "", shift_lead: "", notes: "",
   });
 
   function getMixerArrivalTime(shiftTime) {
@@ -148,6 +148,10 @@ export default function Schedule() {
       flavorset_id: bm.flavorset_id || "",
       batch_size: bm.batch_size || 1,
       admin_employee: bm.admin_employee || "",
+      mixer_1: bm.mixer_1 || "",
+      mixer_2: bm.mixer_2 || "",
+      mixer_3: bm.mixer_3 || "",
+      shift_lead: bm.shift_lead || "",
       notes: bm.notes || "",
     });
   }
@@ -510,6 +514,46 @@ export default function Schedule() {
                       {employees.filter((e) => e.app_role === "admin").map((emp) => (
                         <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
                       ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Mixer 1</label>
+                  <Select value={baseMixForm.mixer_1 || ""} onValueChange={(v) => setBaseMixForm((f) => ({ ...f, mixer_1: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Mixer 2</label>
+                  <Select value={baseMixForm.mixer_2 || ""} onValueChange={(v) => setBaseMixForm((f) => ({ ...f, mixer_2: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Mixer 3</label>
+                  <Select value={baseMixForm.mixer_3 || ""} onValueChange={(v) => setBaseMixForm((f) => ({ ...f, mixer_3: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Shift Lead</label>
+                  <Select value={baseMixForm.shift_lead || ""} onValueChange={(v) => setBaseMixForm((f) => ({ ...f, shift_lead: v === "none" ? "" : v }))}>
+                    <SelectTrigger><SelectValue placeholder="Select shift lead..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">— None —</SelectItem>
+                      {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
