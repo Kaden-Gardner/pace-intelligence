@@ -450,7 +450,7 @@ export default function Schedule() {
                       value={form.special_order_name}
                       onChange={(e) => setForm((f) => ({ ...f, special_order_name: e.target.value }))}
                       placeholder="e.g. U.S. Foods, Whole Foods..."
-                      className="w-full text-sm px-2 py-1 rounded-lg border border-blue-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full text-sm px-2 py-1 rounded-lg border border-blue-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
                     />
                   )}
                 </div>

@@ -56,12 +56,7 @@ export default function Availability() {
 
   const [adminSelectedDate, setAdminSelectedDate] = useState(null);
 
-  async function handleDayClick(date) {
-    if (date < TODAY || date > MAX_DATE) return;
-    if (isAdmin) {
-      setAdminSelectedDate(isSameDay(adminSelectedDate, date) ? null : date);
-      return;
-    }
+  function openSubmitForm(date) {
     setSelectedDate(date);
     const existing = getMyAvailForDate(date);
     if (existing) {
@@ -74,6 +69,15 @@ export default function Availability() {
     } else {
       setForm({ is_available: true, available_from: "08:00", available_until: "17:00", notes: "" });
     }
+  }
+
+  async function handleDayClick(date) {
+    if (date < TODAY || date > MAX_DATE) return;
+    if (isAdmin) {
+      setAdminSelectedDate(isSameDay(adminSelectedDate, date) ? null : date);
+      return;
+    }
+    openSubmitForm(date);
   }
 
   async function handleSave(e) {
@@ -246,27 +250,32 @@ export default function Availability() {
           <div className="mt-6 bg-card rounded-2xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading font-semibold">{format(adminSelectedDate, "EEEE, MMMM d, yyyy")}</h3>
-              <button onClick={() => setAdminSelectedDate(null)}><XCircle className="w-5 h-5 text-muted-foreground" /></button>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => { openSubmitForm(adminSelectedDate); setAdminSelectedDate(null); }}>
+                  My Availability
+                </Button>
+                <button onClick={() => setAdminSelectedDate(null)}><XCircle className="w-5 h-5 text-muted-foreground" /></button>
+              </div>
             </div>
             {dayAvails.length === 0 ? (
               <p className="text-sm text-muted-foreground">No employees have submitted availability for this day.</p>
             ) : (
               <div className="space-y-3">
                 {dayAvails.map((a) => (
-                  <div key={a.id} className={`flex items-start gap-3 p-3 rounded-xl border ${a.is_available ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}`}>
+                  <div key={a.id} className={`flex items-start gap-3 p-3 rounded-xl border ${a.is_available ? "border-green-300 bg-green-100" : "border-red-300 bg-red-100"}`}>
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${a.is_available ? "bg-green-200" : "bg-red-200"}`}>
-                      {a.is_available ? <CheckCircle className="w-4 h-4 text-green-700" /> : <XCircle className="w-4 h-4 text-red-700" />}
+                      {a.is_available ? <CheckCircle className="w-4 h-4 text-green-800" /> : <XCircle className="w-4 h-4 text-red-800" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm">{a.employee_name || a.employee_number || "Unknown"}</p>
+                      <p className="font-medium text-sm text-gray-900">{a.employee_name || a.employee_number || "Unknown"}</p>
                       {a.is_available && (a.available_from || a.available_until) && (
-                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <p className="text-xs text-gray-600 flex items-center gap-1 mt-0.5">
                           <Clock className="w-3 h-3" />
                           {a.available_from || "?"} – {a.available_until || "?"}
                         </p>
                       )}
-                      {!a.is_available && <p className="text-xs text-red-600 mt-0.5">Unavailable</p>}
-                      {a.notes && <p className="text-xs text-muted-foreground mt-1 italic">"{a.notes}"</p>}
+                      {!a.is_available && <p className="text-xs text-red-700 font-medium mt-0.5">Unavailable</p>}
+                      {a.notes && <p className="text-xs text-gray-600 mt-1 italic">"{a.notes}"</p>}
                     </div>
                   </div>
                 ))}
