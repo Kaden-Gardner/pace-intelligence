@@ -293,7 +293,7 @@ export default function Financials() {
                       <p className="font-heading font-semibold">{o.vendor_name}</p>
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         {fsMap[o.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[o.flavorset_id].color }} />}
-                        {fsMap[o.flavorset_id]?.name || "?"} · {o.pallets} pallets · {o.cases} cases · {o.pickup_date}
+                        {fsMap[o.flavorset_id]?.name || "?"} · {o.pallets} pallets · {Math.round(o.cases)} cases · {o.pickup_date}
                       </p>
                       {o.notes && <p className="text-xs text-muted-foreground mt-0.5">{o.notes}</p>}
                     </div>
@@ -346,14 +346,14 @@ export default function Financials() {
                       <p className="font-heading font-semibold">{o.vendor_name}</p>
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         {fsMap[o.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[o.flavorset_id].color }} />}
-                        {fsMap[o.flavorset_id]?.name || "?"} · {o.pallets} pallets · {o.cases} cases · {o.pickup_date}
+                        {fsMap[o.flavorset_id]?.name || "?"} · {o.pallets} pallets · {Math.round(o.cases)} cases · {o.pickup_date}
                       </p>
                       {o.notes && <p className="text-xs text-muted-foreground mt-0.5">{o.notes}</p>}
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">{fmt$(o.case_sell_price)}/case</p>
                       <p className="font-heading font-bold text-primary text-lg">{fmt$(o.case_sell_price * o.cases)}</p>
-                      <p className="text-xs text-muted-foreground">{o.cases} cases</p>
+                      <p className="text-xs text-muted-foreground">{Math.round(o.cases)} cases</p>
                     </div>
                   </div>
                 </div>
