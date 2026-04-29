@@ -1,6 +1,7 @@
 import { useLocation, useNavigate } from "react-router-dom";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { base44 } from "@/api/base44Client";
 
 const PAGE_TITLES = {
   "/": "Schedule",
@@ -52,8 +53,17 @@ export default function MobileHeader() {
           <span className="font-heading font-semibold text-sidebar-foreground text-base">{title}</span>
         )}
       </div>
-      {/* Spacer to balance the back button */}
-      <div className="w-9" />
+      {isRoot ? (
+        <button
+          onClick={() => base44.auth.logout()}
+          className="p-2 rounded-lg text-sidebar-foreground/70 active:bg-sidebar-accent transition-colors select-none"
+          aria-label="Log out"
+        >
+          <LogOut className="w-5 h-5" />
+        </button>
+      ) : (
+        <div className="w-9" />
+      )}
     </header>
   );
 }

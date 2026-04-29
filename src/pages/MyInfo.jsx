@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2 } from "lucide-react";
+import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -203,6 +203,18 @@ export default function MyInfo() {
             </div>
           )}
         </div>
+        {/* Log Out */}
+        <div className="bg-card rounded-2xl border border-border p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <LogOut className="w-4 h-4 text-muted-foreground" />
+            <h2 className="font-heading font-semibold text-base">Log Out</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">Sign out of your account on this device.</p>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => base44.auth.logout()}>
+            <LogOut className="w-4 h-4" /> Log Out
+          </Button>
+        </div>
+
         {/* Delete Account */}
         <div className="bg-card rounded-2xl border border-destructive/30 p-6">
           <div className="flex items-center gap-2 mb-2">

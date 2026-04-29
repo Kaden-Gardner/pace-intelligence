@@ -1,5 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, CalendarClock, Clock, UserCircle, DollarSign } from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, CalendarClock, Clock, UserCircle, DollarSign, LogOut } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import EmployeeNumberSetup from "./EmployeeNumberSetup";
@@ -135,6 +136,15 @@ export default function Layout() {
             );
           })}
         </nav>
+        <div className="px-3 py-4 border-t border-sidebar-border">
+          <button
+            onClick={() => base44.auth.logout()}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-all select-none"
+          >
+            <LogOut className="w-4 h-4" />
+            Log Out
+          </button>
+        </div>
       </aside>
 
       {/* Mobile Header */}
