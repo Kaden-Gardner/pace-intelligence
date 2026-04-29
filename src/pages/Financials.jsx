@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { DollarSign, Lock, Unlock, Package, Users, Calendar, BarChart3, Check, X } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subYears } from "date-fns";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
 const PERIODS = [
   { label: "Last Shift", key: "lastshift" },
@@ -530,7 +531,7 @@ export default function Financials() {
             ))}
           </div>
           {totalRevenue > 0 && totalShiftCost > 0 && (
-            <div className="bg-card rounded-2xl border border-border p-5">
+            <div className="bg-card rounded-2xl border border-border p-5 mb-6">
               <p className="text-sm font-medium mb-2">Profit Estimate</p>
               <p className="font-heading font-bold text-3xl" style={{ color: totalRevenue - totalShiftCost >= 0 ? "hsl(var(--chart-3))" : "hsl(var(--destructive))" }}>
                 {fmt$(totalRevenue - totalShiftCost)}
@@ -538,6 +539,65 @@ export default function Financials() {
               <p className="text-xs text-muted-foreground mt-1">Revenue minus labor costs for this period</p>
             </div>
           )}
+
+          {/* ── Bar Charts ── */}
+          {(() => {
+            // Last 8 shifts (respecting type filter), oldest → newest
+            const last8Shifts = [...analyticsShifts.map((s) => ({ ...s, _type: "production" })), ...analyticsBaseMix.map((s) => ({ ...s, _type: "basemix" }))]
+              .sort((a, b) => a.shift_date.localeCompare(b.shift_date))
+              .slice(-8)
+              .map((s) => ({
+                label: new Date(s.shift_date + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) + (s._type === "basemix" ? " (BM)" : ""),
+                cost: parseFloat(calcShiftCost(s, s._type === "basemix").toFixed(2)),
+              }));
+
+            // Last 8 priced orders, oldest → newest
+            const last8Orders = [...filteredOrders]
+              .sort((a, b) => a.pickup_date.localeCompare(b.pickup_date))
+              .slice(-8)
+              .map((o) => ({
+                label: `${o.vendor_name?.slice(0, 10)}… ${o.pickup_date?.slice(5)}`,
+                revenue: parseFloat(((o.case_sell_price || 0) * (o.cases || 0)).toFixed(2)),
+              }));
+
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="bg-card rounded-2xl border border-border p-5">
+                  <p className="text-sm font-medium mb-4">Shift Cost — Last 8 Shifts</p>
+                  {last8Shifts.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">No shift data available.</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={last8Shifts} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
+                        <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `$${v}`} width={55} />
+                        <Tooltip formatter={(v) => [`$${v.toFixed(2)}`, "Cost"]} contentStyle={{ borderRadius: "0.75rem", fontSize: 12 }} />
+                        <Bar dataKey="cost" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+
+                <div className="bg-card rounded-2xl border border-border p-5">
+                  <p className="text-sm font-medium mb-4">Order Revenue — Last 8 Orders</p>
+                  {last8Orders.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">No priced orders in this period.</p>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={last8Orders} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                        <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
+                        <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `$${v}`} width={65} />
+                        <Tooltip formatter={(v) => [`$${v.toFixed(2)}`, "Revenue"]} contentStyle={{ borderRadius: "0.75rem", fontSize: 12 }} />
+                        <Bar dataKey="revenue" fill="hsl(var(--chart-3))" radius={[6, 6, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>
