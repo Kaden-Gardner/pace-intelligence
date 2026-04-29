@@ -79,6 +79,8 @@ export default function Financials() {
 
   // Analytics period
   const [period, setPeriod] = useState("all");
+  // Shift type filter (used in both Shifts tab and Analytics tab)
+  const [shiftTypeFilter, setShiftTypeFilter] = useState("all"); // "all" | "production" | "basemix"
 
   function handleUnlock() {
     if (pwInput !== "ecap") { setPwError("Incorrect password."); return; }
@@ -232,14 +234,25 @@ export default function Financials() {
   const filteredBaseMix = baseMixShifts.filter((s) => inPeriod(s.shift_date));
   const filteredOrders = prevOrders.filter((o) => inPeriod(o.pickup_date));
 
-  const allShiftCosts = filteredShifts.map((s) => calcShiftCost(s, false));
-  const allBaseMixCosts = filteredBaseMix.map((s) => calcShiftCost(s, true));
+  // Apply shift type filter
+  const analyticsShifts = shiftTypeFilter === "basemix" ? [] : filteredShifts;
+  const analyticsBaseMix = shiftTypeFilter === "production" ? [] : filteredBaseMix;
+
+  const allShiftCosts = analyticsShifts.map((s) => calcShiftCost(s, false));
+  const allBaseMixCosts = analyticsBaseMix.map((s) => calcShiftCost(s, true));
   const totalShiftCost = [...allShiftCosts, ...allBaseMixCosts].reduce((a, b) => a + b, 0);
-  const avgShiftCost = (allShiftCosts.length + allBaseMixCosts.length) > 0 ? totalShiftCost / (allShiftCosts.length + allBaseMixCosts.length) : 0;
-  const totalCasesProduced = filteredShifts.reduce((sum, s) => sum + getTotalCases(s), 0);
+  const totalShiftCount = allShiftCosts.length + allBaseMixCosts.length;
+  const avgShiftCost = totalShiftCount > 0 ? totalShiftCost / totalShiftCount : 0;
+  const totalCasesProduced = analyticsShifts.reduce((sum, s) => sum + getTotalCases(s), 0);
   const avgCostPerCase = totalCasesProduced > 0 ? totalShiftCost / totalCasesProduced : 0;
   const totalRevenue = filteredOrders.reduce((sum, o) => sum + ((o.case_sell_price || 0) * (o.cases || 0)), 0);
   const totalCasesSold = filteredOrders.reduce((sum, o) => sum + (o.cases || 0), 0);
+
+  // Shifts tab list (filtered by type)
+  const shiftsTabList = [
+    ...(shiftTypeFilter === "basemix" ? [] : shifts.map((s) => ({ ...s, _type: "production" }))),
+    ...(shiftTypeFilter === "production" ? [] : baseMixShifts.map((s) => ({ ...s, _type: "basemix" }))),
+  ].sort((a, b) => b.shift_date.localeCompare(a.shift_date));
 
   return (
     <div>
@@ -417,16 +430,22 @@ export default function Financials() {
           <p className="text-sm text-muted-foreground mb-4">
             Shift labor cost is calculated using time tracking overlap. If an employee has no clock-in for a shift, their cost is estimated from the shift duration.
           </p>
+          <div className="flex gap-2 mb-4">
+            {[{ key: "all", label: "All Shifts" }, { key: "production", label: "Production" }, { key: "basemix", label: "Base Mix" }].map((t) => (
+              <button key={t.key} onClick={() => setShiftTypeFilter(t.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${shiftTypeFilter === t.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
           <div className="space-y-4">
-            {shifts.length === 0 && baseMixShifts.length === 0 && (
+            {shiftsTabList.length === 0 && (
               <div className="text-center py-16 text-muted-foreground">
                 <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p>No shifts recorded yet.</p>
               </div>
             )}
-            {[...shifts.map((s) => ({ ...s, _type: "production" })), ...baseMixShifts.map((s) => ({ ...s, _type: "basemix" }))]
-              .sort((a, b) => b.shift_date.localeCompare(a.shift_date))
-              .map((shift) => {
+            {shiftsTabList.map((shift) => {
                 const isBaseMix = shift._type === "basemix";
                 const cost = calcShiftCost(shift, isBaseMix);
                 const cases = isBaseMix ? null : getTotalCases(shift);
@@ -480,7 +499,7 @@ export default function Financials() {
 
         {/* ===== ANALYTICS ===== */}
         <TabsContent value="analytics">
-          <div className="flex flex-wrap gap-2 mb-6">
+          <div className="flex flex-wrap gap-2 mb-4">
             {PERIODS.map((p) => (
               <button key={p.key} onClick={() => setPeriod(p.key)}
                 className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${period === p.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
@@ -488,11 +507,19 @@ export default function Financials() {
               </button>
             ))}
           </div>
+          <div className="flex gap-2 mb-6">
+            {[{ key: "all", label: "All Shifts" }, { key: "production", label: "Production" }, { key: "basemix", label: "Base Mix" }].map((t) => (
+              <button key={t.key} onClick={() => setShiftTypeFilter(t.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${shiftTypeFilter === t.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             {[
-              { label: "Total Shift Cost", value: fmt$(totalShiftCost), sub: `${filteredShifts.length + filteredBaseMix.length} shifts` },
-              { label: "Avg Cost Per Shift", value: fmt$(avgShiftCost), sub: "production + base mix" },
-              { label: "Avg Cost Per Case", value: fmt$(avgCostPerCase), sub: `${totalCasesProduced} cases produced` },
+              { label: "Total Shift Cost", value: fmt$(totalShiftCost), sub: `${totalShiftCount} shifts` },
+              { label: "Avg Cost Per Shift", value: fmt$(avgShiftCost), sub: shiftTypeFilter === "all" ? "production + base mix" : shiftTypeFilter === "production" ? "production only" : "base mix only" },
+              { label: "Avg Cost Per Case", value: shiftTypeFilter === "basemix" ? "—" : fmt$(avgCostPerCase), sub: `${totalCasesProduced} cases produced` },
               { label: "Total Sales Revenue", value: fmt$(totalRevenue), sub: `${totalCasesSold} cases sold` },
             ].map((stat) => (
               <div key={stat.label} className="bg-card rounded-2xl border border-border p-5">
