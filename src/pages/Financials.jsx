@@ -163,7 +163,7 @@ export default function Financials() {
   async function handlePriceOrder(order) {
     const price = parseFloat(priceInput);
     if (!price || price <= 0) return;
-    const totalRevenue = price * (order.cases || 0);
+    const totalRevenue = price * Math.round(order.cases || 0);
     await base44.entities.OrderPickup.update(order.id, { case_sell_price: price, is_priced: true });
     setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, case_sell_price: price, is_priced: true } : o));
     setPricingId(null);
@@ -246,8 +246,8 @@ export default function Financials() {
   const avgShiftCost = totalShiftCount > 0 ? totalShiftCost / totalShiftCount : 0;
   const totalCasesProduced = analyticsShifts.reduce((sum, s) => sum + getTotalCases(s), 0);
   const avgCostPerCase = totalCasesProduced > 0 ? totalShiftCost / totalCasesProduced : 0;
-  const totalRevenue = filteredOrders.reduce((sum, o) => sum + ((o.case_sell_price || 0) * (o.cases || 0)), 0);
-  const totalCasesSold = filteredOrders.reduce((sum, o) => sum + (o.cases || 0), 0);
+  const totalRevenue = filteredOrders.reduce((sum, o) => sum + ((o.case_sell_price || 0) * Math.round(o.cases || 0)), 0);
+  const totalCasesSold = filteredOrders.reduce((sum, o) => sum + Math.round(o.cases || 0), 0);
 
   // Shifts tab list (filtered by type)
   const shiftsTabList = [
@@ -314,7 +314,7 @@ export default function Financials() {
                           />
                         </div>
                         <span className="text-xs text-muted-foreground">per case</span>
-                        {priceInput && <span className="text-xs font-medium text-primary">= ${(parseFloat(priceInput) * (o.cases || 0)).toFixed(2)} total</span>}
+                        {priceInput && <span className="text-xs font-medium text-primary">= ${(parseFloat(priceInput) * Math.round(o.cases || 0)).toFixed(2)} total</span>}
                         <Button size="sm" onClick={() => handlePriceOrder(o)} className="gap-1"><Check className="w-3 h-3" /> Save</Button>
                         <Button size="sm" variant="ghost" onClick={() => { setPricingId(null); setPriceInput(""); }}><X className="w-3 h-3" /></Button>
                       </div>
@@ -352,7 +352,7 @@ export default function Financials() {
                     </div>
                     <div className="text-right">
                       <p className="text-sm text-muted-foreground">{fmt$(o.case_sell_price)}/case</p>
-                      <p className="font-heading font-bold text-primary text-lg">{fmt$(o.case_sell_price * o.cases)}</p>
+                      <p className="font-heading font-bold text-primary text-lg">{fmt$(o.case_sell_price * Math.round(o.cases))}</p>
                       <p className="text-xs text-muted-foreground">{Math.round(o.cases)} cases</p>
                     </div>
                   </div>
@@ -360,7 +360,7 @@ export default function Financials() {
               ))}
               <div className="bg-muted rounded-2xl p-4 flex justify-between items-center">
                 <p className="font-medium">Total Revenue (all time)</p>
-                <p className="font-heading font-bold text-xl text-primary">{fmt$(prevOrders.reduce((sum, o) => sum + (o.case_sell_price || 0) * (o.cases || 0), 0))}</p>
+                <p className="font-heading font-bold text-xl text-primary">{fmt$(prevOrders.reduce((sum, o) => sum + (o.case_sell_price || 0) * Math.round(o.cases || 0), 0))}</p>
               </div>
             </div>
           )}
@@ -563,7 +563,7 @@ export default function Financials() {
               .slice(-8)
               .map((o) => ({
                 label: `${o.vendor_name?.slice(0, 10)}… ${o.pickup_date?.slice(5)}`,
-                revenue: parseFloat(((o.case_sell_price || 0) * (o.cases || 0)).toFixed(2)),
+                revenue: parseFloat(((o.case_sell_price || 0) * Math.round(o.cases || 0)).toFixed(2)),
               }));
 
             return (
