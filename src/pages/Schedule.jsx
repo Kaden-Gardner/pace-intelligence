@@ -33,7 +33,7 @@ export default function Schedule() {
 
   const [form, setForm] = useState({
     shift_time: "08:00", flavorset_id: "", mixer_employee: "",
-    assigned_employees: [], on_call_employees: [], us_foods: false, notes: "",
+    assigned_employees: [], on_call_employees: [], special_order: false, special_order_name: "", notes: "",
   });
   const [baseMixForm, setBaseMixForm] = useState({
     flavorset_id: "", batch_size: 1, admin_employee: "", notes: "",
@@ -132,7 +132,8 @@ export default function Schedule() {
       mixer_employee: shift.mixer_employee || "",
       assigned_employees: shift.assigned_employees || [],
       on_call_employees: shift.on_call_employees || [],
-      us_foods: shift.us_foods || false,
+      special_order: shift.special_order || false,
+      special_order_name: shift.special_order_name || "",
       notes: shift.notes || "",
     });
   }
@@ -293,7 +294,7 @@ export default function Schedule() {
               >
                 <span className={`text-xs font-medium mb-1 ${isToday && !isSelected ? "text-primary font-bold" : ""}`}>{format(day, "d")}</span>
                 {dayShifts.map((s) => {
-                  const prodDotColor = s.us_foods ? "#22c55e" : fsMap[s.flavorset_id]?.color;
+                  const prodDotColor = s.special_order ? "#3b82f6" : fsMap[s.flavorset_id]?.color;
                   return (
                   <button key={s.id} onClick={(e) => { e.stopPropagation(); openEdit(s, day); }} className="text-left w-full mb-0.5">
                     <span className="text-xs px-1 py-0.5 rounded bg-primary/15 text-primary font-medium flex items-center gap-1 truncate">
@@ -432,22 +433,28 @@ export default function Schedule() {
                 <p className="text-xs text-muted-foreground mt-1">★ = Dream team · ✓ = Available · Max 9 working, unlimited on call</p>
               </div>
 
-              {/* U.S. Foods toggle — only shown if flavorset name includes "original" */}
-              {form.flavorset_id && fsMap[form.flavorset_id]?.name?.toLowerCase().includes("original") && (
-                <div className="flex items-center gap-3 p-3 rounded-xl border border-green-200 bg-green-50">
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, us_foods: !f.us_foods }))}
-                    className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${form.us_foods ? "bg-green-500" : "bg-gray-300"}`}
-                  >
-                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${form.us_foods ? "translate-x-5" : "translate-x-0"}`} />
-                  </button>
-                  <div>
-                    <p className="text-sm font-medium text-green-800">U.S. Foods Order</p>
-                    <p className="text-xs text-green-600">Toggle on to mark this as a U.S. Foods order (shows green indicator)</p>
-                  </div>
+              {/* Special Order toggle */}
+              <div className="flex items-start gap-3 p-3 rounded-xl border border-blue-200 bg-blue-50">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, special_order: !f.special_order, special_order_name: f.special_order ? "" : f.special_order_name }))}
+                  className={`relative mt-0.5 inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${form.special_order ? "bg-blue-500" : "bg-gray-300"}`}
+                >
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${form.special_order ? "translate-x-5" : "translate-x-0"}`} />
+                </button>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-800 mb-1">Special Order</p>
+                  {form.special_order && (
+                    <input
+                      type="text"
+                      value={form.special_order_name}
+                      onChange={(e) => setForm((f) => ({ ...f, special_order_name: e.target.value }))}
+                      placeholder="e.g. U.S. Foods, Whole Foods..."
+                      className="w-full text-sm px-2 py-1 rounded-lg border border-blue-300 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  )}
                 </div>
-              )}
+              </div>
 
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
@@ -539,11 +546,11 @@ export default function Schedule() {
                   <div>
                     <p className="font-heading font-semibold flex items-center gap-2">
                       {new Date(s.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                      {s.us_foods && <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">U.S. Foods</span>}
+                      {s.special_order && <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">Special: {s.special_order_name || "Order"}</span>}
                     </p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      {s.flavorset_id && (s.us_foods ? "#22c55e" : fsMap[s.flavorset_id]?.color) && (
-                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: s.us_foods ? "#22c55e" : fsMap[s.flavorset_id]?.color }} />
+                      {s.flavorset_id && fsMap[s.flavorset_id]?.color && (
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: fsMap[s.flavorset_id]?.color }} />
                       )}
                       {s.shift_time}{s.flavorset_id && fsMap[s.flavorset_id] ? ` · ${fsMap[s.flavorset_id].name}` : ""}
                     </p>

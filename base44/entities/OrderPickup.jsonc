@@ -26,6 +26,15 @@
     "notes": {
       "type": "string",
       "title": "Notes"
+    },
+    "case_sell_price": {
+      "type": "number",
+      "title": "Case Sell Price ($)"
+    },
+    "is_priced": {
+      "type": "boolean",
+      "title": "Has Been Priced",
+      "default": false
     }
   },
   "required": [
@@ -33,5 +42,27 @@
     "flavorset_id",
     "pallets",
     "pickup_date"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
 }

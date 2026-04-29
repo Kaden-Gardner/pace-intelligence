@@ -38,10 +38,14 @@
         "type": "string"
       }
     },
-    "us_foods": {
+    "special_order": {
       "type": "boolean",
-      "title": "U.S. Foods Order",
+      "title": "Special Order",
       "default": false
+    },
+    "special_order_name": {
+      "type": "string",
+      "title": "Special Order Name"
     },
     "notes": {
       "type": "string",

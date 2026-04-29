@@ -3,8 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CalendarDays, ChevronLeft, ChevronRight, CheckCircle, XCircle } from "lucide-react";
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay, parseISO, addYears } from "date-fns";
+import { CalendarDays, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock } from "lucide-react";
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameMonth, isSameDay, parseISO, addYears, isBefore } from "date-fns";
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -54,8 +54,14 @@ export default function Availability() {
     return myAvailabilities.find((a) => a.date === ds);
   }
 
+  const [adminSelectedDate, setAdminSelectedDate] = useState(null);
+
   async function handleDayClick(date) {
     if (date < TODAY || date > MAX_DATE) return;
+    if (isAdmin) {
+      setAdminSelectedDate(isSameDay(adminSelectedDate, date) ? null : date);
+      return;
+    }
     setSelectedDate(date);
     const existing = getMyAvailForDate(date);
     if (existing) {
@@ -204,7 +210,7 @@ export default function Availability() {
             return (
               <div
                 key={day.toISOString()}
-                onClick={() => !isPast && !isFuture && handleDayClick(day)}
+                onClick={() => (isAdmin || (!isPast && !isFuture)) && handleDayClick(day)}
                 className={`rounded-xl p-2 min-h-[60px] flex flex-col transition-all ${bgClass}`}
               >
                 <span className="text-xs font-medium mb-1">{format(day, "d")}</span>
@@ -231,6 +237,44 @@ export default function Availability() {
           })}
         </div>
       </div>
+
+      {/* Admin: show employee availability details for selected day */}
+      {isAdmin && adminSelectedDate && (() => {
+        const ds = format(adminSelectedDate, "yyyy-MM-dd");
+        const dayAvails = availabilities.filter((a) => a.date === ds);
+        return (
+          <div className="mt-6 bg-card rounded-2xl border border-border p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-heading font-semibold">{format(adminSelectedDate, "EEEE, MMMM d, yyyy")}</h3>
+              <button onClick={() => setAdminSelectedDate(null)}><XCircle className="w-5 h-5 text-muted-foreground" /></button>
+            </div>
+            {dayAvails.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No employees have submitted availability for this day.</p>
+            ) : (
+              <div className="space-y-3">
+                {dayAvails.map((a) => (
+                  <div key={a.id} className={`flex items-start gap-3 p-3 rounded-xl border ${a.is_available ? "border-green-200 bg-green-50" : "border-red-200 bg-red-50"}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${a.is_available ? "bg-green-200" : "bg-red-200"}`}>
+                      {a.is_available ? <CheckCircle className="w-4 h-4 text-green-700" /> : <XCircle className="w-4 h-4 text-red-700" />}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{a.employee_name || a.employee_number || "Unknown"}</p>
+                      {a.is_available && (a.available_from || a.available_until) && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                          <Clock className="w-3 h-3" />
+                          {a.available_from || "?"} – {a.available_until || "?"}
+                        </p>
+                      )}
+                      {!a.is_available && <p className="text-xs text-red-600 mt-0.5">Unavailable</p>}
+                      {a.notes && <p className="text-xs text-muted-foreground mt-1 italic">"{a.notes}"</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Form panel for all users including admins */}
       {selectedDate && (

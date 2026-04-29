@@ -195,16 +195,29 @@ export default function Inventory() {
   async function savePickup(e) {
     e.preventDefault();
     setSaving(true);
-    const pickupCases = pickupForm.pallets * CASES_PER_PALLET;
+    // Always round to nearest case
+    const pickupCases = Math.round(pickupForm.pallets * CASES_PER_PALLET);
     const created = await base44.entities.OrderPickup.create({ ...pickupForm, pallets: Number(pickupForm.pallets), cases: pickupCases });
     setPickups((prev) => [created, ...prev]);
+    // Deduct from inventory
     const invRecord = inventory.find((i) => i.flavorset_id === pickupForm.flavorset_id && !i.flavor_id);
     if (invRecord) {
       const newCases = Math.max(0, (invRecord.cases || 0) - pickupCases);
       await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
       setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
-      setFreezerItems(await base44.entities.FreezerItem.list());
     }
+    // Deduct pallets from the default freezer
+    if (defaultFreezer && pickupForm.flavorset_id) {
+      const freezerItem = freezerItems.find(
+        (fi) => fi.freezer_id === defaultFreezer && fi.type === "pallet" && fi.flavorset_id === pickupForm.flavorset_id
+      );
+      if (freezerItem) {
+        const palletsToRemove = Number(pickupForm.pallets);
+        const newQty = Math.max(0, (freezerItem.quantity || 0) - palletsToRemove);
+        await base44.entities.FreezerItem.update(freezerItem.id, { quantity: newQty });
+      }
+    }
+    setFreezerItems(await base44.entities.FreezerItem.list());
     setPickupForm({ vendor_name: "", flavorset_id: "", pallets: 1, pickup_date: new Date().toISOString().split("T")[0], notes: "" });
     setShowPickupForm(false);
     setSaving(false);
@@ -218,6 +231,17 @@ export default function Inventory() {
       const newCases = (invRecord.cases || 0) + (pickup.cases || 0);
       await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
       setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
+    }
+    // Restore pallets to default freezer
+    if (defaultFreezer && pickup.flavorset_id) {
+      const freezerItem = freezerItems.find(
+        (fi) => fi.freezer_id === defaultFreezer && fi.type === "pallet" && fi.flavorset_id === pickup.flavorset_id
+      );
+      if (freezerItem) {
+        const newQty = (freezerItem.quantity || 0) + (pickup.pallets || 0);
+        await base44.entities.FreezerItem.update(freezerItem.id, { quantity: newQty });
+        setFreezerItems(await base44.entities.FreezerItem.list());
+      }
     }
   }
 
@@ -780,7 +804,7 @@ export default function Inventory() {
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Pallets ({CASES_PER_PALLET} cases each)</label>
                   <Input type="number" min="0" step="any" value={pickupForm.pallets} onChange={(e) => setPickupForm({ ...pickupForm, pallets: parseFloat(e.target.value) || 0 })} required />
-                  {pickupForm.pallets > 0 && <p className="text-xs text-muted-foreground mt-1">= {(pickupForm.pallets * CASES_PER_PALLET).toFixed(2).replace(/\.00$/, "")} cases</p>}
+                  {pickupForm.pallets > 0 && <p className="text-xs text-muted-foreground mt-1">= {Math.round(pickupForm.pallets * CASES_PER_PALLET)} cases (rounded to nearest)</p>}
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes (optional)</label>

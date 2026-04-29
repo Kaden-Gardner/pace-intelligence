@@ -1,0 +1,44 @@
+{
+  "name": "EmployeeRate",
+  "type": "object",
+  "properties": {
+    "employee_id": {
+      "type": "string",
+      "title": "Employee ID"
+    },
+    "employee_name": {
+      "type": "string",
+      "title": "Employee Name"
+    },
+    "hourly_rate": {
+      "type": "number",
+      "title": "Hourly Rate ($)",
+      "default": 0
+    }
+  },
+  "required": [
+    "employee_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, CalendarClock, Clock, UserCircle } from "lucide-react";
+import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, CalendarClock, Clock, UserCircle, DollarSign } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import EmployeeNumberSetup from "./EmployeeNumberSetup";
@@ -16,6 +16,7 @@ const adminNavItems = [
   { path: "/inventory", label: "Inventory", icon: Package },
   { path: "/employees", label: "Employees", icon: Users },
   { path: "/flavors", label: "Flavors", icon: IceCreamCone },
+  { path: "/financials", label: "Financials", icon: DollarSign },
 ];
 
 const userNavItems = [
