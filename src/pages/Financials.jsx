@@ -500,6 +500,12 @@ export default function Financials() {
 
         {/* ===== ANALYTICS ===== */}
         <TabsContent value="analytics">
+          <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
+            <span className="text-amber-500 text-lg flex-shrink-0">⚠️</span>
+            <p className="text-xs text-amber-800 leading-relaxed">
+              <span className="font-semibold">Disclaimer:</span> All financial figures in this app are based on <span className="font-semibold">estimates and approximations</span> (labor hours, case counts, pricing). Before making any conclusive financial decisions, all administrators should consult verified financial records and statistics outside of this application.
+            </p>
+          </div>
           <div className="flex flex-wrap gap-2 mb-4">
             {PERIODS.map((p) => (
               <button key={p.key} onClick={() => setPeriod(p.key)}
