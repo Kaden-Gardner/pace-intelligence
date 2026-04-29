@@ -5,7 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DollarSign, Lock, Unlock, Package, Users, Calendar, BarChart3, Check, X } from "lucide-react";
-import { getTotalCases } from "@/lib/analyticsHelpers";
+import { getTotalCases, getCasesPerHour } from "@/lib/analyticsHelpers";
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subYears } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
@@ -248,6 +248,13 @@ export default function Financials() {
   const avgCostPerCase = totalCasesProduced > 0 ? totalShiftCost / totalCasesProduced : 0;
   const totalRevenue = filteredOrders.reduce((sum, o) => sum + ((o.case_sell_price || 0) * Math.round(o.cases || 0)), 0);
   const totalCasesSold = filteredOrders.reduce((sum, o) => sum + Math.round(o.cases || 0), 0);
+
+  // Avg cases/hour across filtered production shifts
+  const totalProductionHours = analyticsShifts.reduce((sum, s) => sum + (s.shift_duration || 0), 0);
+  const avgCasesPerHour = totalProductionHours > 0 ? totalCasesProduced / totalProductionHours : 0;
+
+  // Avg wholesale revenue per hour: total revenue / total production hours
+  const avgRevenuePerHour = totalProductionHours > 0 ? totalRevenue / totalProductionHours : 0;
 
   // Shifts tab list (filtered by type)
   const shiftsTabList = [
@@ -522,7 +529,7 @@ export default function Financials() {
               </button>
             ))}
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             {[
               { label: "Total Shift Cost", value: fmt$(totalShiftCost), sub: `${totalShiftCount} shifts` },
               { label: "Avg Cost Per Shift", value: fmt$(avgShiftCost), sub: shiftTypeFilter === "all" ? "production + base mix" : shiftTypeFilter === "production" ? "production only" : "base mix only" },
@@ -536,6 +543,37 @@ export default function Financials() {
               </div>
             ))}
           </div>
+          {/* Production rate & revenue rate card */}
+          {shiftTypeFilter !== "basemix" && (
+            <div className="bg-card rounded-2xl border border-border p-5 mb-8">
+              <div className="flex items-start justify-between flex-wrap gap-4">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Production Rate vs. Wholesale Revenue Rate</p>
+                  <div className="flex flex-wrap items-end gap-6 mt-2">
+                    <div>
+                      <p className="font-heading font-bold text-2xl text-primary">
+                        {avgCasesPerHour > 0 ? `${avgCasesPerHour.toFixed(1)} cases/hr` : "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Avg cases per hour</p>
+                    </div>
+                    <div>
+                      <p className="font-heading font-bold text-2xl" style={{ color: "hsl(var(--chart-3))" }}>
+                        {avgRevenuePerHour > 0 ? `${fmt$(avgRevenuePerHour)}/hr` : "—"}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5">Avg wholesale revenue per hour</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 max-w-xs">
+                  <span className="text-amber-500 text-sm flex-shrink-0">💡</span>
+                  <p className="text-xs text-amber-800 leading-relaxed">
+                    These are <span className="font-semibold">wholesale numbers before any costs</span> (labor, ingredients, overhead) are deducted.
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">Based on {totalProductionHours.toFixed(1)} total production hours and {totalCasesSold} cases sold in this period.</p>
+            </div>
+          )}
           {totalRevenue > 0 && totalShiftCost > 0 && (
             <div className="bg-card rounded-2xl border border-border p-5 mb-6">
               <p className="text-sm font-medium mb-2">Profit Estimate</p>
