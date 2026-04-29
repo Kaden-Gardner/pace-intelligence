@@ -294,7 +294,7 @@ export default function Schedule() {
               >
                 <span className={`text-xs font-medium mb-1 ${isToday && !isSelected ? "text-primary font-bold" : ""}`}>{format(day, "d")}</span>
                 {dayShifts.map((s) => {
-                  const prodDotColor = s.special_order ? "#3b82f6" : fsMap[s.flavorset_id]?.color;
+                  const prodDotColor = s.special_order ? "#22c55e" : fsMap[s.flavorset_id]?.color;
                   return (
                   <button key={s.id} onClick={(e) => { e.stopPropagation(); openEdit(s, day); }} className="text-left w-full mb-0.5">
                     <span className="text-xs px-1 py-0.5 rounded bg-primary/15 text-primary font-medium flex items-center gap-1 truncate">
@@ -434,23 +434,23 @@ export default function Schedule() {
               </div>
 
               {/* Special Order toggle */}
-              <div className="flex items-start gap-3 p-3 rounded-xl border border-blue-200 bg-blue-50">
+              <div className="flex items-start gap-3 p-3 rounded-xl border border-green-200 bg-green-50">
                 <button
                   type="button"
                   onClick={() => setForm((f) => ({ ...f, special_order: !f.special_order, special_order_name: f.special_order ? "" : f.special_order_name }))}
-                  className={`relative mt-0.5 inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${form.special_order ? "bg-blue-500" : "bg-gray-300"}`}
+                  className={`relative mt-0.5 inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${form.special_order ? "bg-green-500" : "bg-gray-300"}`}
                 >
                   <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${form.special_order ? "translate-x-5" : "translate-x-0"}`} />
                 </button>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-800 mb-1">Special Order</p>
+                  <p className="text-sm font-medium text-green-800 mb-1">Special Order</p>
                   {form.special_order && (
                     <input
                       type="text"
                       value={form.special_order_name}
                       onChange={(e) => setForm((f) => ({ ...f, special_order_name: e.target.value }))}
                       placeholder="e.g. U.S. Foods, Whole Foods..."
-                      className="w-full text-sm px-2 py-1 rounded-lg border border-blue-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="w-full text-sm px-2 py-1 rounded-lg border border-green-300 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-green-400"
                     />
                   )}
                 </div>
@@ -546,7 +546,7 @@ export default function Schedule() {
                   <div>
                     <p className="font-heading font-semibold flex items-center gap-2">
                       {new Date(s.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                      {s.special_order && <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full font-medium">Special: {s.special_order_name || "Order"}</span>}
+                      {s.special_order && <span className="text-xs px-2 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Special: {s.special_order_name || "Order"}</span>}
                     </p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       {s.flavorset_id && fsMap[s.flavorset_id]?.color && (

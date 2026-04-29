@@ -22,6 +22,7 @@ export default function Inventory() {
   const [flavors, setFlavors] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [pickups, setPickups] = useState([]);
+  const [scheduledShifts, setScheduledShifts] = useState([]);
   const [freezers, setFreezers] = useState([]);
   const [freezerItems, setFreezerItems] = useState([]);
   const [baseInventory, setBaseInventory] = useState([]);
@@ -101,7 +102,7 @@ export default function Inventory() {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [fs, fl, inv, pk, frz, fi, bi] = await Promise.all([
+    const [fs, fl, inv, pk, frz, fi, bi, ss] = await Promise.all([
       base44.entities.FlavorSet.list("name"),
       base44.entities.Flavor.list("name"),
       base44.entities.Inventory.list(),
@@ -109,6 +110,7 @@ export default function Inventory() {
       base44.entities.Freezer.list("name"),
       base44.entities.FreezerItem.list(),
       base44.entities.BaseInventory.list(),
+      base44.entities.ScheduledShift.list("-shift_date", 500),
     ]);
     setFlavorSets(fs);
     setFlavors(fl);
@@ -117,6 +119,7 @@ export default function Inventory() {
     setFreezers(frz);
     setFreezerItems(fi);
     setBaseInventory(bi);
+    setScheduledShifts(ss);
     // Load default freezer from DB
     const defaultId = frz.find((f) => f.is_default)?.id || null;
     setDefaultFreezer(defaultId);
@@ -127,6 +130,12 @@ export default function Inventory() {
   flavorSets.forEach((fs) => { fsMap[fs.id] = fs; });
   const flMap = {};
   flavors.forEach((f) => { flMap[f.id] = f; });
+  // Set of special order names (lowercased) for quick lookup
+  const specialOrderNames = new Set(
+    scheduledShifts
+      .filter((s) => s.special_order && s.special_order_name)
+      .map((s) => s.special_order_name.trim().toLowerCase())
+  );
 
   async function handleSetDefault(freezerId) {
     await setDefaultFreezerInDB(freezerId || null);
@@ -822,14 +831,20 @@ export default function Inventory() {
             <EmptyState icon={Truck} title="No pickups recorded" description="Record vendor pickups to track outgoing inventory." />
           ) : (
             <div className="space-y-3">
-              {pickups.map((p) => (
+              {pickups.map((p) => {
+                const isSpecial = specialOrderNames.has((p.vendor_name || "").trim().toLowerCase());
+                return (
                 <div key={p.id} className="bg-card rounded-2xl border border-border p-5 flex items-center justify-between gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
                       <Truck className="w-5 h-5 text-muted-foreground" />
                     </div>
                     <div>
-                      <p className="font-medium">{p.vendor_name}</p>
+                      <p className="font-medium flex items-center gap-2">
+                        {isSpecial && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 bg-green-500" />}
+                        {p.vendor_name}
+                        {isSpecial && <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Special Order</span>}
+                      </p>
                       <p className="text-sm text-muted-foreground flex items-center gap-1">
                         {fsMap[p.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[p.flavorset_id].color }} />}
                         {fsMap[p.flavorset_id]?.name || "Unknown"} · {p.pallets} pallet{p.pallets !== 1 ? "s" : ""} ({p.cases} cases) · {p.pickup_date}
@@ -839,7 +854,8 @@ export default function Inventory() {
                   </div>
                   <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive flex-shrink-0" onClick={() => openCrudPw("delete-pickup", p)}><Trash2 className="w-4 h-4" /></Button>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>

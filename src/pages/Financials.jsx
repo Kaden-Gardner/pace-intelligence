@@ -277,7 +277,8 @@ export default function Financials() {
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
                       <p className="font-heading font-semibold">{o.vendor_name}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        {fsMap[o.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[o.flavorset_id].color }} />}
                         {fsMap[o.flavorset_id]?.name || "?"} · {o.pallets} pallets · {o.cases} cases · {o.pickup_date}
                       </p>
                       {o.notes && <p className="text-xs text-muted-foreground mt-0.5">{o.notes}</p>}
@@ -329,7 +330,8 @@ export default function Financials() {
                   <div className="flex items-center justify-between gap-4 flex-wrap">
                     <div>
                       <p className="font-heading font-semibold">{o.vendor_name}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        {fsMap[o.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[o.flavorset_id].color }} />}
                         {fsMap[o.flavorset_id]?.name || "?"} · {o.pallets} pallets · {o.cases} cases · {o.pickup_date}
                       </p>
                       {o.notes && <p className="text-xs text-muted-foreground mt-0.5">{o.notes}</p>}
@@ -443,9 +445,10 @@ export default function Financials() {
                   <div key={shift.id} className="bg-card rounded-2xl border border-border p-5">
                     <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
                       <div>
-                        <p className="font-heading font-semibold">
+                        <p className="font-heading font-semibold flex items-center gap-2 flex-wrap">
+                          {fsMap[shift.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[shift.flavorset_id].color }} />}
                           {new Date(shift.shift_date + "T12:00:00").toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })}
-                          <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{isBaseMix ? "Base Mix" : "Production"}</span>
+                          <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{isBaseMix ? "Base Mix" : "Production"}</span>
                         </p>
                         <p className="text-xs text-muted-foreground">{shift.shift_time} · {shift.shift_duration}h{cases != null ? ` · ${cases} cases` : ""}</p>
                       </div>
