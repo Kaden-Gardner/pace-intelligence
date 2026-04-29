@@ -506,18 +506,6 @@ export default function Schedule() {
                   )}
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Admin Working</label>
-                  <Select value={baseMixForm.admin_employee || ""} onValueChange={(v) => setBaseMixForm((f) => ({ ...f, admin_employee: v === "none" ? "" : v }))}>
-                    <SelectTrigger><SelectValue placeholder="Select admin..." /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">— None —</SelectItem>
-                      {employees.filter((e) => e.app_role === "admin").map((emp) => (
-                        <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Mixer 1</label>
                   <Select value={baseMixForm.mixer_1 || ""} onValueChange={(v) => setBaseMixForm((f) => ({ ...f, mixer_1: v === "none" ? "" : v }))}>
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
