@@ -220,19 +220,21 @@ export default function Employees() {
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-1">
-                    <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      emp.terminated ? "bg-red-100 text-red-700" :
-                      emp.active !== false ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
-                    }`}>
-                      {emp.terminated ? "Terminated" : emp.active !== false ? "Active" : "Inactive"}
-                    </div>
-                    {emp.app_role === "admin" && (
-                      <div className="flex items-center gap-1 text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full font-medium">
-                        <Shield className="w-3 h-3" /> Admin
+                  {isAdmin && (
+                    <div className="flex flex-col items-end gap-1">
+                      <div className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        emp.terminated ? "bg-red-100 text-red-700" :
+                        emp.active !== false ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
+                      }`}>
+                        {emp.terminated ? "Terminated" : emp.active !== false ? "Active" : "Inactive"}
                       </div>
-                    )}
-                  </div>
+                      {emp.app_role === "admin" && (
+                        <div className="flex items-center gap-1 text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full font-medium">
+                          <Shield className="w-3 h-3" /> Admin
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Phone number — visible to all */}
