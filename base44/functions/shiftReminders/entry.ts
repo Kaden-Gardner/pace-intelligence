@@ -1,14 +1,36 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 
 // Runs every 5 minutes. Sends reminder emails 4 hours and 1 hour before each scheduled shift.
+// All shift times are in Mountain Time (America/Denver). UTC offset: MDT = UTC-6, MST = UTC-7.
+// We detect the current offset dynamically so it works year-round.
+
+function getMountainOffsetMs() {
+  // Use Intl to get the current UTC offset for America/Denver
+  const now = new Date();
+  const denverStr = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Denver",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false,
+  }).format(now);
+  // Parse the Denver local time string back to a Date (treated as UTC) to find offset
+  const [datePart, timePart] = denverStr.split(", ");
+  const [mo, dy, yr] = datePart.split("/");
+  const denverLocal = new Date(`${yr}-${mo}-${dy}T${timePart}Z`);
+  return now.getTime() - denverLocal.getTime(); // ms to add to local Denver time to get UTC
+}
+
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
 
   const now = new Date();
-  const todayStr = now.toISOString().split("T")[0];
-  const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  const offsetMs = getMountainOffsetMs();
 
-  // Load today's and tomorrow's shifts (to cover 4hr window near midnight)
+  // Get today and tomorrow in Mountain Time
+  const nowMountain = new Date(now.getTime() - offsetMs);
+  const todayStr = nowMountain.toISOString().split("T")[0];
+  const tomorrowStr = new Date(nowMountain.getTime() + 86400000).toISOString().split("T")[0];
+
   const shifts = await base44.asServiceRole.entities.ScheduledShift.list("shift_date", 200);
   const relevant = shifts.filter((s) => s.shift_date === todayStr || s.shift_date === tomorrowStr);
 
@@ -31,15 +53,23 @@ Deno.serve(async (req) => {
     return emp.email || null;
   }
 
+  function shouldSendReminder(empId) {
+    const emp = empById[empId];
+    if (!emp) return false;
+    if (emp.notifications_disabled) return false;
+    if (emp.notify_schedule_changes_only) return false; // only wants schedule change notifs
+    return true;
+  }
+
   const emailPromises = [];
 
   for (const shift of relevant) {
     if (!shift.shift_time) continue;
-    const [h, m] = shift.shift_time.split(":").map(Number);
-    const shiftMs = new Date(`${shift.shift_date}T${shift.shift_time}:00`).getTime();
-    const diffMins = (shiftMs - now.getTime()) / 60000;
 
-    // Window: within 5 mins of the target (4hr = 240 mins, 1hr = 60 mins)
+    // Build shift start time in Mountain Time, then convert to UTC for comparison
+    const shiftLocalMs = new Date(`${shift.shift_date}T${shift.shift_time}:00`).getTime() + offsetMs;
+    const diffMins = (shiftLocalMs - now.getTime()) / 60000;
+
     const is4hr = diffMins >= 235 && diffMins <= 245;
     const is1hr = diffMins >= 55 && diffMins <= 65;
     if (!is4hr && !is1hr) continue;
@@ -59,18 +89,22 @@ Deno.serve(async (req) => {
     };
 
     (shift.assigned_employees || []).forEach((id) => {
+      if (!shouldSendReminder(id)) return;
       send(getEmail(id), empById[id]?.name || "Team Member", "production");
     });
 
     (shift.on_call_employees || []).forEach((id) => {
+      if (!shouldSendReminder(id)) return;
       send(getEmail(id), empById[id]?.name || "Team Member", "on-call");
     });
 
-    if (shift.mixer_employee) {
-      // Mixer reminder uses their earlier arrival time
-      const mixerMins = h * 60 + m - 90;
-      const mixerMs = new Date(`${shift.shift_date}T00:00:00`).getTime() + mixerMins * 60000;
-      const mixerDiff = (mixerMs - now.getTime()) / 60000;
+    if (shift.mixer_employee && shouldSendReminder(shift.mixer_employee)) {
+      const [h, m] = shift.shift_time.split(":").map(Number);
+      const shiftMinsFromMidnight = h * 60 + m;
+      const mixerMinsFromMidnight = shiftMinsFromMidnight - 90;
+      // Mixer arrival in Mountain Time → UTC
+      const mixerLocalMs = new Date(`${shift.shift_date}T00:00:00`).getTime() + mixerMinsFromMidnight * 60000 + offsetMs;
+      const mixerDiff = (mixerLocalMs - now.getTime()) / 60000;
       const mixerIs4hr = mixerDiff >= 235 && mixerDiff <= 245;
       const mixerIs1hr = mixerDiff >= 55 && mixerDiff <= 65;
       if (mixerIs4hr || mixerIs1hr) {

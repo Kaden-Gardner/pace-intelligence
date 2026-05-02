@@ -4,8 +4,9 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut } from "lucide-react";
+import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -28,6 +29,24 @@ export default function MyInfo() {
   const [upcomingShifts, setUpcomingShifts] = useState([]);
   const [flavorSets, setFlavorSets] = useState([]);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [employeeRecord, setEmployeeRecord] = useState(null);
+  const [notifyScheduleOnly, setNotifyScheduleOnly] = useState(false);
+  const [notificationsDisabled, setNotificationsDisabled] = useState(false);
+  const [savingNotify, setSavingNotify] = useState(false);
+
+  // Dark mode state — read from localStorage, fallback to system
+  const getInitialDark = () => {
+    const stored = localStorage.getItem("darkMode");
+    if (stored !== null) return stored === "true";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  };
+  const [darkMode, setDarkMode] = useState(getInitialDark);
+
+  function toggleDarkMode(val) {
+    setDarkMode(val);
+    localStorage.setItem("darkMode", val ? "true" : "false");
+    document.documentElement.classList.toggle("dark", val);
+  }
 
   async function handleDeleteAccount() {
     setDeletingAccount(true);
@@ -39,7 +58,12 @@ export default function MyInfo() {
     // Load phone number from Employee record
     if (user?.employee_number) {
       base44.entities.Employee.filter({ employee_number: user.employee_number }).then((emps) => {
-        if (emps.length > 0) setPhoneNumber(emps[0].phone_number || "");
+        if (emps.length > 0) {
+          setPhoneNumber(emps[0].phone_number || "");
+          setEmployeeRecord(emps[0]);
+          setNotifyScheduleOnly(emps[0].notify_schedule_changes_only || false);
+          setNotificationsDisabled(emps[0].notifications_disabled || false);
+        }
       });
     }
   }, [user]);
@@ -70,6 +94,15 @@ export default function MyInfo() {
     }
     loadShifts();
   }, [user]);
+
+  async function saveNotificationPrefs(updates) {
+    if (!employeeRecord) return;
+    setSavingNotify(true);
+    const newData = { ...updates };
+    await base44.entities.Employee.update(employeeRecord.id, newData);
+    setEmployeeRecord((prev) => ({ ...prev, ...newData }));
+    setSavingNotify(false);
+  }
 
   async function handleSave(e) {
     e.preventDefault();
@@ -203,6 +236,70 @@ export default function MyInfo() {
             </div>
           )}
         </div>
+        {/* App Preferences */}
+        <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
+          <div className="flex items-center gap-2 mb-1">
+            <Moon className="w-4 h-4 text-primary" />
+            <h2 className="font-heading font-semibold text-base">App Preferences</h2>
+          </div>
+
+          {/* Dark mode */}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium">Dark Mode</p>
+              <p className="text-xs text-muted-foreground">Override your device's default theme</p>
+            </div>
+            <Switch checked={darkMode} onCheckedChange={toggleDarkMode} />
+          </div>
+
+          {/* Notification prefs — only if they have an employee record */}
+          {employeeRecord && (
+            <>
+              <div className="border-t border-border pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <Bell className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-medium">Shift Reminders</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm">Schedule changes only</p>
+                      <p className="text-xs text-muted-foreground">Skip the 4hr/1hr reminders; only get notified when your schedule is updated</p>
+                    </div>
+                    <Switch
+                      checked={notifyScheduleOnly}
+                      disabled={notificationsDisabled || savingNotify}
+                      onCheckedChange={async (val) => {
+                        setNotifyScheduleOnly(val);
+                        await saveNotificationPrefs({ notify_schedule_changes_only: val, notifications_disabled: notificationsDisabled });
+                      }}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <BellOff className="w-4 h-4 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm">Disable all notifications</p>
+                        <p className="text-xs text-muted-foreground">Turn off all shift reminder emails</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={notificationsDisabled}
+                      disabled={savingNotify}
+                      onCheckedChange={async (val) => {
+                        setNotificationsDisabled(val);
+                        await saveNotificationPrefs({ notifications_disabled: val, notify_schedule_changes_only: notifyScheduleOnly });
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+
         {/* Log Out */}
         <div className="bg-card rounded-2xl border border-border p-6">
           <div className="flex items-center gap-2 mb-2">

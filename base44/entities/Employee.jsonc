@@ -36,6 +36,16 @@
         "admin"
       ],
       "default": "user"
+    },
+    "notify_schedule_changes_only": {
+      "type": "boolean",
+      "title": "Notify on Schedule Changes Only",
+      "default": false
+    },
+    "notifications_disabled": {
+      "type": "boolean",
+      "title": "Notifications Disabled",
+      "default": false
     }
   },
   "required": [

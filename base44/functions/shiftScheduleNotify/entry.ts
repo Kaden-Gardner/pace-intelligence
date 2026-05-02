@@ -38,11 +38,18 @@ Deno.serve(async (req) => {
     weekday: "long", month: "long", day: "numeric", year: "numeric"
   });
 
+  function shouldSendScheduleNotif(empId) {
+    const emp = empById[empId];
+    if (!emp) return false;
+    return !emp.notifications_disabled; // send if not fully disabled (schedule changes always go through unless fully off)
+  }
+
   const actionWord = eventType === "create" ? "been scheduled for" : "been updated on";
   const emailPromises = [];
 
   // Working employees
   (shift.assigned_employees || []).forEach((id) => {
+    if (!shouldSendScheduleNotif(id)) return;
     const email = getEmail(id);
     const name = empById[id]?.name || "Team Member";
     if (email) {
@@ -56,6 +63,7 @@ Deno.serve(async (req) => {
 
   // On-call employees
   (shift.on_call_employees || []).forEach((id) => {
+    if (!shouldSendScheduleNotif(id)) return;
     const email = getEmail(id);
     const name = empById[id]?.name || "Team Member";
     if (email) {
@@ -68,7 +76,7 @@ Deno.serve(async (req) => {
   });
 
   // Mixer
-  if (shift.mixer_employee) {
+  if (shift.mixer_employee && shouldSendScheduleNotif(shift.mixer_employee)) {
     const email = getEmail(shift.mixer_employee);
     const name = empById[shift.mixer_employee]?.name || "Team Member";
     if (email && shift.shift_time) {

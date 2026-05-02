@@ -53,13 +53,18 @@ const AnimatedRoutes = () => {
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
-  // Apply dark mode based on system preference
+  // Apply dark mode: respect localStorage override, fallback to system preference
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const apply = (e) => document.documentElement.classList.toggle("dark", e.matches);
-    apply(mq);
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
+    const stored = localStorage.getItem("darkMode");
+    if (stored !== null) {
+      document.documentElement.classList.toggle("dark", stored === "true");
+    } else {
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const apply = (e) => document.documentElement.classList.toggle("dark", e.matches);
+      apply(mq);
+      mq.addEventListener("change", apply);
+      return () => mq.removeEventListener("change", apply);
+    }
   }, []);
 
   if (isLoadingPublicSettings || isLoadingAuth) {
