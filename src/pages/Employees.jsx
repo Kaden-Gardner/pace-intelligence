@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield } from "lucide-react";
-import { getBestPosition } from "../lib/analyticsHelpers";
+import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown } from "lucide-react";
+import { getBestPosition, getEmployeePosition, getTotalCases, getCasesPerHour } from "../lib/analyticsHelpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -33,6 +33,7 @@ export default function Employees() {
   const [passwordDialog, setPasswordDialog] = useState(null);
   const [passwordInput, setPasswordInput] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [selectedPosition, setSelectedPosition] = useState({}); // empId -> position string
 
   useEffect(() => {
     async function load() {
@@ -244,6 +245,58 @@ export default function Employees() {
                     <a href={`tel:${emp.phone_number}`} className="hover:text-foreground transition-colors">{emp.phone_number}</a>
                   </div>
                 )}
+
+                {/* Position stats — admin only */}
+                {isAdmin && (() => {
+                  // Compute positions this employee has worked
+                  const positionData = {};
+                  shifts.forEach((shift) => {
+                    const positions = getEmployeePosition(shift, emp.id);
+                    if (positions.length === 0) return;
+                    const totalCases = getTotalCases(shift);
+                    const duration = shift.shift_duration || 0;
+                    positions.forEach((pos) => {
+                      if (!positionData[pos]) positionData[pos] = { shifts: 0, totalCases: 0, totalHours: 0 };
+                      positionData[pos].shifts += 1;
+                      positionData[pos].totalCases += totalCases;
+                      positionData[pos].totalHours += duration;
+                    });
+                  });
+                  const positionList = Object.keys(positionData).sort();
+                  if (positionList.length === 0) return null;
+                  const chosenPos = selectedPosition[emp.id] || positionList[0];
+                  const pd = positionData[chosenPos];
+                  const avgCph = pd.totalHours > 0 ? (pd.totalCases / pd.totalHours).toFixed(1) : "—";
+                  const avgCases = pd.shifts > 0 ? (pd.totalCases / pd.shifts).toFixed(0) : "—";
+                  return (
+                    <div className="mt-3 pt-3 border-t border-border">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs font-medium text-muted-foreground">Position Stats</span>
+                        <select
+                          value={chosenPos}
+                          onChange={(e) => setSelectedPosition((prev) => ({ ...prev, [emp.id]: e.target.value }))}
+                          className="text-xs rounded-lg border border-input bg-transparent px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
+                        >
+                          {positionList.map((p) => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                      </div>
+                      <div className="flex gap-3">
+                        <div className="flex-1 bg-muted rounded-xl px-3 py-2 text-center">
+                          <p className="font-heading font-bold text-primary text-sm">{avgCph}</p>
+                          <p className="text-xs text-muted-foreground">cases/hr</p>
+                        </div>
+                        <div className="flex-1 bg-muted rounded-xl px-3 py-2 text-center">
+                          <p className="font-heading font-bold text-primary text-sm">{avgCases}</p>
+                          <p className="text-xs text-muted-foreground">avg cases/shift</p>
+                        </div>
+                        <div className="flex-1 bg-muted rounded-xl px-3 py-2 text-center">
+                          <p className="font-heading font-bold text-primary text-sm">{pd.shifts}</p>
+                          <p className="text-xs text-muted-foreground">shifts</p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Admin actions only */}
                 {isAdmin && (
