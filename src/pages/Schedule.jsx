@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight, CalendarClock, Sparkles, X, Save, FlaskConic
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addYears, isSameMonth } from "date-fns";
 import { findDreamTeam } from "../lib/analyticsHelpers";
+import UpcomingShiftTab from "@/components/schedule/UpcomingShiftTab";
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -30,6 +31,7 @@ export default function Schedule() {
   const [editBaseMix, setEditBaseMix] = useState(null);
   const [activeTab, setActiveTab] = useState("production"); // "production" | "basemix"
   const [saving, setSaving] = useState(false);
+  const [scheduleView, setScheduleView] = useState("calendar"); // "calendar" | "upcoming-shift"
 
   const [form, setForm] = useState({
     shift_time: "08:00", flavorset_id: "", mixer_employee: "",
@@ -249,13 +251,42 @@ export default function Schedule() {
   return (
     <PullToRefresh onRefresh={loadData}>
     <div>
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="font-heading text-3xl font-bold">Schedule</h1>
         <p className="text-muted-foreground mt-1">
           {isAdmin ? "Plan and manage upcoming shifts" : "View upcoming scheduled shifts"}
         </p>
       </div>
 
+      {/* Top-level sub-tabs (admin only for upcoming shift tab) */}
+      <div className="flex gap-2 mb-6">
+        <button
+          onClick={() => setScheduleView("calendar")}
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${scheduleView === "calendar" ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+        >
+          Calendar
+        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setScheduleView("upcoming-shift")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${scheduleView === "upcoming-shift" ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+          >
+            <CalendarClock className="w-3.5 h-3.5" /> Upcoming Shift
+          </button>
+        )}
+      </div>
+
+      {/* Upcoming Shift tab (admin only) */}
+      {isAdmin && scheduleView === "upcoming-shift" && (
+        <UpcomingShiftTab
+          scheduledShifts={scheduledShifts}
+          employees={employees}
+          flavorSets={flavorSets}
+          shifts={shifts}
+        />
+      )}
+
+      {scheduleView === "calendar" && <>
       <div className="bg-card rounded-2xl border border-border p-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="font-heading font-semibold text-lg">{format(currentMonth, "MMMM yyyy")}</h2>
@@ -649,6 +680,7 @@ export default function Schedule() {
           }
         })}
       </div>
+      </>}
     </div>
     </PullToRefresh>
   );
