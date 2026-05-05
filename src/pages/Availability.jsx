@@ -248,8 +248,8 @@ export default function Availability() {
         </div>
       )}
 
-      {/* Bulk availability section (non-admin only) */}
-      {!isAdmin && (
+      {/* Bulk availability section */}
+      {(
         <div className="mb-6">
           <button
             onClick={() => { setShowBulk(!showBulk); setSelectedDate(null); }}
