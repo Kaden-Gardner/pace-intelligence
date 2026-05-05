@@ -34,17 +34,19 @@ export default function Layout() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const navItems = isAdmin ? adminNavItems : userNavItems;
-  const [needsEmployeeNumber, setNeedsEmployeeNumber] = useState(false);
+  const [needsEmployeeNumber, setNeedsEmployeeNumber] = useState(null); // null = not yet checked
 
   // Tab stack memory: remembers last visited sub-route and scroll position per root tab
   const tabMemory = useRef({}); // { [rootPath]: { path, scroll } }
   const mainRef = useRef(null);
 
   useEffect(() => {
-    if (user && !user.employee_number) {
-      setNeedsEmployeeNumber(true);
+    if (!user) return;
+    // Only check once (when null). Once dismissed it stays false.
+    if (needsEmployeeNumber === null) {
+      setNeedsEmployeeNumber(!user.employee_number);
     }
-  }, [user]);
+  }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Save scroll position when navigating away
   useEffect(() => {

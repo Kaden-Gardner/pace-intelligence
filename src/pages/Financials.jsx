@@ -458,6 +458,24 @@ export default function Financials() {
                 const cost = calcShiftCost(shift, isBaseMix);
                 const cases = isBaseMix ? null : getTotalCases(shift);
 
+                // Predicted revenue: avg case sell price * cases produced
+                const pricedOrders = orders.filter((o) => o.is_priced && o.case_sell_price > 0);
+                const avgCasePrice = pricedOrders.length > 0
+                  ? pricedOrders.reduce((sum, o) => sum + o.case_sell_price, 0) / pricedOrders.length
+                  : null;
+                const predictedRevenue = (!isBaseMix && cases > 0 && avgCasePrice) ? avgCasePrice * cases : null;
+                const profitRatio = (predictedRevenue && cost > 0) ? predictedRevenue / cost : null;
+                const profitColor = profitRatio === null ? null
+                  : profitRatio >= 2.0 ? "bg-green-100 text-green-800 border-green-200"
+                  : profitRatio >= 1.5 ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                  : profitRatio >= 1.0 ? "bg-orange-100 text-orange-800 border-orange-200"
+                  : "bg-red-100 text-red-800 border-red-200";
+                const profitDot = profitRatio === null ? null
+                  : profitRatio >= 2.0 ? "bg-green-500"
+                  : profitRatio >= 1.5 ? "bg-yellow-500"
+                  : profitRatio >= 1.0 ? "bg-orange-500"
+                  : "bg-red-500";
+
                 let empIds = [];
                 if (isBaseMix) {
                   [shift.mixer_1, shift.mixer_2, shift.mixer_3, shift.shift_lead].forEach((id) => { if (id) empIds.push(id); });
@@ -470,7 +488,7 @@ export default function Financials() {
 
                 return (
                   <div key={shift.id} className="bg-card rounded-2xl border border-border p-5">
-                    <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
+                    <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
                       <div>
                         <p className="font-heading font-semibold flex items-center gap-2 flex-wrap">
                           {fsMap[shift.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[shift.flavorset_id].color }} />}
@@ -480,7 +498,18 @@ export default function Financials() {
                         <p className="text-xs text-muted-foreground">{shift.shift_time} · {shift.shift_duration}h{cases != null ? ` · ${cases} cases` : ""}</p>
                       </div>
                       <p className="font-heading font-bold text-xl text-primary">{cost > 0 ? fmt$(cost) : "—"}</p>
+                      {predictedRevenue && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          ~{fmt$(predictedRevenue)} predicted
+                        </p>
+                      )}
                     </div>
+                    {profitColor && (
+                      <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${profitColor}`}>
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${profitDot}`} />
+                        {profitRatio >= 2.0 ? "High ROI" : profitRatio >= 1.5 ? "Good ROI" : profitRatio >= 1.0 ? "Low ROI" : "Unprofitable"}
+                      </div>
+                    )}
                     {empIds.length > 0 && (
                       <div className="flex flex-wrap gap-2">
                         {empIds.map((id) => {

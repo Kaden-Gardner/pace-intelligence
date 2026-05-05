@@ -31,6 +31,7 @@ export default function EmployeeNumberSetup({ user, onComplete }) {
     if (!matched) return;
     setSaving(true);
     await base44.auth.updateMe({ employee_number: employeeNumber.trim() });
+    setSaving(false);
     onComplete();
   }
 
