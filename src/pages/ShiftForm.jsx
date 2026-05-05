@@ -70,8 +70,11 @@ export default function ShiftForm() {
       setCaseSizes(cs);
       // Only show scheduled shifts that don't already have a recorded production shift on same date
       const usedDates = new Set(allProdShifts.map((s) => s.shift_date));
-      const today = new Date().toISOString().split("T")[0];
-      const available = allSchedShifts.filter((s) => !usedDates.has(s.shift_date) && s.shift_date >= today);
+      // Allow autofill up to 1 day past the scheduled shift date
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+      const available = allSchedShifts.filter((s) => !usedDates.has(s.shift_date) && s.shift_date >= yesterdayStr);
       setScheduledShifts(available);
 
       if (editId) {
