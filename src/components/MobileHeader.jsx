@@ -18,9 +18,10 @@ const PAGE_TITLES = {
   "/availability": "Availability",
   "/time-tracking": "Time Tracking",
   "/my-info": "My Info",
+  "/financials": "Financials",
 };
 
-const ROOT_PATHS = new Set(["/", "/schedule", "/dashboard", "/shifts", "/employees", "/flavors", "/inventory", "/availability", "/time-tracking", "/my-info"]);
+const ROOT_PATHS = new Set(["/", "/schedule", "/dashboard", "/shifts", "/employees", "/flavors", "/inventory", "/availability", "/time-tracking", "/my-info", "/financials"]);
 
 export default function MobileHeader() {
   const location = useLocation();

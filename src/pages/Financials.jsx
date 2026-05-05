@@ -466,17 +466,24 @@ export default function Financials() {
                 const predictedRevenue = (!isBaseMix && cases > 0 && avgCasePrice) ? avgCasePrice * cases : null;
                 const profitRatio = (predictedRevenue && cost > 0) ? predictedRevenue / cost : null;
                 const profitColor = profitRatio === null ? null
-                  : profitRatio >= 3.5 ? "bg-purple-100 text-purple-800 border-purple-200"
-                  : profitRatio >= 2.0 ? "bg-green-100 text-green-800 border-green-200"
-                  : profitRatio >= 1.5 ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                  : profitRatio >= 5.0 ? "bg-purple-100 text-purple-800 border-purple-200"
+                  : profitRatio >= 4.0 ? "bg-green-100 text-green-800 border-green-200"
+                  : profitRatio >= 2.0 ? "bg-yellow-100 text-yellow-800 border-yellow-200"
                   : profitRatio >= 1.0 ? "bg-orange-100 text-orange-800 border-orange-200"
                   : "bg-red-100 text-red-800 border-red-200";
                 const profitDot = profitRatio === null ? null
-                  : profitRatio >= 3.5 ? "bg-purple-500"
-                  : profitRatio >= 2.0 ? "bg-green-500"
-                  : profitRatio >= 1.5 ? "bg-yellow-500"
+                  : profitRatio >= 5.0 ? "bg-purple-500"
+                  : profitRatio >= 4.0 ? "bg-green-500"
+                  : profitRatio >= 2.0 ? "bg-yellow-500"
                   : profitRatio >= 1.0 ? "bg-orange-500"
                   : "bg-red-500";
+                const profitLabel = profitRatio === null ? null
+                  : profitRatio >= 5.0 ? "Extremely High ROI"
+                  : profitRatio >= 4.0 ? "High ROI"
+                  : profitRatio >= 2.0 ? "Good ROI"
+                  : profitRatio >= 1.0 ? "Low ROI"
+                  : "Unprofitable";
+                const profitPct = profitRatio !== null ? `${Math.round(profitRatio * 100)}%` : null;
 
                 let empIds = [];
                 if (isBaseMix) {
@@ -499,17 +506,17 @@ export default function Financials() {
                         </p>
                         <p className="text-xs text-muted-foreground">{shift.shift_time} · {shift.shift_duration}h{cases != null ? ` · ${cases} cases` : ""}</p>
                       </div>
-                      <p className="font-heading font-bold text-xl text-primary">{cost > 0 ? fmt$(cost) : "—"}</p>
-                      {predictedRevenue && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          ~{fmt$(predictedRevenue)} predicted
-                        </p>
-                      )}
+                      <div className="text-right">
+                        <p className="font-heading font-bold text-xl text-primary">{cost > 0 ? fmt$(cost) : "—"}</p>
+                        {predictedRevenue && (
+                          <p className="text-xs text-muted-foreground mt-0.5">~{fmt$(predictedRevenue)} predicted rev.</p>
+                        )}
+                      </div>
                     </div>
                     {profitColor && (
-                      <div className={`flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${profitColor}`}>
+                      <div className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border mb-3 ${profitColor}`}>
                         <span className={`w-2 h-2 rounded-full flex-shrink-0 ${profitDot}`} />
-                        {profitRatio >= 3.5 ? "Extremely High ROI" : profitRatio >= 2.0 ? "High ROI" : profitRatio >= 1.5 ? "Good ROI" : profitRatio >= 1.0 ? "Low ROI" : "Unprofitable"}
+                        {profitLabel} · {profitPct}
                       </div>
                     )}
                     {empIds.length > 0 && (
