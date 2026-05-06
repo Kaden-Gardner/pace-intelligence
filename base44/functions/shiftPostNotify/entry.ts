@@ -71,7 +71,8 @@ Deno.serve(async (req) => {
   }
 
   const subject = `🏭 New Shift Posted — ${dateStr}`;
-  const bodyText = `A new production shift has been posted.\n\n` +
+  const bodyText = (shift.notes ? `📝 ${shift.notes}\n\n` : "") +
+    `A new production shift has been posted.\n\n` +
     `${colorEmoji} Flavor Set: ${flavorName}\n` +
     `📅 Date: ${dateStr}\n` +
     `⏰ Start Time: ${startTime}\n` +
@@ -79,7 +80,7 @@ Deno.serve(async (req) => {
     `📦 Cases Produced: ${totalCases}\n` +
     `💧 Waste: ${waste} gal\n` +
     `⚡ Production Rate: ${cph} cases/hr\n` +
-    (shift.notes ? `\n📝 Notes: ${shift.notes}\n` : "") +
+    "" +
     `\n— Pace Bars`;
 
   const emailPromises = recipients.map((emp) =>
