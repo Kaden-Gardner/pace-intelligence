@@ -107,12 +107,23 @@ export default function Shifts() {
                   const totalCases = getTotalCases(shift);
                   const cph = getCasesPerHour(shift);
                   const dotColor = shift.us_foods ? "#22c55e" : fsMap[shift.flavorset_id]?.color;
+
+                  // ROI dot — same thresholds as Financials page (ratio = revenue/cost)
+                  // We use cases/hr as a proxy since we don't have rates here
+                  // Use cph tiers: >=18 purple, >=14 green, >=10 yellow, >=6 orange, else red
+                  const roiColor = cph >= 18 ? "#a855f7"
+                    : cph >= 14 ? "#22c55e"
+                    : cph >= 10 ? "#eab308"
+                    : cph >= 6  ? "#f97316"
+                    : "#ef4444";
+
                   return (
                     <div key={shift.id} className="bg-card rounded-2xl border border-border p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:shadow-md active:bg-muted/50 transition-all">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-2">
-                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center relative">
                             <Calendar className="w-5 h-5 text-primary" />
+                            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full border-2 border-card" style={{ backgroundColor: roiColor }} />
                           </div>
                           <div>
                             <p className="font-heading font-semibold flex items-center gap-2">

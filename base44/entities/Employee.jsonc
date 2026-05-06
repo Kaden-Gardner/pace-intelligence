@@ -46,6 +46,11 @@
       "type": "boolean",
       "title": "Notifications Disabled",
       "default": false
+    },
+    "notify_shift_posts": {
+      "type": "boolean",
+      "title": "Notify on Shift Posts (Admin)",
+      "default": false
     }
   },
   "required": [

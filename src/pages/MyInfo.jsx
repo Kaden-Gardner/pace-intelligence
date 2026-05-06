@@ -32,6 +32,7 @@ export default function MyInfo() {
   const [employeeRecord, setEmployeeRecord] = useState(null);
   const [notifyScheduleOnly, setNotifyScheduleOnly] = useState(false);
   const [notificationsDisabled, setNotificationsDisabled] = useState(false);
+  const [notifyShiftPosts, setNotifyShiftPosts] = useState(false);
   const [savingNotify, setSavingNotify] = useState(false);
 
   // Dark mode state — read from localStorage, fallback to system
@@ -63,6 +64,7 @@ export default function MyInfo() {
           setEmployeeRecord(emps[0]);
           setNotifyScheduleOnly(emps[0].notify_schedule_changes_only || false);
           setNotificationsDisabled(emps[0].notifications_disabled || false);
+          setNotifyShiftPosts(emps[0].notify_shift_posts || false);
         }
       });
     }
@@ -278,22 +280,39 @@ export default function MyInfo() {
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <BellOff className="w-4 h-4 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm">Disable all notifications</p>
-                        <p className="text-xs text-muted-foreground">Turn off all shift reminder emails</p>
-                      </div>
-                    </div>
-                    <Switch
-                      checked={notificationsDisabled}
-                      disabled={savingNotify}
-                      onCheckedChange={async (val) => {
-                        setNotificationsDisabled(val);
-                        await saveNotificationPrefs({ notifications_disabled: val, notify_schedule_changes_only: notifyScheduleOnly });
-                      }}
-                    />
+                   <div className="flex items-center gap-2">
+                     <BellOff className="w-4 h-4 text-muted-foreground" />
+                     <div>
+                       <p className="text-sm">Disable all notifications</p>
+                       <p className="text-xs text-muted-foreground">Turn off all shift reminder emails</p>
+                     </div>
+                   </div>
+                   <Switch
+                     checked={notificationsDisabled}
+                     disabled={savingNotify}
+                     onCheckedChange={async (val) => {
+                       setNotificationsDisabled(val);
+                       await saveNotificationPrefs({ notifications_disabled: val, notify_schedule_changes_only: notifyScheduleOnly });
+                     }}
+                   />
                   </div>
+
+                  {user?.role === "admin" && (
+                   <div className="flex items-center justify-between">
+                     <div>
+                       <p className="text-sm">Shift post summaries</p>
+                       <p className="text-xs text-muted-foreground">Get an email when a new production shift is posted (flavor, cases, waste, duration)</p>
+                     </div>
+                     <Switch
+                       checked={notifyShiftPosts}
+                       disabled={notificationsDisabled || savingNotify}
+                       onCheckedChange={async (val) => {
+                         setNotifyShiftPosts(val);
+                         await saveNotificationPrefs({ notify_shift_posts: val, notify_schedule_changes_only: notifyScheduleOnly, notifications_disabled: notificationsDisabled });
+                       }}
+                     />
+                   </div>
+                  )}
                 </div>
               </div>
             </>
