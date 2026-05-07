@@ -276,11 +276,11 @@ export default function Financials() {
 
       <Tabs defaultValue="new-orders">
         <TabsList className="mb-6 grid grid-cols-5 w-full">
-          <TabsTrigger value="new-orders" className="text-xs px-1">New</TabsTrigger>
-          <TabsTrigger value="previous-orders" className="text-xs px-1">Orders</TabsTrigger>
-          <TabsTrigger value="employees" className="text-xs px-1">Employees</TabsTrigger>
-          <TabsTrigger value="shifts" className="text-xs px-1">Shifts</TabsTrigger>
-          <TabsTrigger value="analytics" className="text-xs px-1">Analytics</TabsTrigger>
+          <TabsTrigger value="new-orders" className="text-[11px] sm:text-sm px-1 truncate">New</TabsTrigger>
+          <TabsTrigger value="previous-orders" className="text-[11px] sm:text-sm px-1 truncate">Orders</TabsTrigger>
+          <TabsTrigger value="employees" className="text-[11px] sm:text-sm px-1 truncate">Staff</TabsTrigger>
+          <TabsTrigger value="shifts" className="text-[11px] sm:text-sm px-1 truncate">Shifts</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-[11px] sm:text-sm px-1 truncate">Analytics</TabsTrigger>
         </TabsList>
 
         {/* ===== NEW ORDERS ===== */}
