@@ -410,20 +410,20 @@ export default function Availability() {
                     const availCount = avails.filter((a) => a.is_available).length;
                     const unavailCount = avails.filter((a) => !a.is_available).length;
                     return (
-                      <div className="flex flex-col gap-0.5 mt-0.5">
+                      <div className="flex flex-col gap-1 mt-1">
                         {availCount > 0 && (
-                          <span className="text-xs font-medium text-green-700 leading-tight">✓ {availCount}</span>
+                          <span className="text-[10px] font-semibold text-green-700 bg-green-100 rounded-full px-1.5 py-0.5 leading-none text-center">✓ {availCount}</span>
                         )}
                         {unavailCount > 0 && (
-                          <span className="text-xs font-medium text-red-600 leading-tight">✗ {unavailCount}</span>
+                          <span className="text-[10px] font-semibold text-red-700 bg-red-100 rounded-full px-1.5 py-0.5 leading-none text-center">✗ {unavailCount}</span>
                         )}
                       </div>
                     );
                   })()
                 ) : (
                   myAvail && (
-                    <span className={`text-xs px-1 rounded ${myAvail.is_available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                      {myAvail.is_available ? "✓" : "✗"}
+                    <span className={`mt-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full leading-none text-center ${myAvail.is_available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {myAvail.is_available ? "✓ Avail" : "✗ Off"}
                     </span>
                   )
                 )}
