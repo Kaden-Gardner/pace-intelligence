@@ -298,6 +298,31 @@ export default function Inventory() {
     await base44.entities.FreezerItem.update(item.id, { quantity: editItemQty });
     setFreezerItems((prev) => prev.map((fi) => (fi.id === item.id ? { ...fi, quantity: editItemQty } : fi)));
     setEditingItemId(null);
+
+    // Sync Inventory entity: update total cases based on all freezer items for this flavorset/flavor
+    if (item.type === "pallet" && item.flavorset_id) {
+      // Sum all pallet items for this flavorset across all freezers and convert to cases
+      const allFreezerItems = await base44.entities.FreezerItem.list();
+      const totalPallets = allFreezerItems
+        .filter((fi) => fi.type === "pallet" && fi.flavorset_id === item.flavorset_id)
+        .reduce((sum, fi) => sum + (fi.id === item.id ? editItemQty : (fi.quantity || 0)), 0);
+      const totalCases = totalPallets * CASES_PER_PALLET;
+      const invRecord = inventory.find((i) => i.flavorset_id === item.flavorset_id && !i.flavor_id);
+      if (invRecord) {
+        await base44.entities.Inventory.update(invRecord.id, { cases: totalCases });
+        setInventory((prev) => prev.map((i) => i.id === invRecord.id ? { ...i, cases: totalCases } : i));
+      }
+    } else if (item.type === "individual" && item.flavor_id) {
+      const allFreezerItems = await base44.entities.FreezerItem.list();
+      const totalCases = allFreezerItems
+        .filter((fi) => fi.type === "individual" && fi.flavor_id === item.flavor_id)
+        .reduce((sum, fi) => sum + (fi.id === item.id ? editItemQty : (fi.quantity || 0)), 0);
+      const invRecord = inventory.find((i) => i.flavor_id === item.flavor_id && !i.flavorset_id);
+      if (invRecord) {
+        await base44.entities.Inventory.update(invRecord.id, { cases: totalCases });
+        setInventory((prev) => prev.map((i) => i.id === invRecord.id ? { ...i, cases: totalCases } : i));
+      }
+    }
   }
 
   async function deleteFreezerItem(id) {

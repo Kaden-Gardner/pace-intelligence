@@ -406,16 +406,20 @@ export default function Availability() {
               >
                 <span className={`text-xs font-medium mb-1 ${isToday ? "text-primary font-bold" : ""}`}>{format(day, "d")}</span>
                 {isAdmin ? (
-                  avails.length > 0 && (
-                    <div className="flex flex-col gap-0.5">
-                      {avails.slice(0, 3).map((a, i) => (
-                        <span key={i} className={`text-xs px-1 rounded truncate ${a.is_available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
-                          {a.employee_name?.split(" ")[0] || a.employee_number || a.created_by?.split("@")[0] || "?"}
-                        </span>
-                      ))}
-                      {avails.length > 3 && <span className="text-xs text-muted-foreground">+{avails.length - 3}</span>}
-                    </div>
-                  )
+                  avails.length > 0 && (() => {
+                    const availCount = avails.filter((a) => a.is_available).length;
+                    const unavailCount = avails.filter((a) => !a.is_available).length;
+                    return (
+                      <div className="flex flex-col gap-0.5 mt-0.5">
+                        {availCount > 0 && (
+                          <span className="text-xs font-medium text-green-700 leading-tight">✓ {availCount}</span>
+                        )}
+                        {unavailCount > 0 && (
+                          <span className="text-xs font-medium text-red-600 leading-tight">✗ {unavailCount}</span>
+                        )}
+                      </div>
+                    );
+                  })()
                 ) : (
                   myAvail && (
                     <span className={`text-xs px-1 rounded ${myAvail.is_available ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>

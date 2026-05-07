@@ -275,12 +275,12 @@ export default function Financials() {
       </div>
 
       <Tabs defaultValue="new-orders">
-        <TabsList className="mb-6 flex-wrap">
-          <TabsTrigger value="new-orders">New Orders</TabsTrigger>
-          <TabsTrigger value="previous-orders">Previous Orders</TabsTrigger>
-          <TabsTrigger value="employees">Employees</TabsTrigger>
-          <TabsTrigger value="shifts">Shifts</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        <TabsList className="mb-6 grid grid-cols-5 w-full">
+          <TabsTrigger value="new-orders" className="text-xs px-1">New</TabsTrigger>
+          <TabsTrigger value="previous-orders" className="text-xs px-1">Orders</TabsTrigger>
+          <TabsTrigger value="employees" className="text-xs px-1">Employees</TabsTrigger>
+          <TabsTrigger value="shifts" className="text-xs px-1">Shifts</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-xs px-1">Analytics</TabsTrigger>
         </TabsList>
 
         {/* ===== NEW ORDERS ===== */}
