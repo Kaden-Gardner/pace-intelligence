@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Link } from "react-router-dom";
-import { Calendar, Plus, Pencil, Trash2, Clock, Package, FlaskConical, ChevronDown } from "lucide-react";
+import { Calendar, Plus, Pencil, Trash2, Clock, Package, FlaskConical, ChevronDown, BarChart2, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import EmptyState from "../components/EmptyState";
 import { getTotalCases, getCasesPerHour } from "../lib/analyticsHelpers";
@@ -10,6 +10,8 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import ShiftStatsPanel from "@/components/shifts/ShiftStatsPanel";
+import ShiftComparePanel from "@/components/shifts/ShiftComparePanel";
 
 export default function Shifts() {
   const [shifts, setShifts] = useState([]);
@@ -18,6 +20,10 @@ export default function Shifts() {
   const [flavorSets, setFlavorSets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showNewMenu, setShowNewMenu] = useState(false);
+  const [statsShift, setStatsShift] = useState(null);
+  const [compareA, setCompareA] = useState(null);
+  const [compareB, setCompareB] = useState(null);
+  const [compareMode, setCompareMode] = useState(false);
 
   const loadData = useCallback(async () => {
     const [s, bms, e, fs] = await Promise.all([
@@ -66,7 +72,11 @@ export default function Shifts() {
           <h1 className="font-heading text-3xl font-bold">Shifts</h1>
           <p className="text-muted-foreground mt-1">Manage and review shift data</p>
         </div>
-        <div className="relative">
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => { setCompareMode((v) => !v); setCompareA(null); setCompareB(null); setStatsShift(null); }}>
+            <GitCompare className="w-4 h-4" /> {compareMode ? "Cancel Compare" : "Compare"}
+          </Button>
+          <div className="relative">
           <Button className="gap-2" onClick={() => setShowNewMenu((v) => !v)}>
             <Plus className="w-4 h-4" /> New Shift <ChevronDown className="w-3 h-3" />
           </Button>
@@ -84,8 +94,16 @@ export default function Shifts() {
               </Link>
             </div>
           )}
+          </div>
         </div>
       </div>
+
+      {compareMode && (
+        <div className="mb-4 bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 text-sm text-primary font-medium flex items-center gap-2">
+          <GitCompare className="w-4 h-4" />
+          {!compareA ? "Select the first shift (A) to compare" : !compareB ? "Now select the second shift (B)" : "Both shifts selected — see comparison below"}
+        </div>
+      )}
 
       {shifts.length === 0 && baseMixShifts.length === 0 ? (
         <EmptyState
@@ -159,6 +177,25 @@ export default function Shifts() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
+                        {compareMode ? (
+                          <Button
+                            size="sm"
+                            variant={compareA?.id === shift.id || compareB?.id === shift.id ? "default" : "outline"}
+                            className="text-xs"
+                            onClick={() => {
+                              if (compareA?.id === shift.id) { setCompareA(null); return; }
+                              if (compareB?.id === shift.id) { setCompareB(null); return; }
+                              if (!compareA) { setCompareA(shift); } else if (!compareB) { setCompareB(shift); }
+                            }}
+                            disabled={compareA && compareB && compareA.id !== shift.id && compareB.id !== shift.id}
+                          >
+                            {compareA?.id === shift.id ? "A ✓" : compareB?.id === shift.id ? "B ✓" : compareA ? "Pick B" : "Pick A"}
+                          </Button>
+                        ) : (
+                          <Button variant="ghost" size="icon" className="h-9 w-9" title="View Stats" onClick={() => setStatsShift(statsShift?.id === shift.id ? null : shift)}>
+                            <BarChart2 className="w-4 h-4" />
+                          </Button>
+                        )}
                         <Link to={`/shifts/edit?id=${shift.id}`}>
                           <Button variant="ghost" size="icon" className="h-9 w-9"><Pencil className="w-4 h-4" /></Button>
                         </Link>
@@ -242,6 +279,13 @@ export default function Shifts() {
             </div>
           )}
         </div>
+      )}
+      {statsShift && !compareMode && (
+        <ShiftStatsPanel shift={statsShift} fsMap={fsMap} empMap={empMap} onClose={() => setStatsShift(null)} />
+      )}
+
+      {compareMode && compareA && compareB && (
+        <ShiftComparePanel shiftA={compareA} shiftB={compareB} fsMap={fsMap} empMap={empMap} onClose={() => { setCompareA(null); setCompareB(null); }} />
       )}
     </div>
     </PullToRefresh>

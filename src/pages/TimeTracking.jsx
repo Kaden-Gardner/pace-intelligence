@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, LogIn, LogOut, Pencil, Check, X, Trash2 } from "lucide-react";
+import { Clock, LogIn, LogOut, Pencil, Check, X, Trash2, MapPin } from "lucide-react";
 import { format, parseISO, differenceInMinutes, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 const PERIODS = [
@@ -58,7 +58,19 @@ export default function TimeTracking() {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({ clock_in: "", clock_out: "", notes: "" });
   const [saving, setSaving] = useState(false);
+  const [geoError, setGeoError] = useState(null);
+  const [checkingGeo, setCheckingGeo] = useState(false);
   const [adminView, setAdminView] = useState("my");
+
+  const GEOFENCE = { lat: 40.856180, lng: -111.927465, radiusMeters: 27.4 }; // 30 yards
+
+  function haversineDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteError, setDeleteError] = useState(false); // "my" | "all"
@@ -81,6 +93,32 @@ export default function TimeTracking() {
 
   // Find this user's active (clocked-in, no clock-out) entry
   const activeEntry = entries.find((e) => e.user_id === user?.id && e.clock_in && !e.clock_out);
+
+  async function handleClockInWithGeo() {
+    setCheckingGeo(true);
+    setGeoError(null);
+    if (!navigator.geolocation) {
+      setGeoError("Geolocation not supported by your browser.");
+      setCheckingGeo(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const dist = haversineDistance(pos.coords.latitude, pos.coords.longitude, GEOFENCE.lat, GEOFENCE.lng);
+        setCheckingGeo(false);
+        if (dist > GEOFENCE.radiusMeters) {
+          setGeoError(`You must be at the facility to clock in. (${Math.round(dist)} m away)`);
+        } else {
+          handleClockIn();
+        }
+      },
+      () => {
+        setCheckingGeo(false);
+        setGeoError("Location access denied. Please enable location permissions.");
+      },
+      { timeout: 10000, maximumAge: 0, enableHighAccuracy: true }
+    );
+  }
 
   async function handleClockIn() {
     setSaving(true);
@@ -220,9 +258,15 @@ export default function TimeTracking() {
               </Button>
             </div>
           ) : (
-            <Button onClick={handleClockIn} disabled={saving} className="gap-2">
-              <LogIn className="w-4 h-4" /> Clock In
-            </Button>
+            <div className="flex flex-col items-end gap-1">
+              <Button onClick={handleClockInWithGeo} disabled={saving || checkingGeo} className="gap-2">
+                {checkingGeo ? <MapPin className="w-4 h-4 animate-pulse" /> : <LogIn className="w-4 h-4" />}
+                {checkingGeo ? "Checking location..." : "Clock In"}
+              </Button>
+              {geoError && (
+                <p className="text-xs text-destructive max-w-xs text-right">{geoError}</p>
+              )}
+            </div>
           )}
         </div>
       </div>
