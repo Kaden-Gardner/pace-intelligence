@@ -10,6 +10,16 @@
       "type": "number",
       "title": "Quantity Used per Production Shift",
       "default": 0
+    },
+    "feet_per_roll": {
+      "type": "number",
+      "title": "Feet per Roll (wrap only)",
+      "default": 0
+    },
+    "feet_per_popsicle": {
+      "type": "number",
+      "title": "Feet per Popsicle (wrap only)",
+      "default": 0
     }
   },
   "required": [

@@ -68,11 +68,60 @@ export default function MaterialsTab({ flavorSets }) {
     setLoading(false);
   }
 
-  // Only these materials have configurable defaults
+  // Only these materials have configurable qty defaults
   const DEFAULTABLE_MATERIALS = [
     { key: "box_stacks",      label: "Box Stacks",      description: "Cases per stack", unit: "cases/stack" },
     { key: "popsicle_sticks", label: "Popsicle Sticks", description: "Sticks per box",  unit: "sticks/box" },
   ];
+
+  // Wrap defaults (feet per roll + feet per popsicle)
+  const WRAP_MATERIALS = [
+    { key: "individual_wrap", label: "Individual Wrap" },
+    { key: "clear_wrap",      label: "Clear Wrap" },
+  ];
+  const [editWrapMap, setEditWrapMap] = useState({}); // { [key]: { feet_per_roll, feet_per_popsicle } }
+  const [showWrapDefaults, setShowWrapDefaults] = useState(false);
+  const [savingWrap, setSavingWrap] = useState(false);
+
+  function openWrapDefaults() {
+    const map = {};
+    WRAP_MATERIALS.forEach((m) => {
+      map[m.key] = {
+        feet_per_roll: matDefaults[m.key]?.feet_per_roll ?? 0,
+        feet_per_popsicle: matDefaults[m.key]?.feet_per_popsicle ?? 0,
+      };
+    });
+    setEditWrapMap(map);
+    setShowWrapDefaults(true);
+  }
+
+  async function saveWrapDefaults() {
+    setSavingWrap(true);
+    await Promise.all(
+      WRAP_MATERIALS.map(async (m) => {
+        const { feet_per_roll, feet_per_popsicle } = editWrapMap[m.key] || {};
+        const existing = matDefaults[m.key];
+        if (existing) {
+          await base44.entities.MaterialDefaults.update(existing.id, {
+            feet_per_roll: Number(feet_per_roll) || 0,
+            feet_per_popsicle: Number(feet_per_popsicle) || 0,
+          });
+        } else {
+          await base44.entities.MaterialDefaults.create({
+            material_key: m.key,
+            feet_per_roll: Number(feet_per_roll) || 0,
+            feet_per_popsicle: Number(feet_per_popsicle) || 0,
+          });
+        }
+      })
+    );
+    const fresh = await base44.entities.MaterialDefaults.list();
+    const map = {};
+    fresh.forEach((d) => { map[d.material_key] = d; });
+    setMatDefaults(map);
+    setSavingWrap(false);
+    setShowWrapDefaults(false);
+  }
 
   function openDefaults() {
     const map = {};
@@ -168,11 +217,16 @@ export default function MaterialsTab({ flavorSets }) {
     <div className="space-y-8">
       {/* ─── General Materials ─── */}
       <div>
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h3 className="font-heading font-semibold text-lg">General Materials</h3>
-          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={openDefaults}>
-            <Settings className="w-3 h-3" /> Set Defaults
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={openWrapDefaults}>
+              <Settings className="w-3 h-3" /> Wrap Defaults
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={openDefaults}>
+              <Settings className="w-3 h-3" /> Other Defaults
+            </Button>
+          </div>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {MATERIALS.map((mat) => {
@@ -208,6 +262,21 @@ export default function MaterialsTab({ flavorSets }) {
                     )}
                     {mat.key === "popsicle_sticks" && matDefaults[mat.key] && (
                       <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">{matDefaults[mat.key].qty_per_shift} sticks/box</p>
+                    )}
+                    {(mat.key === "individual_wrap" || mat.key === "clear_wrap") && matDefaults[mat.key] && (
+                      <div className="mt-2 border-t border-border pt-2 space-y-0.5">
+                        {matDefaults[mat.key].feet_per_roll > 0 && (
+                          <p className="text-xs text-muted-foreground">{matDefaults[mat.key].feet_per_roll} ft/roll</p>
+                        )}
+                        {matDefaults[mat.key].feet_per_popsicle > 0 && (
+                          <p className="text-xs text-muted-foreground">{matDefaults[mat.key].feet_per_popsicle} ft/popsicle</p>
+                        )}
+                        {matDefaults[mat.key].feet_per_roll > 0 && matDefaults[mat.key].feet_per_popsicle > 0 && (
+                          <p className="text-xs font-medium text-primary">
+                            ≈ {Math.round(matDefaults[mat.key].feet_per_roll / matDefaults[mat.key].feet_per_popsicle).toLocaleString()} pops/roll
+                          </p>
+                        )}
+                      </div>
                     )}
                   </>
                 )}
@@ -342,6 +411,56 @@ export default function MaterialsTab({ flavorSets }) {
           </div>
         )}
       </div>
+
+      {/* ─── Wrap Defaults Modal ─── */}
+      {showWrapDefaults && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-lg mx-4 shadow-xl">
+            <h3 className="font-heading font-semibold text-lg mb-1">Wrap Defaults</h3>
+            <p className="text-sm text-muted-foreground mb-5">Set feet per roll and feet used per popsicle for each wrap type.</p>
+            <div className="space-y-6">
+              {WRAP_MATERIALS.map((m) => (
+                <div key={m.key}>
+                  <p className="font-medium text-sm mb-3">{m.label}</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="text-xs text-muted-foreground block mb-1">Feet per Roll</label>
+                        <Input
+                          type="number" min="0" step="1" className="w-full"
+                          value={editWrapMap[m.key]?.feet_per_roll ?? ""}
+                          onChange={(e) => setEditWrapMap((prev) => ({ ...prev, [m.key]: { ...prev[m.key], feet_per_roll: e.target.value } }))}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground mt-5 flex-shrink-0">ft/roll</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <label className="text-xs text-muted-foreground block mb-1">Feet per Popsicle</label>
+                        <Input
+                          type="number" min="0" step="0.01" className="w-full"
+                          value={editWrapMap[m.key]?.feet_per_popsicle ?? ""}
+                          onChange={(e) => setEditWrapMap((prev) => ({ ...prev, [m.key]: { ...prev[m.key], feet_per_popsicle: e.target.value } }))}
+                        />
+                      </div>
+                      <span className="text-xs text-muted-foreground mt-5 flex-shrink-0">ft/pop</span>
+                    </div>
+                  </div>
+                  {editWrapMap[m.key]?.feet_per_roll > 0 && editWrapMap[m.key]?.feet_per_popsicle > 0 && (
+                    <p className="text-xs text-primary mt-2">
+                      ≈ {Math.round(editWrapMap[m.key].feet_per_roll / editWrapMap[m.key].feet_per_popsicle).toLocaleString()} popsicles per roll
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-6 justify-end">
+              <Button variant="outline" onClick={() => setShowWrapDefaults(false)}>Cancel</Button>
+              <Button onClick={saveWrapDefaults} disabled={savingWrap}>{savingWrap ? "Saving..." : "Save Defaults"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── Material Defaults Modal ─── */}
       {showDefaults && (

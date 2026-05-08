@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Package, Truck, Plus, Pencil, Check, X, Trash2, Snowflake, Star, MoveRight } from "lucide-react";
 import IngredientsTab from "../components/inventory/IngredientsTab";
 import MaterialsTab from "../components/inventory/MaterialsTab";
+import ProductBreakdownTab from "../components/inventory/ProductBreakdownTab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -381,6 +382,7 @@ export default function Inventory() {
           <TabsTrigger value="base">Base on Hand</TabsTrigger>
           <TabsTrigger value="ingredients">Ingredients</TabsTrigger>
           <TabsTrigger value="materials">Materials</TabsTrigger>
+          <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
           <TabsTrigger value="freezers">Freezers</TabsTrigger>
           <TabsTrigger value="pickups">Order Pickups</TabsTrigger>
         </TabsList>
@@ -585,6 +587,11 @@ export default function Inventory() {
         {/* ====== MATERIALS TAB ====== */}
         <TabsContent value="materials">
           <MaterialsTab flavorSets={flavorSets} />
+        </TabsContent>
+
+        {/* ====== BREAKDOWN TAB ====== */}
+        <TabsContent value="breakdown">
+          <ProductBreakdownTab />
         </TabsContent>
 
         {/* ====== BASE ON HAND TAB ====== */}
