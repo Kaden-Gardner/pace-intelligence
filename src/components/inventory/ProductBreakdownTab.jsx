@@ -3,16 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Pencil, Check, X, Package, Layers, Box } from "lucide-react";
-import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
-
-// These are the per-popsicle / per-case config keys we track
-// Some are in MaterialDefaults, some in BagInventory (bags_per_case, popsicles_per_bag via CaseSize)
-// We'll store pops_per_bag and pops_per_case in MaterialDefaults as pseudo-entries
 
 const WRAP_KEYS = ["individual_wrap", "clear_wrap"];
 const WRAP_LABELS = { individual_wrap: "Individual Wrap", clear_wrap: "Clear Wrap" };
 
-// "Global" pack config keys stored in MaterialDefaults
 const PACK_CONFIG = [
   { key: "popsicles_per_gallon", label: "Popsicles per Gallon (Mold Size)", unit: "pops/gallon", description: "How many popsicles fit in one gallon of base mix (mold size)" },
   { key: "popsicles_per_bag",    label: "Popsicles per Bag",                unit: "pops/bag" },
@@ -75,28 +69,27 @@ function EditableRow({ label, unit, value, onSave, description }) {
   );
 }
 
+function BreakdownLine({ label, note, dim }) {
+  return (
+    <div className={`flex items-baseline gap-1.5 ${dim ? "opacity-40" : ""}`}>
+      <span className="text-primary flex-shrink-0">•</span>
+      <span className={dim ? "text-muted-foreground" : ""}>{label}</span>
+      {note && <span className="text-xs text-muted-foreground">{note}</span>}
+    </div>
+  );
+}
+
 export default function ProductBreakdownTab() {
-  const [matDefaults, setMatDefaults] = useState({}); // keyed by material_key
-  const [ingDefaults, setIngDefaults] = useState([]); // BaseMixDefaults global
-  const [jugDefaults, setJugDefaults] = useState([]); // FlavorJugDefaults
-  const [supplyPrices, setSupplyPrices] = useState([]);
+  const [matDefaults, setMatDefaults] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [mdef, bmd, jdef, sp] = await Promise.all([
-      base44.entities.MaterialDefaults.list(),
-      base44.entities.BaseMixDefaults.list(),
-      base44.entities.FlavorJugDefaults.list(),
-      base44.entities.SupplyPrice.list(),
-    ]);
+    const mdef = await base44.entities.MaterialDefaults.list();
     const map = {};
     mdef.forEach((d) => { map[d.material_key] = d; });
     setMatDefaults(map);
-    setIngDefaults(bmd.filter((d) => !d.flavorset_id)); // global only
-    setJugDefaults(jdef);
-    setSupplyPrices(sp);
     setLoading(false);
   }
 
@@ -117,14 +110,12 @@ export default function ProductBreakdownTab() {
     </div>
   );
 
-  // Derived values for the summary breakdown
   const popsPerBag = matDefaults["popsicles_per_bag"]?.qty_per_shift || null;
   const bagsPerCase = matDefaults["bags_per_case"]?.qty_per_shift || null;
   const popsPerCase = matDefaults["popsicles_per_case"]?.qty_per_shift || (popsPerBag && bagsPerCase ? popsPerBag * bagsPerCase : null);
   const sticksPerBox = matDefaults["popsicle_sticks"]?.qty_per_shift || null;
   const casesPerStack = matDefaults["box_stacks"]?.qty_per_shift || null;
 
-  // Wrap: pops per roll = feet_per_roll / feet_per_popsicle
   function wrapPopsPerRoll(key) {
     const fpr = matDefaults[key]?.feet_per_roll;
     const fpp = matDefaults[key]?.feet_per_popsicle;
@@ -132,26 +123,10 @@ export default function ProductBreakdownTab() {
     return fpr / fpp;
   }
 
-  // Ingredient cost per popsicle (using global defaults)
-  const GALLONS_PER_BATCH = 240;
-  let ingCostPerGallon = null;
-  {
-    let batchCost = 0;
-    let hasAny = false;
-    INGREDIENTS.forEach((ing) => {
-      const pr = supplyPrices.find((p) => p.item_key === ing.key && p.item_type === "ingredient");
-      const def = ingDefaults.find((d) => d.ingredient === ing.key);
-      if (pr && def && def.amount_per_batch > 0) { batchCost += def.amount_per_batch * pr.price_per_unit; hasAny = true; }
-    });
-    if (hasAny) ingCostPerGallon = batchCost / GALLONS_PER_BATCH;
-  }
-  const ppg = matDefaults["popsicles_per_gallon"]?.qty_per_shift || 24;
-  const ingCostPerPop = ingCostPerGallon != null ? ingCostPerGallon / ppg : null;
-
   return (
     <div className="space-y-10">
       <p className="text-sm text-muted-foreground">
-        Configure unit-level defaults to understand exactly what goes into each popsicle, bag, and case. This helps verify cost calculations and production math.
+        Configure unit-level defaults to understand exactly what goes into each popsicle, bag, and case. Cost breakdowns are available in the Financials page.
       </p>
 
       {/* ── Pack Configuration ── */}
@@ -163,6 +138,7 @@ export default function ProductBreakdownTab() {
               key={cfg.key}
               label={cfg.label}
               unit={cfg.unit}
+              description={cfg.description}
               value={matDefaults[cfg.key]?.qty_per_shift || null}
               onSave={(v) => saveMatDefault(cfg.key, "qty_per_shift", v)}
             />
@@ -224,7 +200,7 @@ export default function ProductBreakdownTab() {
       {/* ── Visual Breakdown ── */}
       <Section icon={Box} title="What Goes Into…">
         <p className="text-xs text-muted-foreground mb-5">
-          A visual summary based on the defaults above. Set the values above to fill this in.
+          A visual summary of materials based on the defaults above. For cost breakdowns, see the Financials page.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -236,9 +212,6 @@ export default function ProductBreakdownTab() {
             </div>
             <div className="space-y-2 text-sm">
               <BreakdownLine label="1 popsicle stick" note={sticksPerBox ? `(1 of ${sticksPerBox}/box)` : undefined} />
-              {ingCostPerPop != null && (
-                <BreakdownLine label={`~$${ingCostPerPop.toFixed(4)} base mix ingredients`} note={`(÷ ${ppg} pops/gal)`} />
-              )}
             </div>
             <div className="mt-3 pt-3 border-t border-border space-y-2 text-sm">
               <p className="text-xs font-medium text-muted-foreground mb-1">If flavorset case → clear wrap:</p>
@@ -254,7 +227,7 @@ export default function ProductBreakdownTab() {
             </div>
           </div>
 
-          {/* One Bag (flavorset case — uses clear wrap) */}
+          {/* One Bag (flavorset — clear wrap) */}
           <div className="bg-card rounded-2xl border border-border p-5">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">🛍️</span>
@@ -296,9 +269,6 @@ export default function ProductBreakdownTab() {
               {casesPerStack && (
                 <BreakdownLine label={`1/${casesPerStack} of a box stack`} />
               )}
-              {popsPerCase && ingCostPerPop != null && (
-                <BreakdownLine label={`~$${(popsPerCase * ingCostPerPop).toFixed(2)} base mix ingredients`} />
-              )}
             </div>
             <div className="mt-3 pt-3 border-t border-border space-y-1 text-sm">
               <p className="text-xs font-medium text-muted-foreground mb-1">If flavorset case → clear wrap:</p>
@@ -315,50 +285,6 @@ export default function ProductBreakdownTab() {
           </div>
         </div>
       </Section>
-
-      {/* ── Base Mix Ingredient Reference ── */}
-      <Section icon={Package} title="Base Mix Per Batch (Global Defaults)">
-        <p className="text-xs text-muted-foreground mb-4">
-          Reference: global ingredient amounts per batch ({GALLONS_PER_BATCH} gal). Edit these in the Ingredients tab.
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          {INGREDIENTS.map((ing) => {
-            const def = ingDefaults.find((d) => d.ingredient === ing.key);
-            const pr = supplyPrices.find((p) => p.item_key === ing.key && p.item_type === "ingredient");
-            const batchCost = (def?.amount_per_batch || 0) * (pr?.price_per_unit || 0);
-            return (
-              <div key={ing.key} className="bg-card rounded-2xl border border-border p-4 text-center">
-                <p className="font-medium text-xs mb-1 text-muted-foreground">{ing.label}</p>
-                <p className="font-heading font-bold text-xl">{def?.amount_per_batch ?? "—"}</p>
-                <p className="text-xs text-muted-foreground">{ing.unit}/batch</p>
-                {batchCost > 0 && <p className="text-xs text-primary mt-1">${batchCost.toFixed(2)}</p>}
-              </div>
-            );
-          })}
-        </div>
-        {ingCostPerGallon != null && (
-          <div className="mt-4 bg-muted/50 rounded-2xl p-4 flex flex-wrap gap-6">
-            <div>
-              <p className="text-xs text-muted-foreground">Cost per gallon of base</p>
-              <p className="font-heading font-bold text-primary text-xl">${ingCostPerGallon.toFixed(4)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Cost per popsicle (base mix only, {ppg} pops/gal)</p>
-              <p className="font-heading font-bold text-primary text-xl">${ingCostPerPop.toFixed(5)}</p>
-            </div>
-          </div>
-        )}
-      </Section>
-    </div>
-  );
-}
-
-function BreakdownLine({ label, note, dim }) {
-  return (
-    <div className={`flex items-baseline gap-1.5 ${dim ? "opacity-40" : ""}`}>
-      <span className="text-primary flex-shrink-0">•</span>
-      <span className={dim ? "text-muted-foreground" : ""}>{label}</span>
-      {note && <span className="text-xs text-muted-foreground">{note}</span>}
     </div>
   );
 }
