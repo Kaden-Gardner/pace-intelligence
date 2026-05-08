@@ -236,35 +236,41 @@ export default function ProductBreakdownTab() {
             </div>
             <div className="space-y-2 text-sm">
               <BreakdownLine label="1 popsicle stick" note={sticksPerBox ? `(1 of ${sticksPerBox}/box)` : undefined} />
-              {matDefaults["individual_wrap"]?.feet_per_popsicle
-                ? <BreakdownLine label={`${matDefaults["individual_wrap"].feet_per_popsicle} ft individual wrap`} />
-                : <BreakdownLine label="Individual wrap" note="(set ft/popsicle above)" dim />}
-              {matDefaults["clear_wrap"]?.feet_per_popsicle
-                ? <BreakdownLine label={`${matDefaults["clear_wrap"].feet_per_popsicle} ft clear wrap`} />
-                : <BreakdownLine label="Clear wrap" note="(set ft/popsicle above)" dim />}
               {ingCostPerPop != null && (
                 <BreakdownLine label={`~$${ingCostPerPop.toFixed(4)} base mix ingredients`} note={`(÷ ${ppg} pops/gal)`} />
               )}
             </div>
+            <div className="mt-3 pt-3 border-t border-border space-y-2 text-sm">
+              <p className="text-xs font-medium text-muted-foreground mb-1">If flavorset case → clear wrap:</p>
+              {matDefaults["clear_wrap"]?.feet_per_popsicle
+                ? <BreakdownLine label={`${matDefaults["clear_wrap"].feet_per_popsicle} ft clear wrap`} />
+                : <BreakdownLine label="Clear wrap" note="(set ft/popsicle above)" dim />}
+            </div>
+            <div className="mt-3 pt-3 border-t border-border space-y-2 text-sm">
+              <p className="text-xs font-medium text-muted-foreground mb-1">If individual case → individual wrap:</p>
+              {matDefaults["individual_wrap"]?.feet_per_popsicle
+                ? <BreakdownLine label={`${matDefaults["individual_wrap"].feet_per_popsicle} ft individual wrap`} />
+                : <BreakdownLine label="Individual wrap" note="(set ft/popsicle above)" dim />}
+            </div>
           </div>
 
-          {/* One Bag */}
+          {/* One Bag (flavorset case — uses clear wrap) */}
           <div className="bg-card rounded-2xl border border-border p-5">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-2xl">🛍️</span>
-              <h4 className="font-heading font-semibold">One Bag</h4>
+              <div>
+                <h4 className="font-heading font-semibold">One Bag</h4>
+                <p className="text-xs text-muted-foreground">Flavorset case → clear wrap</p>
+              </div>
             </div>
             <div className="space-y-2 text-sm">
               {popsPerBag
                 ? <BreakdownLine label={`${popsPerBag} popsicles`} />
                 : <BreakdownLine label="? popsicles" note="(set popsicles/bag above)" dim />}
               <BreakdownLine label="1 bag" />
-              {popsPerBag && matDefaults["individual_wrap"]?.feet_per_popsicle
-                ? <BreakdownLine label={`${(popsPerBag * matDefaults["individual_wrap"].feet_per_popsicle).toFixed(1)} ft individual wrap`} />
-                : <BreakdownLine label="Individual wrap" note="(set defaults above)" dim />}
               {popsPerBag && matDefaults["clear_wrap"]?.feet_per_popsicle
                 ? <BreakdownLine label={`${(popsPerBag * matDefaults["clear_wrap"].feet_per_popsicle).toFixed(1)} ft clear wrap`} />
-                : <BreakdownLine label="Clear wrap" note="(set defaults above)" dim />}
+                : <BreakdownLine label="Clear wrap" note="(set ft/popsicle above)" dim />}
               {popsPerBag && sticksPerBox
                 ? <BreakdownLine label={`${popsPerBag} sticks (${(popsPerBag / sticksPerBox).toFixed(3)} boxes)`} />
                 : <BreakdownLine label="? sticks" note="(set sticks/box above)" dim />}
@@ -284,12 +290,6 @@ export default function ProductBreakdownTab() {
               {popsPerCase
                 ? <BreakdownLine label={`${popsPerCase} popsicles`} />
                 : <BreakdownLine label="? popsicles" note="(set pops/bag & bags/case)" dim />}
-              {popsPerCase && matDefaults["individual_wrap"]?.feet_per_popsicle
-                ? <BreakdownLine label={`${(popsPerCase * matDefaults["individual_wrap"].feet_per_popsicle).toFixed(0)} ft individual wrap`} />
-                : <BreakdownLine label="Individual wrap total" note="(set defaults above)" dim />}
-              {popsPerCase && matDefaults["clear_wrap"]?.feet_per_popsicle
-                ? <BreakdownLine label={`${(popsPerCase * matDefaults["clear_wrap"].feet_per_popsicle).toFixed(0)} ft clear wrap`} />
-                : <BreakdownLine label="Clear wrap total" note="(set defaults above)" dim />}
               {popsPerCase && sticksPerBox
                 ? <BreakdownLine label={`${popsPerCase} sticks (${(popsPerCase / sticksPerBox).toFixed(2)} boxes)`} />
                 : <BreakdownLine label="? sticks" note="(set sticks/box above)" dim />}
@@ -299,6 +299,18 @@ export default function ProductBreakdownTab() {
               {popsPerCase && ingCostPerPop != null && (
                 <BreakdownLine label={`~$${(popsPerCase * ingCostPerPop).toFixed(2)} base mix ingredients`} />
               )}
+            </div>
+            <div className="mt-3 pt-3 border-t border-border space-y-1 text-sm">
+              <p className="text-xs font-medium text-muted-foreground mb-1">If flavorset case → clear wrap:</p>
+              {popsPerCase && matDefaults["clear_wrap"]?.feet_per_popsicle
+                ? <BreakdownLine label={`${(popsPerCase * matDefaults["clear_wrap"].feet_per_popsicle).toFixed(0)} ft clear wrap`} />
+                : <BreakdownLine label="Clear wrap total" note="(set defaults above)" dim />}
+            </div>
+            <div className="mt-3 pt-3 border-t border-border space-y-1 text-sm">
+              <p className="text-xs font-medium text-muted-foreground mb-1">If individual case → individual wrap:</p>
+              {popsPerCase && matDefaults["individual_wrap"]?.feet_per_popsicle
+                ? <BreakdownLine label={`${(popsPerCase * matDefaults["individual_wrap"].feet_per_popsicle).toFixed(0)} ft individual wrap`} />
+                : <BreakdownLine label="Individual wrap total" note="(set defaults above)" dim />}
             </div>
           </div>
         </div>
