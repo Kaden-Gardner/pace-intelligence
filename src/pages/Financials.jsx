@@ -8,6 +8,8 @@ import { DollarSign, Lock, Unlock, Package, Users, Calendar, BarChart3, Check, X
 import { getTotalCases, getCasesPerHour } from "@/lib/analyticsHelpers";
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subYears } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import SuppliesPricingTab from "@/components/financials/SuppliesPricingTab";
+import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const PERIODS = [
   { label: "Last Shift", key: "lastshift" },
@@ -65,6 +67,8 @@ export default function Financials() {
   const [baseMixShifts, setBaseMixShifts] = useState([]);
   const [timeEntries, setTimeEntries] = useState([]);
   const [flavorSets, setFlavorSets] = useState([]);
+  const [supplyPrices, setSupplyPrices] = useState([]);
+  const [baseMixDefaults, setBaseMixDefaults] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Rates UI state
@@ -91,7 +95,7 @@ export default function Financials() {
 
   async function loadData() {
     setLoading(true);
-    const [ord, emps, rt, sh, bms, te, fs] = await Promise.all([
+    const [ord, emps, rt, sh, bms, te, fs, sp, bmd] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.Employee.list("name"),
       base44.entities.EmployeeRate.list(),
@@ -99,6 +103,8 @@ export default function Financials() {
       base44.entities.BaseMixingShift.list("-shift_date", 500),
       base44.entities.TimeEntry.list("-clock_in", 2000),
       base44.entities.FlavorSet.list("name"),
+      base44.entities.SupplyPrice.list(),
+      base44.entities.BaseMixDefaults.list(),
     ]);
     setOrders(ord);
     setEmployees(emps);
@@ -107,6 +113,8 @@ export default function Financials() {
     setBaseMixShifts(bms);
     setTimeEntries(te);
     setFlavorSets(fs);
+    setSupplyPrices(sp);
+    setBaseMixDefaults(bmd);
     setLoading(false);
   }
 
@@ -223,6 +231,23 @@ export default function Financials() {
     return totalCost;
   }
 
+  // Supply cost for a base mix shift: ingredients consumed × price per unit
+  function calcBaseMixSupplyCost(shift) {
+    const batchCount = shift.batch_size || 1;
+    const fsId = shift.flavorset_id || null;
+    let total = 0;
+    INGREDIENTS.forEach((ing) => {
+      const priceRec = supplyPrices.find((p) => p.item_key === ing.key && p.item_type === "ingredient");
+      if (!priceRec || !priceRec.price_per_unit) return;
+      // Use flavorset-specific default if available, else global
+      const fsDefault = fsId ? baseMixDefaults.find((d) => d.ingredient === ing.key && d.flavorset_id === fsId) : null;
+      const globalDefault = baseMixDefaults.find((d) => d.ingredient === ing.key && !d.flavorset_id);
+      const amountPerBatch = fsDefault ? fsDefault.amount_per_batch : (globalDefault ? globalDefault.amount_per_batch : 0);
+      total += amountPerBatch * batchCount * priceRec.price_per_unit;
+    });
+    return total;
+  }
+
   // Analytics
   const [start, end] = getPeriodRange(period, [...shifts, ...baseMixShifts]);
   function inPeriod(dateStr) {
@@ -242,6 +267,7 @@ export default function Financials() {
   const allShiftCosts = analyticsShifts.map((s) => calcShiftCost(s, false));
   const allBaseMixCosts = analyticsBaseMix.map((s) => calcShiftCost(s, true));
   const totalShiftCost = [...allShiftCosts, ...allBaseMixCosts].reduce((a, b) => a + b, 0);
+  const totalSupplyCost = analyticsBaseMix.reduce((sum, s) => sum + calcBaseMixSupplyCost(s), 0);
   const totalShiftCount = allShiftCosts.length + allBaseMixCosts.length;
   const avgShiftCost = totalShiftCount > 0 ? totalShiftCost / totalShiftCount : 0;
   const totalCasesProduced = analyticsShifts.reduce((sum, s) => sum + getTotalCases(s), 0);
@@ -275,12 +301,13 @@ export default function Financials() {
       </div>
 
       <Tabs defaultValue="new-orders">
-        <TabsList className="mb-6 grid grid-cols-5 w-full">
-          <TabsTrigger value="new-orders" className="text-[11px] sm:text-sm px-1 truncate">New</TabsTrigger>
-          <TabsTrigger value="previous-orders" className="text-[11px] sm:text-sm px-1 truncate">Orders</TabsTrigger>
-          <TabsTrigger value="employees" className="text-[11px] sm:text-sm px-1 truncate">Staff</TabsTrigger>
-          <TabsTrigger value="shifts" className="text-[11px] sm:text-sm px-1 truncate">Shifts</TabsTrigger>
-          <TabsTrigger value="analytics" className="text-[11px] sm:text-sm px-1 truncate">Analytics</TabsTrigger>
+        <TabsList className="mb-6 flex flex-wrap gap-1 h-auto w-full">
+          <TabsTrigger value="new-orders" className="text-[11px] sm:text-sm px-2 truncate">New</TabsTrigger>
+          <TabsTrigger value="previous-orders" className="text-[11px] sm:text-sm px-2 truncate">Orders</TabsTrigger>
+          <TabsTrigger value="employees" className="text-[11px] sm:text-sm px-2 truncate">Staff</TabsTrigger>
+          <TabsTrigger value="shifts" className="text-[11px] sm:text-sm px-2 truncate">Shifts</TabsTrigger>
+          <TabsTrigger value="supplies" className="text-[11px] sm:text-sm px-2 truncate">Supplies</TabsTrigger>
+          <TabsTrigger value="analytics" className="text-[11px] sm:text-sm px-2 truncate">Analytics</TabsTrigger>
         </TabsList>
 
         {/* ===== NEW ORDERS ===== */}
@@ -543,6 +570,11 @@ export default function Financials() {
           </div>
         </TabsContent>
 
+        {/* ===== SUPPLIES ===== */}
+        <TabsContent value="supplies">
+          <SuppliesPricingTab />
+        </TabsContent>
+
         {/* ===== ANALYTICS ===== */}
         <TabsContent value="analytics">
           <div className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-6">
@@ -569,8 +601,10 @@ export default function Financials() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             {[
-              { label: "Total Shift Cost", value: fmt$(totalShiftCost), sub: `${totalShiftCount} shifts` },
-              { label: "Avg Cost Per Shift", value: fmt$(avgShiftCost), sub: shiftTypeFilter === "all" ? "production + base mix" : shiftTypeFilter === "production" ? "production only" : "base mix only" },
+              { label: "Total Labor Cost", value: fmt$(totalShiftCost), sub: `${totalShiftCount} shifts` },
+              { label: "Total Supply Cost (Ingredients)", value: fmt$(totalSupplyCost), sub: "from base mix shifts" },
+              { label: "Total Combined Cost", value: fmt$(totalShiftCost + totalSupplyCost), sub: "labor + ingredients" },
+              { label: "Avg Labor Cost Per Shift", value: fmt$(avgShiftCost), sub: shiftTypeFilter === "all" ? "production + base mix" : shiftTypeFilter === "production" ? "production only" : "base mix only" },
               { label: "Avg Cost Per Case", value: shiftTypeFilter === "basemix" ? "—" : fmt$(avgCostPerCase), sub: `${totalCasesProduced} cases produced` },
               { label: "Total Sales Revenue", value: fmt$(totalRevenue), sub: `${totalCasesSold} cases sold` },
             ].map((stat) => (
@@ -612,13 +646,26 @@ export default function Financials() {
               <p className="text-xs text-muted-foreground mt-3">Based on {totalProductionHours.toFixed(1)} total production hours and {totalCasesSold} cases sold in this period.</p>
             </div>
           )}
-          {totalRevenue > 0 && totalShiftCost > 0 && (
+          {totalRevenue > 0 && (totalShiftCost > 0 || totalSupplyCost > 0) && (
             <div className="bg-card rounded-2xl border border-border p-5 mb-6">
-              <p className="text-sm font-medium mb-2">Profit Estimate</p>
-              <p className="font-heading font-bold text-3xl" style={{ color: totalRevenue - totalShiftCost >= 0 ? "hsl(var(--chart-3))" : "hsl(var(--destructive))" }}>
-                {fmt$(totalRevenue - totalShiftCost)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Revenue minus labor costs for this period</p>
+              <p className="text-sm font-medium mb-3">Profit Estimate</p>
+              <div className="flex flex-wrap gap-6 mb-3">
+                <div>
+                  <p className="font-heading font-bold text-3xl" style={{ color: totalRevenue - totalShiftCost >= 0 ? "hsl(var(--chart-3))" : "hsl(var(--destructive))" }}>
+                    {fmt$(totalRevenue - totalShiftCost)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">After labor only</p>
+                </div>
+                {totalSupplyCost > 0 && (
+                  <div>
+                    <p className="font-heading font-bold text-3xl" style={{ color: totalRevenue - totalShiftCost - totalSupplyCost >= 0 ? "hsl(var(--chart-3))" : "hsl(var(--destructive))" }}>
+                      {fmt$(totalRevenue - totalShiftCost - totalSupplyCost)}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">After labor + ingredients</p>
+                  </div>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Based on {fmt$(totalRevenue)} revenue, {fmt$(totalShiftCost)} labor{totalSupplyCost > 0 ? `, ${fmt$(totalSupplyCost)} ingredients` : ""}</p>
             </div>
           )}
 

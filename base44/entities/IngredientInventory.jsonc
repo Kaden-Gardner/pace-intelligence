@@ -9,21 +9,13 @@
         "xanthan_gum",
         "sugar",
         "dextrose",
-        "citric_acid"
+        "citric_acid",
+        "pear_juice"
       ]
     },
     "quantity": {
       "type": "number",
       "title": "Quantity on Hand",
-      "default": 0
-    },
-    "flavor_id": {
-      "type": "string",
-      "title": "Flavor (for flavor jugs only)"
-    },
-    "gallons": {
-      "type": "number",
-      "title": "Gallons (flavor jugs)",
       "default": 0
     }
   },

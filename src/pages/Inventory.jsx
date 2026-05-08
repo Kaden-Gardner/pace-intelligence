@@ -580,7 +580,7 @@ export default function Inventory() {
 
         {/* ====== INGREDIENTS TAB ====== */}
         <TabsContent value="ingredients">
-          <IngredientsTab flavors={flavors} />
+          <IngredientsTab flavors={flavors} flavorSets={flavorSets} />
         </TabsContent>
 
         {/* ====== MATERIALS TAB ====== */}

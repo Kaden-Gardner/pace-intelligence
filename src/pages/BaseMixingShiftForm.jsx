@@ -134,15 +134,18 @@ export default function BaseMixingShiftForm() {
     // Deduct ingredients based on batch size and defaults (only for new shifts)
     if (!editId) {
       const batchCount = Number(form.batch_size) || 1;
+      const fsId = form.flavorset_id || null;
       const [ingDefaults, ingInv] = await Promise.all([
         base44.entities.BaseMixDefaults.list(),
         base44.entities.IngredientInventory.list(),
       ]);
-      const defaultAmounts = { xanthan_gum: 2, sugar: 3, dextrose: 2, citric_acid: 1 };
-      const ingredients = ["xanthan_gum", "sugar", "dextrose", "citric_acid"];
+      const fallbackAmounts = { xanthan_gum: 2, sugar: 3, dextrose: 2, citric_acid: 1, pear_juice: 0 };
+      const ingredients = ["xanthan_gum", "sugar", "dextrose", "citric_acid", "pear_juice"];
       await Promise.all(ingredients.map(async (key) => {
-        const def = ingDefaults.find((d) => d.ingredient === key);
-        const amountPerBatch = def ? def.amount_per_batch : (defaultAmounts[key] ?? 0);
+        // Use flavorset-specific override if available, else global, else hardcoded fallback
+        const fsSpecific = fsId ? ingDefaults.find((d) => d.ingredient === key && d.flavorset_id === fsId) : null;
+        const globalDef = ingDefaults.find((d) => d.ingredient === key && !d.flavorset_id);
+        const amountPerBatch = fsSpecific ? fsSpecific.amount_per_batch : (globalDef ? globalDef.amount_per_batch : (fallbackAmounts[key] ?? 0));
         const totalUsed = amountPerBatch * batchCount;
         if (totalUsed <= 0) return;
         const rec = ingInv.find((i) => i.ingredient === key);

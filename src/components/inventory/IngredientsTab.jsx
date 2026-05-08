@@ -5,41 +5,36 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Pencil, Check, X, Settings } from "lucide-react";
 
-const INGREDIENTS = [
-  { key: "xanthan_gum",  label: "Xanthan Gum",  unit: "lbs" },
-  { key: "sugar",        label: "Sugar",         unit: "50 lb bags" },
-  { key: "dextrose",     label: "Dextrose",      unit: "50 lb bags" },
-  { key: "citric_acid",  label: "Citric Acid",   unit: "cups" },
+export const INGREDIENTS = [
+  { key: "xanthan_gum", label: "Xanthan Gum",  unit: "lbs" },
+  { key: "sugar",       label: "Sugar",         unit: "50 lb bags" },
+  { key: "dextrose",    label: "Dextrose",       unit: "50 lb bags" },
+  { key: "citric_acid", label: "Citric Acid",   unit: "cups" },
+  { key: "pear_juice",  label: "Pear Juice",    unit: "5-gal buckets" },
 ];
 
-const DEFAULT_AMOUNTS = {
-  xanthan_gum: 2,
-  sugar: 3,
-  dextrose: 2,
-  citric_acid: 1,
-};
+const GLOBAL_DEFAULTS = { xanthan_gum: 2, sugar: 3, dextrose: 2, citric_acid: 1, pear_juice: 0 };
 
-export default function IngredientsTab({ flavors }) {
+export default function IngredientsTab({ flavors, flavorSets }) {
   const [ingInv, setIngInv] = useState([]);
   const [jugInv, setJugInv] = useState([]);
   const [defaults, setDefaults] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Editing ingredient qty
   const [editIngKey, setEditIngKey] = useState(null);
   const [editIngVal, setEditIngVal] = useState(0);
 
-  // Editing jug qty
   const [editJugId, setEditJugId] = useState(null);
   const [editJugVal, setEditJugVal] = useState(0);
 
-  // Add jug form
   const [showAddJug, setShowAddJug] = useState(false);
   const [addJugFlavor, setAddJugFlavor] = useState("");
   const [addJugQty, setAddJugQty] = useState(1);
 
-  // Defaults editor
+  // Defaults modal
   const [showDefaults, setShowDefaults] = useState(false);
+  // selectedFsId: null = global, string = flavorset id
+  const [selectedFsId, setSelectedFsId] = useState(null);
   const [editDefaults, setEditDefaults] = useState({});
   const [savingDefaults, setSavingDefaults] = useState(false);
 
@@ -61,6 +56,16 @@ export default function IngredientsTab({ flavors }) {
 
   function getIngRecord(key) {
     return ingInv.find((i) => i.ingredient === key);
+  }
+
+  // Get default amount for a given ingredient + optional flavorset (falls back to global)
+  function getDefaultAmount(key, fsId = null) {
+    if (fsId) {
+      const fsRec = defaults.find((d) => d.ingredient === key && d.flavorset_id === fsId);
+      if (fsRec) return fsRec.amount_per_batch;
+    }
+    const globalRec = defaults.find((d) => d.ingredient === key && !d.flavorset_id);
+    return globalRec ? globalRec.amount_per_batch : (GLOBAL_DEFAULTS[key] ?? 0);
   }
 
   async function saveIngQty(key) {
@@ -99,14 +104,10 @@ export default function IngredientsTab({ flavors }) {
     setSaving(false);
   }
 
-  function getDefaultAmount(key) {
-    const rec = defaults.find((d) => d.ingredient === key);
-    return rec ? rec.amount_per_batch : (DEFAULT_AMOUNTS[key] ?? 0);
-  }
-
-  function openDefaults() {
+  function openDefaults(fsId = null) {
+    setSelectedFsId(fsId);
     const map = {};
-    INGREDIENTS.forEach((ing) => { map[ing.key] = getDefaultAmount(ing.key); });
+    INGREDIENTS.forEach((ing) => { map[ing.key] = getDefaultAmount(ing.key, fsId); });
     setEditDefaults(map);
     setShowDefaults(true);
   }
@@ -115,12 +116,18 @@ export default function IngredientsTab({ flavors }) {
     setSavingDefaults(true);
     await Promise.all(
       INGREDIENTS.map(async (ing) => {
-        const existing = defaults.find((d) => d.ingredient === ing.key);
         const val = Number(editDefaults[ing.key]) || 0;
+        // Find existing record matching ingredient + flavorset
+        const existing = defaults.find((d) =>
+          d.ingredient === ing.key &&
+          (selectedFsId ? d.flavorset_id === selectedFsId : !d.flavorset_id)
+        );
         if (existing) {
           await base44.entities.BaseMixDefaults.update(existing.id, { amount_per_batch: val });
         } else {
-          await base44.entities.BaseMixDefaults.create({ ingredient: ing.key, amount_per_batch: val });
+          const payload = { ingredient: ing.key, amount_per_batch: val };
+          if (selectedFsId) payload.flavorset_id = selectedFsId;
+          await base44.entities.BaseMixDefaults.create(payload);
         }
       })
     );
@@ -137,26 +144,35 @@ export default function IngredientsTab({ flavors }) {
 
   return (
     <div className="space-y-8">
-      {/* ─── Dry Ingredients ─── */}
+      {/* ─── Dry Ingredients & Pear Juice ─── */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-heading font-semibold text-lg">Dry Ingredients</h3>
-          <Button variant="outline" size="sm" className="gap-2 text-xs" onClick={openDefaults}>
-            <Settings className="w-3 h-3" /> Base Mix Defaults
-          </Button>
+        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <h3 className="font-heading font-semibold text-lg">Ingredients</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">Set defaults:</span>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => openDefaults(null)}>
+              <Settings className="w-3 h-3" /> Global
+            </Button>
+            {flavorSets.map((fs) => (
+              <Button key={fs.id} variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => openDefaults(fs.id)}>
+                {fs.color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fs.color }} />}
+                {fs.name}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {INGREDIENTS.map((ing) => {
             const rec = getIngRecord(ing.key);
             const qty = rec?.quantity ?? 0;
-            const perBatch = getDefaultAmount(ing.key);
+            const globalDefault = getDefaultAmount(ing.key, null);
             return (
               <div key={ing.key} className="bg-card rounded-2xl border border-border p-5">
                 <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-heading font-semibold text-sm">{ing.label}</h4>
+                  <h4 className="font-heading font-semibold text-sm leading-tight">{ing.label}</h4>
                   {editIngKey !== ing.key && (
-                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditIngKey(ing.key); setEditIngVal(qty); }}>
+                    <Button variant="ghost" size="sm" className="h-7 w-7 p-0 flex-shrink-0" onClick={() => { setEditIngKey(ing.key); setEditIngVal(qty); }}>
                       <Pencil className="w-3 h-3" />
                     </Button>
                   )}
@@ -173,13 +189,51 @@ export default function IngredientsTab({ flavors }) {
                   <>
                     <p className="text-3xl font-heading font-bold">{qty}</p>
                     <p className="text-xs text-muted-foreground mt-1">{ing.unit}</p>
-                    <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">{perBatch} {ing.unit}/batch default</p>
+                    <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">{globalDefault} {ing.unit}/batch (global)</p>
                   </>
                 )}
               </div>
             );
           })}
         </div>
+
+        {/* Per-flavorset default preview */}
+        {flavorSets.length > 0 && (
+          <div className="mt-4 bg-muted/50 rounded-2xl p-4">
+            <p className="text-xs font-medium text-muted-foreground mb-3">Per-Flavorset Overrides (amounts per batch)</p>
+            <div className="overflow-x-auto">
+              <table className="text-xs w-full">
+                <thead>
+                  <tr>
+                    <th className="text-left text-muted-foreground font-medium pb-2 pr-4">Flavorset</th>
+                    {INGREDIENTS.map((ing) => (
+                      <th key={ing.key} className="text-left text-muted-foreground font-medium pb-2 pr-4 whitespace-nowrap">{ing.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {flavorSets.map((fs) => (
+                    <tr key={fs.id}>
+                      <td className="pr-4 py-1 font-medium flex items-center gap-1.5">
+                        {fs.color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fs.color }} />}
+                        {fs.name}
+                      </td>
+                      {INGREDIENTS.map((ing) => {
+                        const fsSpecific = defaults.find((d) => d.ingredient === ing.key && d.flavorset_id === fs.id);
+                        const val = fsSpecific ? fsSpecific.amount_per_batch : null;
+                        return (
+                          <td key={ing.key} className="pr-4 py-1">
+                            {val !== null ? <span className="text-foreground font-medium">{val}</span> : <span className="text-muted-foreground/50">—</span>}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ─── Flavor Jugs ─── */}
@@ -215,7 +269,7 @@ export default function IngredientsTab({ flavors }) {
         )}
 
         {jugInv.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No flavor jugs recorded yet. Add jugs above.</p>
+          <p className="text-sm text-muted-foreground">No flavor jugs recorded yet.</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {jugInv.map((jug) => {
@@ -257,7 +311,12 @@ export default function IngredientsTab({ flavors }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-md mx-4 shadow-xl">
             <h3 className="font-heading font-semibold text-lg mb-1">Base Mix Defaults</h3>
-            <p className="text-sm text-muted-foreground mb-5">Set how much of each ingredient is consumed per batch during base mixing. These amounts will be deducted automatically when a base mixing shift is logged.</p>
+            <p className="text-sm text-muted-foreground mb-1">
+              {selectedFsId
+                ? <>Override amounts for <span className="font-medium text-foreground">{flavorSets.find((f) => f.id === selectedFsId)?.name}</span>.</>
+                : "Global defaults — used when no flavorset-specific override exists."}
+            </p>
+            <p className="text-xs text-muted-foreground mb-5">Amounts per batch. Deducted automatically when a base mixing shift is saved.</p>
             <div className="space-y-4">
               {INGREDIENTS.map((ing) => (
                 <div key={ing.key} className="flex items-center gap-4">

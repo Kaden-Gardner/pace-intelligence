@@ -1,30 +1,28 @@
 {
-  "name": "BaseMixDefaults",
+  "name": "SupplyPrice",
   "type": "object",
   "properties": {
-    "flavorset_id": {
+    "item_key": {
       "type": "string",
-      "title": "Flavorset (leave blank for global default)"
+      "title": "Item Key (ingredient or material key)"
     },
-    "ingredient": {
+    "item_type": {
       "type": "string",
-      "title": "Ingredient",
+      "title": "Type",
       "enum": [
-        "xanthan_gum",
-        "sugar",
-        "dextrose",
-        "citric_acid",
-        "pear_juice"
+        "ingredient",
+        "material"
       ]
     },
-    "amount_per_batch": {
+    "price_per_unit": {
       "type": "number",
-      "title": "Amount Used per Batch",
+      "title": "Price per Unit ($)",
       "default": 0
     }
   },
   "required": [
-    "ingredient"
+    "item_key",
+    "item_type"
   ],
   "rls": {
     "create": {
