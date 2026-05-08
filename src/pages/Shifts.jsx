@@ -18,6 +18,7 @@ export default function Shifts() {
   const [baseMixShifts, setBaseMixShifts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [flavorSets, setFlavorSets] = useState([]);
+  const [matDefaults, setMatDefaults] = useState({});
   const [loading, setLoading] = useState(true);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [statsShift, setStatsShift] = useState(null);
@@ -26,16 +27,20 @@ export default function Shifts() {
   const [compareMode, setCompareMode] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [s, bms, e, fs] = await Promise.all([
+    const [s, bms, e, fs, md] = await Promise.all([
       base44.entities.Shift.list("-shift_date", 200),
       base44.entities.BaseMixingShift.list("-shift_date", 200),
       base44.entities.Employee.list(),
       base44.entities.FlavorSet.list(),
+      base44.entities.MaterialDefaults.list(),
     ]);
     setShifts(s);
     setBaseMixShifts(bms);
     setEmployees(e);
     setFlavorSets(fs);
+    const mdMap = {};
+    md.forEach((d) => { mdMap[d.material_key] = d; });
+    setMatDefaults(mdMap);
     setLoading(false);
   }, []);
 
@@ -281,7 +286,7 @@ export default function Shifts() {
         </div>
       )}
       {statsShift && !compareMode && (
-        <ShiftStatsPanel shift={statsShift} fsMap={fsMap} empMap={empMap} onClose={() => setStatsShift(null)} />
+        <ShiftStatsPanel shift={statsShift} fsMap={fsMap} empMap={empMap} matDefaults={matDefaults} onClose={() => setStatsShift(null)} />
       )}
 
       {compareMode && compareA && compareB && (

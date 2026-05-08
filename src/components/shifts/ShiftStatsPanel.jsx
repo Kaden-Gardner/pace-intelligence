@@ -1,4 +1,4 @@
-import { X, Package, Clock, Users, TrendingUp, Layers } from "lucide-react";
+import { X, Package, Clock, Users, Layers, Wrench } from "lucide-react";
 import { getTotalCases, getCasesPerHour } from "@/lib/analyticsHelpers";
 
 function StatCard({ label, value, sub, color }) {
@@ -11,7 +11,7 @@ function StatCard({ label, value, sub, color }) {
   );
 }
 
-export default function ShiftStatsPanel({ shift, fsMap, empMap, onClose }) {
+export default function ShiftStatsPanel({ shift, fsMap, empMap, matDefaults, onClose }) {
   if (!shift) return null;
 
   const totalCases = getTotalCases(shift);
@@ -96,6 +96,73 @@ export default function ShiftStatsPanel({ shift, fsMap, empMap, onClose }) {
           </div>
         </div>
       )}
+
+      {/* Materials Used */}
+      {matDefaults && (() => {
+        const md = matDefaults;
+        const popsPerCase = shift.popsicles_per_case || 144;
+        const totalPopsFlavorset = (shift.flavorset_cases || 0) * popsPerCase;
+        const totalPopsIndividual = [
+          shift.individual_flavor_1_cases || 0,
+          shift.individual_flavor_2_cases || 0,
+          shift.individual_flavor_3_cases || 0,
+          shift.individual_flavor_4_cases || 0,
+        ].reduce((s, c) => s + c, 0) * popsPerCase;
+        const totalPops = totalPopsFlavorset + totalPopsIndividual;
+        const totalCasesAll = (shift.flavorset_cases || 0) + [
+          shift.individual_flavor_1_cases || 0,
+          shift.individual_flavor_2_cases || 0,
+          shift.individual_flavor_3_cases || 0,
+          shift.individual_flavor_4_cases || 0,
+        ].reduce((s, c) => s + c, 0);
+
+        if (totalPops === 0) return null;
+
+        const sticksPerBox = md["popsicle_sticks"]?.qty_per_shift;
+        const boxesUsed = sticksPerBox ? totalPops / sticksPerBox : null;
+
+        const clearFpr = md["clear_wrap"]?.feet_per_roll;
+        const clearFpp = md["clear_wrap"]?.feet_per_popsicle;
+        const clearRollsUsed = (clearFpr && clearFpp && totalPopsFlavorset > 0) ? (totalPopsFlavorset * clearFpp) / clearFpr : null;
+        const clearFeetUsed = (clearFpp && totalPopsFlavorset > 0) ? totalPopsFlavorset * clearFpp : null;
+
+        const indivFpr = md["individual_wrap"]?.feet_per_roll;
+        const indivFpp = md["individual_wrap"]?.feet_per_popsicle;
+        const indivRollsUsed = (indivFpr && indivFpp && totalPopsIndividual > 0) ? (totalPopsIndividual * indivFpp) / indivFpr : null;
+        const indivFeetUsed = (indivFpp && totalPopsIndividual > 0) ? totalPopsIndividual * indivFpp : null;
+
+        const popsPerBag = md["popsicles_per_bag"]?.qty_per_shift;
+        const bagsPerCase = md["bags_per_case"]?.qty_per_shift;
+        const bagsUsed = bagsPerCase ? (shift.flavorset_cases || 0) * bagsPerCase : (popsPerBag ? totalPopsFlavorset / popsPerBag : null);
+
+        const casesPerStack = md["box_stacks"]?.qty_per_shift;
+        const stacksUsed = (casesPerStack && totalCasesAll > 0) ? totalCasesAll / casesPerStack : null;
+
+        const lines = [
+          { label: "Popsicles produced", value: totalPops.toLocaleString() },
+          boxesUsed != null && { label: "Popsicle sticks", value: `${totalPops.toLocaleString()} sticks (${boxesUsed.toFixed(2)} boxes)` },
+          bagsUsed != null && totalPopsFlavorset > 0 && { label: "Bags used (flavorset)", value: `${bagsUsed.toFixed(1)} bags` },
+          clearFeetUsed != null && { label: "Clear wrap (flavorset)", value: `${clearFeetUsed.toFixed(0)} ft${clearRollsUsed != null ? ` (${clearRollsUsed.toFixed(2)} rolls)` : ""}` },
+          indivFeetUsed != null && { label: "Individual wrap", value: `${indivFeetUsed.toFixed(0)} ft${indivRollsUsed != null ? ` (${indivRollsUsed.toFixed(2)} rolls)` : ""}` },
+          stacksUsed != null && { label: "Box stacks used", value: `${stacksUsed.toFixed(2)} stacks` },
+        ].filter(Boolean);
+
+        if (lines.length === 0) return null;
+
+        return (
+          <div className="mb-5">
+            <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1"><Wrench className="w-3.5 h-3.5" /> Materials Used</p>
+            <div className="space-y-1.5">
+              {lines.map((line, i) => (
+                <div key={i} className="flex items-center justify-between bg-muted rounded-xl px-3 py-2">
+                  <span className="text-sm text-muted-foreground">{line.label}</span>
+                  <span className="font-medium text-sm">{line.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Crew */}
       {allEmpIds.length > 0 && (
