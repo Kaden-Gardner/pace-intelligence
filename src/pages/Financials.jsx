@@ -70,6 +70,7 @@ export default function Financials() {
   const [supplyPrices, setSupplyPrices] = useState([]);
   const [baseMixDefaults, setBaseMixDefaults] = useState([]);
   const [matDefaults, setMatDefaults] = useState([]);
+  const [jugDefaults, setJugDefaults] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Rates UI state
@@ -96,7 +97,7 @@ export default function Financials() {
 
   async function loadData() {
     setLoading(true);
-    const [ord, emps, rt, sh, bms, te, fs, sp, bmd, mdef] = await Promise.all([
+    const [ord, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.Employee.list("name"),
       base44.entities.EmployeeRate.list(),
@@ -107,6 +108,7 @@ export default function Financials() {
       base44.entities.SupplyPrice.list(),
       base44.entities.BaseMixDefaults.list(),
       base44.entities.MaterialDefaults.list(),
+      base44.entities.FlavorJugDefaults.list(),
     ]);
     setOrders(ord);
     setEmployees(emps);
@@ -118,6 +120,7 @@ export default function Financials() {
     setSupplyPrices(sp);
     setBaseMixDefaults(bmd);
     setMatDefaults(mdef);
+    setJugDefaults(jdef);
     setLoading(false);
   }
 
@@ -256,31 +259,81 @@ export default function Financials() {
     const wasteGallons = shift.waste || 0;
     if (!wasteGallons) return null;
 
-    const ppg = shift.popsicles_per_gallon || 24; // mold size (popsicles per gallon)
-    const popWasted = Math.round(wasteGallons * ppg); // 1 stick per popsicle
+    const ppg = shift.popsicles_per_gallon || 24; // popsicles per gallon (mold size)
+    const popWasted = Math.round(wasteGallons * ppg);
 
-    // Flavor cost per gallon wasted (flavor case = 4 gal)
+    // ── Base mix ingredient cost per wasted gallon ──
+    // Sum (amount_per_batch × price_per_unit) across all ingredients using global defaults,
+    // then divide by gallons per batch (each batch = 240 gal) to get cost per gallon.
+    const GALLONS_PER_BATCH = 240;
+    let ingCostPerGallon = null;
+    {
+      let batchCost = 0;
+      let hasAnyIngPrice = false;
+      INGREDIENTS.forEach((ing) => {
+        const priceRec = supplyPrices.find((p) => p.item_key === ing.key && p.item_type === "ingredient");
+        if (!priceRec) return;
+        const fsDefault = shift.flavorset_id
+          ? baseMixDefaults.find((d) => d.ingredient === ing.key && d.flavorset_id === shift.flavorset_id)
+          : null;
+        const globalDefault = baseMixDefaults.find((d) => d.ingredient === ing.key && !d.flavorset_id);
+        const amtPerBatch = fsDefault ? fsDefault.amount_per_batch : (globalDefault ? globalDefault.amount_per_batch : 0);
+        if (amtPerBatch > 0) {
+          batchCost += amtPerBatch * priceRec.price_per_unit;
+          hasAnyIngPrice = true;
+        }
+      });
+      if (hasAnyIngPrice) ingCostPerGallon = batchCost / GALLONS_PER_BATCH;
+    }
+    const ingWasteCost = ingCostPerGallon != null ? wasteGallons * ingCostPerGallon : null;
+
+    // ── Flavor jug cost per wasted gallon ──
+    // Average oz/gal across the flavors used in this shift, then price per oz from flavor case (4 gal/case).
+    // Flavor case price is per case; 1 case = 4 gallons of flavoring = 128 oz.
     const flavorCasePriceRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
-    const costPerGalFlavor = flavorCasePriceRec ? flavorCasePriceRec.price_per_unit / 4 : null;
-    const flavorWasteCost = costPerGalFlavor != null ? wasteGallons * costPerGalFlavor : null;
+    let flavorWasteCost = null;
+    if (flavorCasePriceRec) {
+      const pricePerOz = flavorCasePriceRec.price_per_unit / (4 * 128); // case = 4 gal = 512 oz
+      // Collect flavors used in this shift
+      const usedFlavorIds = [
+        shift.individual_flavor_1, shift.individual_flavor_2,
+        shift.individual_flavor_3, shift.individual_flavor_4,
+      ].filter(Boolean);
+      // Also flavors from the flavorset
+      const fs = fsMap[shift.flavorset_id];
+      if (fs) {
+        [fs.flavor_1, fs.flavor_2, fs.flavor_3, fs.flavor_4].forEach((fid) => { if (fid && !usedFlavorIds.includes(fid)) usedFlavorIds.push(fid); });
+      }
+      const ozPerGalSamples = usedFlavorIds
+        .map((fid) => jugDefaults.find((d) => d.flavor_id === fid)?.oz_per_gallon_base)
+        .filter((v) => v != null && v > 0);
+      if (ozPerGalSamples.length > 0) {
+        const avgOzPerGal = ozPerGalSamples.reduce((a, b) => a + b, 0) / ozPerGalSamples.length;
+        flavorWasteCost = wasteGallons * avgOzPerGal * pricePerOz;
+      } else {
+        // Fall back to price per gallon of flavoring case (price per case / 4 gal)
+        const costPerGal = flavorCasePriceRec.price_per_unit / 4;
+        flavorWasteCost = wasteGallons * costPerGal;
+      }
+    }
 
-    // Popsicle stick cost: price per box ÷ sticks per box × popsicles wasted
+    // ── Popsicle stick cost: price per box ÷ sticks per box × popsicles wasted ──
     const stickDef = matDefaults.find((d) => d.material_key === "popsicle_sticks");
-    const sticksPerBox = stickDef?.qty_per_shift || null; // "qty_per_shift" stores sticks/box
+    const sticksPerBox = stickDef?.qty_per_shift || null;
     const stickPriceRec = supplyPrices.find((p) => p.item_key === "popsicle_sticks" && p.item_type === "material");
     const costPerStick = (sticksPerBox && stickPriceRec) ? stickPriceRec.price_per_unit / sticksPerBox : null;
     const stickWasteCost = costPerStick != null ? popWasted * costPerStick : null;
 
-    // Total waste cost = flavor + sticks (where available)
-    const totalWasteCost = (flavorWasteCost != null || stickWasteCost != null)
-      ? (flavorWasteCost || 0) + (stickWasteCost || 0)
-      : null;
+    // ── Total ──
+    const components = [ingWasteCost, flavorWasteCost, stickWasteCost].filter((v) => v != null);
+    const totalWasteCost = components.length > 0 ? components.reduce((a, b) => a + b, 0) : null;
 
     return {
       wasteGallons,
       popWasted,
       sticksPerBox,
       stickBoxesWasted: sticksPerBox ? popWasted / sticksPerBox : null,
+      ingWasteCost,
       flavorWasteCost,
       stickWasteCost,
       totalWasteCost,
@@ -631,9 +684,14 @@ export default function Financials() {
                                 ~{w.popWasted} sticks ({w.stickBoxesWasted.toFixed(2)} boxes)
                               </span>
                             )}
+                            {w.ingWasteCost != null && (
+                              <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-lg">
+                                ~{fmt$(w.ingWasteCost)} base mix
+                              </span>
+                            )}
                             {w.flavorWasteCost != null && (
                               <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-lg">
-                                ~{fmt$(w.flavorWasteCost)} flavor
+                                ~{fmt$(w.flavorWasteCost)} flavoring
                               </span>
                             )}
                             {w.stickWasteCost != null && (
