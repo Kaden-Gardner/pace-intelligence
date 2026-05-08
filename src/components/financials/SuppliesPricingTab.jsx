@@ -18,6 +18,8 @@ const MATERIALS = [
 
 // Flavor cases: 4 gallons per case, price per case
 const FLAVOR_CASE_ITEM = { key: "flavor_case", label: "Flavor Case (4 gal/case)", unit: "case" };
+// Bag cases: price per case of bags
+const BAG_CASE_ITEM = { key: "bag_case", label: "Bag Case", unit: "case" };
 
 function fmt$(n) { return n == null ? "—" : `$${Number(n).toFixed(2)}`; }
 
@@ -115,6 +117,12 @@ export default function SuppliesPricingTab() {
         <h3 className="font-heading font-semibold text-lg mb-3">Flavoring</h3>
         <p className="text-xs text-muted-foreground mb-3">Each case contains 4 gallons of flavoring.</p>
         <PriceRow item={FLAVOR_CASE_ITEM} type="flavoring" />
+      </div>
+
+      <div>
+        <h3 className="font-heading font-semibold text-lg mb-3">Bags</h3>
+        <p className="text-xs text-muted-foreground mb-3">Price per case of bags (bags_per_case set in inventory).</p>
+        <PriceRow item={BAG_CASE_ITEM} type="bags" />
       </div>
     </div>
   );

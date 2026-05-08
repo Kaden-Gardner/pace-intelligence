@@ -71,6 +71,7 @@ export default function Financials() {
   const [baseMixDefaults, setBaseMixDefaults] = useState([]);
   const [matDefaults, setMatDefaults] = useState([]);
   const [jugDefaults, setJugDefaults] = useState([]);
+  const [bagInventory, setBagInventory] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Rates UI state
@@ -97,7 +98,7 @@ export default function Financials() {
 
   async function loadData() {
     setLoading(true);
-    const [ord, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef] = await Promise.all([
+    const [ord, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, baginv] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.Employee.list("name"),
       base44.entities.EmployeeRate.list(),
@@ -109,6 +110,7 @@ export default function Financials() {
       base44.entities.BaseMixDefaults.list(),
       base44.entities.MaterialDefaults.list(),
       base44.entities.FlavorJugDefaults.list(),
+      base44.entities.BagInventory.list(),
     ]);
     setOrders(ord);
     setEmployees(emps);
@@ -121,6 +123,7 @@ export default function Financials() {
     setBaseMixDefaults(bmd);
     setMatDefaults(mdef);
     setJugDefaults(jdef);
+    setBagInventory(baginv);
     setLoading(false);
   }
 
@@ -254,6 +257,79 @@ export default function Financials() {
     return total;
   }
 
+  // Supply cost for a production shift: flavoring, bags, box stacks, popsicle sticks, wrap
+  function calcProductionSupplyCost(shift) {
+    const totalCases = getTotalCases(shift);
+    const ppCase = shift.popsicles_per_case || 144;
+    let total = 0;
+
+    // ── Flavoring: starting gallons per flavor × oz/gal × price/oz ──
+    const flavorCasePriceRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
+    if (flavorCasePriceRec) {
+      const pricePerOz = flavorCasePriceRec.price_per_unit / (4 * 128); // 1 case = 4 gal = 512 oz
+      const flavorGallonFields = [
+        { gallons: shift.starting_gallons_flavor_1, flavorId: fsMap[shift.flavorset_id]?.flavor_1 },
+        { gallons: shift.starting_gallons_flavor_2, flavorId: fsMap[shift.flavorset_id]?.flavor_2 },
+        { gallons: shift.starting_gallons_flavor_3, flavorId: fsMap[shift.flavorset_id]?.flavor_3 },
+        { gallons: shift.starting_gallons_flavor_4, flavorId: fsMap[shift.flavorset_id]?.flavor_4 },
+        { gallons: shift.individual_flavor_1_cases, flavorId: shift.individual_flavor_1 },
+        { gallons: shift.individual_flavor_2_cases, flavorId: shift.individual_flavor_2 },
+        { gallons: shift.individual_flavor_3_cases, flavorId: shift.individual_flavor_3 },
+        { gallons: shift.individual_flavor_4_cases, flavorId: shift.individual_flavor_4 },
+      ];
+      flavorGallonFields.forEach(({ gallons, flavorId }) => {
+        if (!gallons || !flavorId) return;
+        const jugDefault = jugDefaults.find((d) => d.flavor_id === flavorId);
+        const ozPerGal = jugDefault?.oz_per_gallon_base || 0;
+        if (ozPerGal > 0) {
+          total += gallons * ozPerGal * pricePerOz;
+        } else {
+          // fallback: price per gallon from case price
+          total += gallons * (flavorCasePriceRec.price_per_unit / 4);
+        }
+      });
+    }
+
+    // ── Bags: 12 bags per case of popsicles produced ──
+    const bagCasePriceRec = supplyPrices.find((p) => p.item_key === "bag_case" && p.item_type === "bags");
+    if (bagCasePriceRec && totalCases > 0) {
+      // Find bags_per_case from BagInventory for this flavorset
+      const bagInvRec = bagInventory.find((b) => b.flavorset_id === shift.flavorset_id);
+      const bagsPerCase = bagInvRec?.bags_per_case || 100;
+      const bagsUsed = totalCases * 12; // 12 bags per case of popsicles
+      const bagCasesUsed = bagsUsed / bagsPerCase;
+      total += bagCasesUsed * bagCasePriceRec.price_per_unit;
+    }
+
+    // ── Box stacks (cases): totalCases ÷ cases_per_stack × price per stack ──
+    const boxStackPriceRec = supplyPrices.find((p) => p.item_key === "box_stacks" && p.item_type === "material");
+    const casesPerStack = matDefaults.find((d) => d.material_key === "box_stacks")?.qty_per_shift || 0;
+    if (boxStackPriceRec && casesPerStack > 0 && totalCases > 0) {
+      const stacksUsed = totalCases / casesPerStack;
+      total += stacksUsed * boxStackPriceRec.price_per_unit;
+    }
+
+    // ── Popsicle sticks: totalCases × popsicles_per_case ÷ sticks_per_box × price_per_box ──
+    const stickPriceRec = supplyPrices.find((p) => p.item_key === "popsicle_sticks" && p.item_type === "material");
+    const sticksPerBox = matDefaults.find((d) => d.material_key === "popsicle_sticks")?.qty_per_shift || 0;
+    if (stickPriceRec && sticksPerBox > 0 && totalCases > 0) {
+      const sticksUsed = totalCases * ppCase;
+      const boxesUsed = sticksUsed / sticksPerBox;
+      total += boxesUsed * stickPriceRec.price_per_unit;
+    }
+
+    // ── Wrap (individual + clear): use qty_per_shift defaults if set × price ──
+    ["individual_wrap", "clear_wrap"].forEach((key) => {
+      const priceRec = supplyPrices.find((p) => p.item_key === key && p.item_type === "material");
+      const defRec = matDefaults.find((d) => d.material_key === key);
+      if (priceRec && defRec?.qty_per_shift > 0) {
+        total += defRec.qty_per_shift * priceRec.price_per_unit;
+      }
+    });
+
+    return total;
+  }
+
   // Waste cost estimate for a production shift
   function calcWasteInfo(shift) {
     const wasteGallons = shift.waste || 0;
@@ -359,7 +435,9 @@ export default function Financials() {
   const allShiftCosts = analyticsShifts.map((s) => calcShiftCost(s, false));
   const allBaseMixCosts = analyticsBaseMix.map((s) => calcShiftCost(s, true));
   const totalShiftCost = [...allShiftCosts, ...allBaseMixCosts].reduce((a, b) => a + b, 0);
-  const totalSupplyCost = analyticsBaseMix.reduce((sum, s) => sum + calcBaseMixSupplyCost(s), 0);
+  const totalBaseMixSupplyCost = analyticsBaseMix.reduce((sum, s) => sum + calcBaseMixSupplyCost(s), 0);
+  const totalProductionSupplyCost = analyticsShifts.reduce((sum, s) => sum + calcProductionSupplyCost(s), 0);
+  const totalSupplyCost = totalBaseMixSupplyCost + totalProductionSupplyCost;
   const totalShiftCount = allShiftCosts.length + allBaseMixCosts.length;
   const avgShiftCost = totalShiftCount > 0 ? totalShiftCost / totalShiftCount : 0;
   const totalCasesProduced = analyticsShifts.reduce((sum, s) => sum + getTotalCases(s), 0);
@@ -574,7 +652,10 @@ export default function Financials() {
             )}
             {shiftsTabList.map((shift) => {
                 const isBaseMix = shift._type === "basemix";
-                const cost = calcShiftCost(shift, isBaseMix);
+                const laborCost = calcShiftCost(shift, isBaseMix);
+                const supplyCost = isBaseMix ? calcBaseMixSupplyCost(shift) : calcProductionSupplyCost(shift);
+                const cost = laborCost; // keep for profit ratio (labor only, consistent with before)
+                const totalCost = laborCost + supplyCost;
                 const cases = isBaseMix ? null : getTotalCases(shift);
 
                 // Predicted revenue: avg case sell price * cases produced
@@ -583,7 +664,7 @@ export default function Financials() {
                   ? pricedOrders.reduce((sum, o) => sum + o.case_sell_price, 0) / pricedOrders.length
                   : null;
                 const predictedRevenue = (!isBaseMix && cases > 0 && avgCasePrice) ? avgCasePrice * cases : null;
-                const profitRatio = (predictedRevenue && cost > 0) ? predictedRevenue / cost : null;
+                const profitRatio = (predictedRevenue && totalCost > 0) ? predictedRevenue / totalCost : null;
                 const profitColor = profitRatio === null ? null
                   : profitRatio >= 5.0 ? "bg-purple-100 text-purple-800 border-purple-200"
                   : profitRatio >= 4.0 ? "bg-green-100 text-green-800 border-green-200"
@@ -626,7 +707,10 @@ export default function Financials() {
                         <p className="text-xs text-muted-foreground">{shift.shift_time} · {shift.shift_duration}h{cases != null ? ` · ${cases} cases` : ""}</p>
                       </div>
                       <div className="text-right">
-                        <p className="font-heading font-bold text-xl text-primary">{cost > 0 ? fmt$(cost) : "—"}</p>
+                        <p className="font-heading font-bold text-xl text-primary">{totalCost > 0 ? fmt$(totalCost) : "—"}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {fmt$(laborCost)} labor{supplyCost > 0 ? ` + ${fmt$(supplyCost)} supplies` : ""}
+                        </p>
                         {predictedRevenue && (
                           <p className="text-xs text-muted-foreground mt-0.5">~{fmt$(predictedRevenue)} predicted rev.</p>
                         )}
@@ -741,8 +825,8 @@ export default function Financials() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
             {[
               { label: "Total Labor Cost", value: fmt$(totalShiftCost), sub: `${totalShiftCount} shifts` },
-              { label: "Total Supply Cost (Ingredients)", value: fmt$(totalSupplyCost), sub: "from base mix shifts" },
-              { label: "Total Combined Cost", value: fmt$(totalShiftCost + totalSupplyCost), sub: "labor + ingredients" },
+              { label: "Total Supply Cost", value: fmt$(totalSupplyCost), sub: "production + base mix materials" },
+              { label: "Total Combined Cost", value: fmt$(totalShiftCost + totalSupplyCost), sub: "labor + all supplies" },
               { label: "Avg Labor Cost Per Shift", value: fmt$(avgShiftCost), sub: shiftTypeFilter === "all" ? "production + base mix" : shiftTypeFilter === "production" ? "production only" : "base mix only" },
               { label: "Avg Cost Per Case", value: shiftTypeFilter === "basemix" ? "—" : fmt$(avgCostPerCase), sub: `${totalCasesProduced} cases produced` },
               { label: "Total Sales Revenue", value: fmt$(totalRevenue), sub: `${totalCasesSold} cases sold` },
@@ -804,7 +888,7 @@ export default function Financials() {
                   </div>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">Based on {fmt$(totalRevenue)} revenue, {fmt$(totalShiftCost)} labor{totalSupplyCost > 0 ? `, ${fmt$(totalSupplyCost)} ingredients` : ""}</p>
+              <p className="text-xs text-muted-foreground">Based on {fmt$(totalRevenue)} revenue, {fmt$(totalShiftCost)} labor{totalSupplyCost > 0 ? `, ${fmt$(totalSupplyCost)} supplies` : ""}</p>
             </div>
           )}
 
