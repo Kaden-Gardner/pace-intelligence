@@ -1,29 +1,19 @@
 {
-  "name": "MaterialInventory",
+  "name": "FlavorJugDefaults",
   "type": "object",
   "properties": {
-    "material": {
+    "flavor_id": {
       "type": "string",
-      "title": "Material",
-      "enum": [
-        "individual_wrap",
-        "clear_wrap",
-        "popsicle_sticks",
-        "gloves_small",
-        "gloves_medium",
-        "gloves_large",
-        "gloves_xlarge",
-        "box_stacks"
-      ]
+      "title": "Flavor"
     },
-    "quantity": {
+    "oz_per_gallon_base": {
       "type": "number",
-      "title": "Quantity on Hand",
+      "title": "Oz of Flavor per Gallon of Base",
       "default": 0
     }
   },
   "required": [
-    "material"
+    "flavor_id"
   ],
   "rls": {
     "create": {

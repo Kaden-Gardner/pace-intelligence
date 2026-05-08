@@ -3,11 +3,10 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pencil, Check, X, Plus, Trash2 } from "lucide-react";
+import { Pencil, Check, X, Plus, Trash2, Settings } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
-const MATERIALS = [
-  { key: "roll_wrap",       label: "Roll Wrap",          unit: "rolls" },
+export const MATERIALS = [
   { key: "individual_wrap", label: "Individual Wrap",    unit: "rolls" },
   { key: "clear_wrap",      label: "Clear Wrap",         unit: "rolls" },
   { key: "popsicle_sticks", label: "Popsicle Sticks",   unit: "boxes" },
@@ -20,13 +19,22 @@ const MATERIALS = [
 
 const STACKS_PER_PALLET = 10;
 
+// MaterialDefaults entity key format: material key, stored as "material_default_{key}"
+// We reuse BaseMixDefaults but with ingredient field = material key and a special marker
+
 export default function MaterialsTab({ flavorSets }) {
   const [matInv, setMatInv] = useState([]);
   const [bagInv, setBagInv] = useState([]);
+  const [matDefaults, setMatDefaults] = useState({});
   const [loading, setLoading] = useState(true);
 
   const [editMatKey, setEditMatKey] = useState(null);
   const [editMatVal, setEditMatVal] = useState(0);
+
+  // Defaults modal
+  const [showDefaults, setShowDefaults] = useState(false);
+  const [editDefaultsMap, setEditDefaultsMap] = useState({});
+  const [savingDefaults, setSavingDefaults] = useState(false);
 
   // Bag adjustments
   const [editBagId, setEditBagId] = useState(null);
@@ -47,13 +55,45 @@ export default function MaterialsTab({ flavorSets }) {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [mat, bag] = await Promise.all([
+    const [mat, bag, matDef] = await Promise.all([
       base44.entities.MaterialInventory.list(),
       base44.entities.BagInventory.list(),
+      base44.entities.MaterialDefaults.list(),
     ]);
     setMatInv(mat);
     setBagInv(bag);
+    const map = {};
+    matDef.forEach((d) => { map[d.material_key] = d; });
+    setMatDefaults(map);
     setLoading(false);
+  }
+
+  function openDefaults() {
+    const map = {};
+    MATERIALS.forEach((m) => { map[m.key] = matDefaults[m.key]?.qty_per_shift ?? 0; });
+    setEditDefaultsMap(map);
+    setShowDefaults(true);
+  }
+
+  async function saveMatDefaults() {
+    setSavingDefaults(true);
+    await Promise.all(
+      MATERIALS.map(async (m) => {
+        const val = Number(editDefaultsMap[m.key]) || 0;
+        const existing = matDefaults[m.key];
+        if (existing) {
+          await base44.entities.MaterialDefaults.update(existing.id, { qty_per_shift: val });
+        } else {
+          await base44.entities.MaterialDefaults.create({ material_key: m.key, qty_per_shift: val });
+        }
+      })
+    );
+    const fresh = await base44.entities.MaterialDefaults.list();
+    const map = {};
+    fresh.forEach((d) => { map[d.material_key] = d; });
+    setMatDefaults(map);
+    setSavingDefaults(false);
+    setShowDefaults(false);
   }
 
   function getMatRecord(key) {
@@ -122,7 +162,12 @@ export default function MaterialsTab({ flavorSets }) {
     <div className="space-y-8">
       {/* ─── General Materials ─── */}
       <div>
-        <h3 className="font-heading font-semibold text-lg mb-3">General Materials</h3>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-heading font-semibold text-lg">General Materials</h3>
+          <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={openDefaults}>
+            <Settings className="w-3 h-3" /> Set Defaults
+          </Button>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           {MATERIALS.map((mat) => {
             const rec = getMatRecord(mat.key);
@@ -151,6 +196,9 @@ export default function MaterialsTab({ flavorSets }) {
                     <p className="text-xs text-muted-foreground mt-0.5">{mat.unit}</p>
                     {mat.key === "box_stacks" && qty > 0 && (
                       <p className="text-xs text-muted-foreground mt-1">≈ {qty * STACKS_PER_PALLET} cases capacity</p>
+                    )}
+                    {matDefaults[mat.key] && (
+                      <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">{matDefaults[mat.key].qty_per_shift} {mat.unit}/shift (default)</p>
                     )}
                   </>
                 )}
@@ -285,6 +333,35 @@ export default function MaterialsTab({ flavorSets }) {
           </div>
         )}
       </div>
+
+      {/* ─── Material Defaults Modal ─── */}
+      {showDefaults && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-md mx-4 shadow-xl">
+            <h3 className="font-heading font-semibold text-lg mb-1">Material Defaults</h3>
+            <p className="text-sm text-muted-foreground mb-5">Set the expected quantity used per production shift for each material.</p>
+            <div className="space-y-4">
+              {MATERIALS.map((m) => (
+                <div key={m.key} className="flex items-center gap-4">
+                  <div className="flex-1">
+                    <label className="text-sm font-medium">{m.label}</label>
+                    <p className="text-xs text-muted-foreground">{m.unit} per shift</p>
+                  </div>
+                  <Input
+                    type="number" min="0" step="0.01" className="w-24"
+                    value={editDefaultsMap[m.key] ?? ""}
+                    onChange={(e) => setEditDefaultsMap((prev) => ({ ...prev, [m.key]: e.target.value }))}
+                  />
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-2 mt-6 justify-end">
+              <Button variant="outline" onClick={() => setShowDefaults(false)}>Cancel</Button>
+              <Button onClick={saveMatDefaults} disabled={savingDefaults}>{savingDefaults ? "Saving..." : "Save Defaults"}</Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

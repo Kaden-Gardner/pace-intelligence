@@ -1,29 +1,19 @@
 {
-  "name": "MaterialInventory",
+  "name": "MaterialDefaults",
   "type": "object",
   "properties": {
-    "material": {
+    "material_key": {
       "type": "string",
-      "title": "Material",
-      "enum": [
-        "individual_wrap",
-        "clear_wrap",
-        "popsicle_sticks",
-        "gloves_small",
-        "gloves_medium",
-        "gloves_large",
-        "gloves_xlarge",
-        "box_stacks"
-      ]
+      "title": "Material Key"
     },
-    "quantity": {
+    "qty_per_shift": {
       "type": "number",
-      "title": "Quantity on Hand",
+      "title": "Quantity Used per Production Shift",
       "default": 0
     }
   },
   "required": [
-    "material"
+    "material_key"
   ],
   "rls": {
     "create": {

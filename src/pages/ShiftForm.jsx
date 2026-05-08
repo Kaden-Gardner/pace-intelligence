@@ -233,6 +233,34 @@ export default function ShiftForm() {
       }
     }
 
+    // Deduct flavor jug usage based on gallons of each flavor used × oz-per-gallon default
+    if (!editId) {
+      const flavorGallonPairs = [
+        { flavorKey: "starting_gallons_flavor_1", flavorId: payload.flavorset_id ? flavorSets.find(fs => fs.id === payload.flavorset_id)?.flavor_1 : null, gallons: payload.starting_gallons_flavor_1 || 0 },
+        { flavorKey: "starting_gallons_flavor_2", flavorId: payload.flavorset_id ? flavorSets.find(fs => fs.id === payload.flavorset_id)?.flavor_2 : null, gallons: payload.starting_gallons_flavor_2 || 0 },
+        { flavorKey: "starting_gallons_flavor_3", flavorId: payload.flavorset_id ? flavorSets.find(fs => fs.id === payload.flavorset_id)?.flavor_3 : null, gallons: payload.starting_gallons_flavor_3 || 0 },
+        { flavorKey: "starting_gallons_flavor_4", flavorId: payload.flavorset_id ? flavorSets.find(fs => fs.id === payload.flavorset_id)?.flavor_4 : null, gallons: payload.starting_gallons_flavor_4 || 0 },
+      ].filter((p) => p.flavorId && p.gallons > 0);
+
+      if (flavorGallonPairs.length > 0) {
+        const [jugDefs, jugInvRows] = await Promise.all([
+          base44.entities.FlavorJugDefaults.list(),
+          base44.entities.FlavorJugInventory.list(),
+        ]);
+        await Promise.all(flavorGallonPairs.map(async ({ flavorId, gallons }) => {
+          const def = jugDefs.find((d) => d.flavor_id === flavorId);
+          if (!def || !def.oz_per_gallon_base) return;
+          const totalOzUsed = def.oz_per_gallon_base * gallons;
+          // Convert oz used → gallons (128 oz per gallon)
+          const gallonsUsed = totalOzUsed / 128;
+          const jugRec = jugInvRows.find((j) => j.flavor_id === flavorId);
+          if (jugRec) {
+            await base44.entities.FlavorJugInventory.update(jugRec.id, { gallons: Math.max(0, (jugRec.gallons || 0) - gallonsUsed) });
+          }
+        }));
+      }
+    }
+
     // Update inventory for individual flavor cases
     const indFlavors = [
       { id: payload.individual_flavor_1, cases: payload.individual_flavor_1_cases || 0 },

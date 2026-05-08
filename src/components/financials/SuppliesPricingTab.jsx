@@ -6,7 +6,6 @@ import { Pencil, Check, X } from "lucide-react";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const MATERIALS = [
-  { key: "roll_wrap",       label: "Roll Wrap",        unit: "roll" },
   { key: "individual_wrap", label: "Individual Wrap",  unit: "roll" },
   { key: "clear_wrap",      label: "Clear Wrap",       unit: "roll" },
   { key: "popsicle_sticks", label: "Popsicle Sticks",  unit: "box" },
@@ -16,6 +15,9 @@ const MATERIALS = [
   { key: "gloves_xlarge",   label: "Gloves (XL)",      unit: "box" },
   { key: "box_stacks",      label: "Box Stacks",       unit: "stack" },
 ];
+
+// Flavor cases: 4 gallons per case, price per case
+const FLAVOR_CASE_ITEM = { key: "flavor_case", label: "Flavor Case (4 gal/case)", unit: "case" };
 
 function fmt$(n) { return n == null ? "—" : `$${Number(n).toFixed(2)}`; }
 
@@ -107,6 +109,12 @@ export default function SuppliesPricingTab() {
         <div className="space-y-2">
           {MATERIALS.map((mat) => <PriceRow key={mat.key} item={mat} type="material" />)}
         </div>
+      </div>
+
+      <div>
+        <h3 className="font-heading font-semibold text-lg mb-3">Flavoring</h3>
+        <p className="text-xs text-muted-foreground mb-3">Each case contains 4 gallons of flavoring.</p>
+        <PriceRow item={FLAVOR_CASE_ITEM} type="flavoring" />
       </div>
     </div>
   );

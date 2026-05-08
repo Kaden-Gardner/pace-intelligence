@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Check, X, Settings } from "lucide-react";
+import { Plus, Pencil, Check, X, Settings, FlaskConical } from "lucide-react";
 
 export const INGREDIENTS = [
   { key: "xanthan_gum", label: "Xanthan Gum",  unit: "lbs" },
@@ -27,6 +27,10 @@ export default function IngredientsTab({ flavors, flavorSets }) {
   const [editJugId, setEditJugId] = useState(null);
   const [editJugVal, setEditJugVal] = useState(0);
 
+  const [jugDefaults, setJugDefaults] = useState([]);
+  const [editJugDefaultId, setEditJugDefaultId] = useState(null); // flavor_id being edited
+  const [editJugDefaultVal, setEditJugDefaultVal] = useState("");
+
   const [showAddJug, setShowAddJug] = useState(false);
   const [addJugFlavor, setAddJugFlavor] = useState("");
   const [addJugQty, setAddJugQty] = useState(1);
@@ -43,15 +47,31 @@ export default function IngredientsTab({ flavors, flavorSets }) {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [ing, jug, def] = await Promise.all([
+    const [ing, jug, def, jugDef] = await Promise.all([
       base44.entities.IngredientInventory.list(),
       base44.entities.FlavorJugInventory.list(),
       base44.entities.BaseMixDefaults.list(),
+      base44.entities.FlavorJugDefaults.list(),
     ]);
     setIngInv(ing);
     setJugInv(jug);
     setDefaults(def);
+    setJugDefaults(jugDef);
     setLoading(false);
+  }
+
+  async function saveJugDefault(flavorId) {
+    const oz = parseFloat(editJugDefaultVal) || 0;
+    const existing = jugDefaults.find((d) => d.flavor_id === flavorId);
+    if (existing) {
+      await base44.entities.FlavorJugDefaults.update(existing.id, { oz_per_gallon_base: oz });
+      setJugDefaults((prev) => prev.map((d) => d.id === existing.id ? { ...d, oz_per_gallon_base: oz } : d));
+    } else {
+      const created = await base44.entities.FlavorJugDefaults.create({ flavor_id: flavorId, oz_per_gallon_base: oz });
+      setJugDefaults((prev) => [...prev, created]);
+    }
+    setEditJugDefaultId(null);
+    setEditJugDefaultVal("");
   }
 
   function getIngRecord(key) {
@@ -274,6 +294,8 @@ export default function IngredientsTab({ flavors, flavorSets }) {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {jugInv.map((jug) => {
               const fl = flavorMap[jug.flavor_id];
+              const jugDefault = jugDefaults.find((d) => d.flavor_id === jug.flavor_id);
+              const isEditingDefault = editJugDefaultId === jug.flavor_id;
               return (
                 <div key={jug.id} className="bg-card rounded-2xl border border-border p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -289,14 +311,35 @@ export default function IngredientsTab({ flavors, flavorSets }) {
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <p className="text-2xl font-heading font-bold">{jug.gallons ?? 0}</p>
-                        <p className="text-xs text-muted-foreground">gallons</p>
+                    <div>
+                      <div className="flex items-end justify-between">
+                        <div>
+                          <p className="text-2xl font-heading font-bold">{jug.gallons ?? 0}</p>
+                          <p className="text-xs text-muted-foreground">gallons</p>
+                        </div>
+                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditJugId(jug.id); setEditJugVal(jug.gallons ?? 0); }}>
+                          <Pencil className="w-3 h-3" />
+                        </Button>
                       </div>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditJugId(jug.id); setEditJugVal(jug.gallons ?? 0); }}>
-                        <Pencil className="w-3 h-3" />
-                      </Button>
+                      {/* oz per gallon default */}
+                      <div className="mt-2 pt-2 border-t border-border">
+                        {isEditingDefault ? (
+                          <div className="flex items-center gap-1">
+                            <Input type="number" min="0" step="0.1" className="h-7 text-xs w-20" value={editJugDefaultVal}
+                              onChange={(e) => setEditJugDefaultVal(e.target.value)} autoFocus
+                              onKeyDown={(e) => e.key === "Enter" && saveJugDefault(jug.flavor_id)} />
+                            <span className="text-[10px] text-muted-foreground">oz/gal</span>
+                            <Button size="sm" className="h-6 w-6 p-0" onClick={() => saveJugDefault(jug.flavor_id)}><Check className="w-3 h-3" /></Button>
+                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditJugDefaultId(null)}><X className="w-3 h-3" /></Button>
+                          </div>
+                        ) : (
+                          <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full"
+                            onClick={() => { setEditJugDefaultId(jug.flavor_id); setEditJugDefaultVal(jugDefault?.oz_per_gallon_base ?? ""); }}>
+                            <FlaskConical className="w-3 h-3 flex-shrink-0" />
+                            {jugDefault ? `${jugDefault.oz_per_gallon_base} oz/gal base` : "Set oz/gal default"}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
