@@ -131,6 +131,27 @@ export default function BaseMixingShiftForm() {
       }
     }
 
+    // Deduct ingredients based on batch size and defaults (only for new shifts)
+    if (!editId) {
+      const batchCount = Number(form.batch_size) || 1;
+      const [ingDefaults, ingInv] = await Promise.all([
+        base44.entities.BaseMixDefaults.list(),
+        base44.entities.IngredientInventory.list(),
+      ]);
+      const defaultAmounts = { xanthan_gum: 2, sugar: 3, dextrose: 2, citric_acid: 1 };
+      const ingredients = ["xanthan_gum", "sugar", "dextrose", "citric_acid"];
+      await Promise.all(ingredients.map(async (key) => {
+        const def = ingDefaults.find((d) => d.ingredient === key);
+        const amountPerBatch = def ? def.amount_per_batch : (defaultAmounts[key] ?? 0);
+        const totalUsed = amountPerBatch * batchCount;
+        if (totalUsed <= 0) return;
+        const rec = ingInv.find((i) => i.ingredient === key);
+        if (rec) {
+          await base44.entities.IngredientInventory.update(rec.id, { quantity: Math.max(0, (rec.quantity || 0) - totalUsed) });
+        }
+      }));
+    }
+
     setSaving(false);
     navigate("/shifts");
   }

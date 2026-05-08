@@ -1,0 +1,55 @@
+{
+  "name": "IngredientInventory",
+  "type": "object",
+  "properties": {
+    "ingredient": {
+      "type": "string",
+      "title": "Ingredient",
+      "enum": [
+        "xanthan_gum",
+        "sugar",
+        "dextrose",
+        "citric_acid"
+      ]
+    },
+    "quantity": {
+      "type": "number",
+      "title": "Quantity on Hand",
+      "default": 0
+    },
+    "flavor_id": {
+      "type": "string",
+      "title": "Flavor (for flavor jugs only)"
+    },
+    "gallons": {
+      "type": "number",
+      "title": "Gallons (flavor jugs)",
+      "default": 0
+    }
+  },
+  "required": [
+    "ingredient"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

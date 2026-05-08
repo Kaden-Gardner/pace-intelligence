@@ -1,0 +1,50 @@
+{
+  "name": "BagInventory",
+  "type": "object",
+  "properties": {
+    "flavorset_id": {
+      "type": "string",
+      "title": "Flavorset (bag type)"
+    },
+    "cases": {
+      "type": "number",
+      "title": "Full Cases on Hand",
+      "default": 0
+    },
+    "loose_bags": {
+      "type": "number",
+      "title": "Loose Bags (partial case)",
+      "default": 0
+    },
+    "bags_per_case": {
+      "type": "number",
+      "title": "Bags per Case",
+      "default": 100
+    }
+  },
+  "required": [
+    "flavorset_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

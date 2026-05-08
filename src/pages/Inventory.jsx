@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Package, Truck, Plus, Pencil, Check, X, Trash2, Snowflake, Star, MoveRight } from "lucide-react";
+import IngredientsTab from "../components/inventory/IngredientsTab";
+import MaterialsTab from "../components/inventory/MaterialsTab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -375,9 +377,11 @@ export default function Inventory() {
       </div>
 
       <Tabs defaultValue="inventory">
-        <TabsList className="mb-6">
+        <TabsList className="mb-6 flex flex-wrap gap-1 h-auto">
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
           <TabsTrigger value="base">Base on Hand</TabsTrigger>
+          <TabsTrigger value="ingredients">Ingredients</TabsTrigger>
+          <TabsTrigger value="materials">Materials</TabsTrigger>
           <TabsTrigger value="freezers">Freezers</TabsTrigger>
           <TabsTrigger value="pickups">Order Pickups</TabsTrigger>
         </TabsList>
@@ -572,6 +576,16 @@ export default function Inventory() {
               </div>
             )}
           </div>
+        </TabsContent>
+
+        {/* ====== INGREDIENTS TAB ====== */}
+        <TabsContent value="ingredients">
+          <IngredientsTab flavors={flavors} />
+        </TabsContent>
+
+        {/* ====== MATERIALS TAB ====== */}
+        <TabsContent value="materials">
+          <MaterialsTab flavorSets={flavorSets} />
         </TabsContent>
 
         {/* ====== BASE ON HAND TAB ====== */}

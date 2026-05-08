@@ -1,0 +1,51 @@
+{
+  "name": "MaterialInventory",
+  "type": "object",
+  "properties": {
+    "material": {
+      "type": "string",
+      "title": "Material",
+      "enum": [
+        "roll_wrap",
+        "individual_wrap",
+        "clear_wrap",
+        "popsicle_sticks",
+        "gloves_small",
+        "gloves_medium",
+        "gloves_large",
+        "gloves_xlarge",
+        "box_stacks"
+      ]
+    },
+    "quantity": {
+      "type": "number",
+      "title": "Quantity on Hand",
+      "default": 0
+    }
+  },
+  "required": [
+    "material"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

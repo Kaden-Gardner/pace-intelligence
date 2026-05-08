@@ -1,0 +1,46 @@
+{
+  "name": "BaseMixDefaults",
+  "type": "object",
+  "properties": {
+    "ingredient": {
+      "type": "string",
+      "title": "Ingredient",
+      "enum": [
+        "xanthan_gum",
+        "sugar",
+        "dextrose",
+        "citric_acid"
+      ]
+    },
+    "amount_per_batch": {
+      "type": "number",
+      "title": "Amount Used per Batch",
+      "default": 0
+    }
+  },
+  "required": [
+    "ingredient"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

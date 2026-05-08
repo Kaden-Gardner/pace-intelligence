@@ -1,0 +1,40 @@
+{
+  "name": "FlavorJugInventory",
+  "type": "object",
+  "properties": {
+    "flavor_id": {
+      "type": "string",
+      "title": "Flavor"
+    },
+    "gallons": {
+      "type": "number",
+      "title": "Gallons (jugs) on Hand",
+      "default": 0
+    }
+  },
+  "required": [
+    "flavor_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
