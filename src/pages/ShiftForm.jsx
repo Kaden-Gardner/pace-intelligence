@@ -260,6 +260,93 @@ export default function ShiftForm() {
       }
     }
 
+    // Deduct materials for new production shifts only
+    if (!editId) {
+      const popsPerCase = payload.popsicles_per_case || 144;
+      const ppg = payload.popsicles_per_gallon || 24;
+
+      // Total popsicles produced
+      const flavorsetCases = payload.flavorset_cases || 0;
+      const indCasesTotal = [
+        payload.individual_flavor_1_cases || 0,
+        payload.individual_flavor_2_cases || 0,
+        payload.individual_flavor_3_cases || 0,
+        payload.individual_flavor_4_cases || 0,
+      ].reduce((s, c) => s + c, 0);
+      const totalPopsFlavorset = flavorsetCases * popsPerCase;
+      const totalPopsIndividual = indCasesTotal * popsPerCase;
+      const totalPops = totalPopsFlavorset + totalPopsIndividual;
+      const totalCases = flavorsetCases + indCasesTotal;
+
+      if (totalPops > 0 || totalCases > 0) {
+        const [matDefaults, matInv, bagInv] = await Promise.all([
+          base44.entities.MaterialDefaults.list(),
+          base44.entities.MaterialInventory.list(),
+          base44.entities.BagInventory.list(),
+        ]);
+        const matMap = {};
+        matDefaults.forEach((d) => { matMap[d.material_key] = d; });
+        const matInvMap = {};
+        matInv.forEach((m) => { matInvMap[m.material] = m; });
+
+        async function deductMaterial(key, amount) {
+          if (amount <= 0) return;
+          const rec = matInvMap[key];
+          if (rec) {
+            await base44.entities.MaterialInventory.update(rec.id, { quantity: Math.max(0, (rec.quantity || 0) - amount) });
+          }
+        }
+
+        // Popsicle sticks: 1 stick per popsicle, sticks per box from defaults
+        const sticksPerBox = matMap["popsicle_sticks"]?.qty_per_shift || null;
+        if (sticksPerBox && totalPops > 0) {
+          const boxesUsed = totalPops / sticksPerBox;
+          await deductMaterial("popsicle_sticks", boxesUsed);
+        }
+
+        // Clear wrap (flavorset popsicles): feet per popsicle → total feet → rolls
+        const clearFpr = matMap["clear_wrap"]?.feet_per_roll;
+        const clearFpp = matMap["clear_wrap"]?.feet_per_popsicle;
+        if (clearFpr && clearFpp && totalPopsFlavorset > 0) {
+          const rollsUsed = (totalPopsFlavorset * clearFpp) / clearFpr;
+          await deductMaterial("clear_wrap", rollsUsed);
+        }
+
+        // Individual wrap (individual-case popsicles): feet per popsicle → total feet → rolls
+        const indivFpr = matMap["individual_wrap"]?.feet_per_roll;
+        const indivFpp = matMap["individual_wrap"]?.feet_per_popsicle;
+        if (indivFpr && indivFpp && totalPopsIndividual > 0) {
+          const rollsUsed = (totalPopsIndividual * indivFpp) / indivFpr;
+          await deductMaterial("individual_wrap", rollsUsed);
+        }
+
+        // Box stacks: cases ÷ cases_per_stack
+        const casesPerStack = matMap["box_stacks"]?.qty_per_shift || null;
+        if (casesPerStack && totalCases > 0) {
+          const stacksUsed = totalCases / casesPerStack;
+          await deductMaterial("box_stacks", stacksUsed);
+        }
+
+        // Bags: deduct from BagInventory (flavorset bags only — individual cases use pre-bagged product)
+        if (flavorsetCases > 0 && payload.flavorset_id) {
+          const popsPerBag = matMap["popsicles_per_bag"]?.qty_per_shift || null;
+          const bagsPerCase = matMap["bags_per_case"]?.qty_per_shift || null;
+          const bagsUsed = bagsPerCase ? flavorsetCases * bagsPerCase : (popsPerBag ? totalPopsFlavorset / popsPerBag : null);
+          if (bagsUsed != null) {
+            const bagRec = bagInv.find((b) => b.flavorset_id === payload.flavorset_id);
+            if (bagRec) {
+              const bpc = bagRec.bags_per_case || 100;
+              let loose = (bagRec.loose_bags || 0) - bagsUsed;
+              let cases = bagRec.cases || 0;
+              while (loose < 0 && cases > 0) { cases -= 1; loose += bpc; }
+              loose = Math.max(0, loose);
+              await base44.entities.BagInventory.update(bagRec.id, { cases, loose_bags: loose });
+            }
+          }
+        }
+      }
+    }
+
     // Update inventory for individual flavor cases
     const indFlavors = [
       { id: payload.individual_flavor_1, cases: payload.individual_flavor_1_cases || 0 },
