@@ -14,9 +14,10 @@ const WRAP_LABELS = { individual_wrap: "Individual Wrap", clear_wrap: "Clear Wra
 
 // "Global" pack config keys stored in MaterialDefaults
 const PACK_CONFIG = [
-  { key: "popsicles_per_bag",  label: "Popsicles per Bag",  unit: "pops/bag" },
-  { key: "bags_per_case",      label: "Bags per Case",       unit: "bags/case" },
-  { key: "popsicles_per_case", label: "Popsicles per Case",  unit: "pops/case" },
+  { key: "popsicles_per_gallon", label: "Popsicles per Gallon (Mold Size)", unit: "pops/gallon", description: "How many popsicles fit in one gallon of base mix (mold size)" },
+  { key: "popsicles_per_bag",    label: "Popsicles per Bag",                unit: "pops/bag" },
+  { key: "bags_per_case",        label: "Bags per Case",                    unit: "bags/case" },
+  { key: "popsicles_per_case",   label: "Popsicles per Case",               unit: "pops/case" },
 ];
 
 function Section({ icon: Icon, title, children }) {
@@ -144,7 +145,7 @@ export default function ProductBreakdownTab() {
     });
     if (hasAny) ingCostPerGallon = batchCost / GALLONS_PER_BATCH;
   }
-  const ppg = 24; // default popsicles per gallon — a typical mold
+  const ppg = matDefaults["popsicles_per_gallon"]?.qty_per_shift || 24;
   const ingCostPerPop = ingCostPerGallon != null ? ingCostPerGallon / ppg : null;
 
   return (
@@ -330,7 +331,7 @@ export default function ProductBreakdownTab() {
               <p className="font-heading font-bold text-primary text-xl">${ingCostPerGallon.toFixed(4)}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Cost per popsicle (base mix only, {ppg}/gal)</p>
+              <p className="text-xs text-muted-foreground">Cost per popsicle (base mix only, {ppg} pops/gal)</p>
               <p className="font-heading font-bold text-primary text-xl">${ingCostPerPop.toFixed(5)}</p>
             </div>
           </div>
