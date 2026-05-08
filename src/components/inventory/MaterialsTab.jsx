@@ -68,9 +68,15 @@ export default function MaterialsTab({ flavorSets }) {
     setLoading(false);
   }
 
+  // Only these materials have configurable defaults
+  const DEFAULTABLE_MATERIALS = [
+    { key: "box_stacks",      label: "Box Stacks",      description: "Cases per stack", unit: "cases/stack" },
+    { key: "popsicle_sticks", label: "Popsicle Sticks", description: "Sticks per box",  unit: "sticks/box" },
+  ];
+
   function openDefaults() {
     const map = {};
-    MATERIALS.forEach((m) => { map[m.key] = matDefaults[m.key]?.qty_per_shift ?? 0; });
+    DEFAULTABLE_MATERIALS.forEach((m) => { map[m.key] = matDefaults[m.key]?.qty_per_shift ?? 0; });
     setEditDefaultsMap(map);
     setShowDefaults(true);
   }
@@ -78,7 +84,7 @@ export default function MaterialsTab({ flavorSets }) {
   async function saveMatDefaults() {
     setSavingDefaults(true);
     await Promise.all(
-      MATERIALS.map(async (m) => {
+      DEFAULTABLE_MATERIALS.map(async (m) => {
         const val = Number(editDefaultsMap[m.key]) || 0;
         const existing = matDefaults[m.key];
         if (existing) {
@@ -194,11 +200,14 @@ export default function MaterialsTab({ flavorSets }) {
                   <>
                     <p className="text-3xl font-heading font-bold">{qty}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{mat.unit}</p>
-                    {mat.key === "box_stacks" && qty > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">≈ {qty * STACKS_PER_PALLET} cases capacity</p>
+                    {mat.key === "box_stacks" && matDefaults[mat.key] && qty > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">≈ {qty * (matDefaults[mat.key].qty_per_shift || STACKS_PER_PALLET)} cases capacity</p>
                     )}
-                    {matDefaults[mat.key] && (
-                      <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">{matDefaults[mat.key].qty_per_shift} {mat.unit}/shift (default)</p>
+                    {mat.key === "box_stacks" && matDefaults[mat.key] && (
+                      <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">{matDefaults[mat.key].qty_per_shift} cases/stack</p>
+                    )}
+                    {mat.key === "popsicle_sticks" && matDefaults[mat.key] && (
+                      <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">{matDefaults[mat.key].qty_per_shift} sticks/box</p>
                     )}
                   </>
                 )}
@@ -339,16 +348,16 @@ export default function MaterialsTab({ flavorSets }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-md mx-4 shadow-xl">
             <h3 className="font-heading font-semibold text-lg mb-1">Material Defaults</h3>
-            <p className="text-sm text-muted-foreground mb-5">Set the expected quantity used per production shift for each material.</p>
+            <p className="text-sm text-muted-foreground mb-5">Configure capacity/usage constants for each material.</p>
             <div className="space-y-4">
-              {MATERIALS.map((m) => (
+              {DEFAULTABLE_MATERIALS.map((m) => (
                 <div key={m.key} className="flex items-center gap-4">
                   <div className="flex-1">
                     <label className="text-sm font-medium">{m.label}</label>
-                    <p className="text-xs text-muted-foreground">{m.unit} per shift</p>
+                    <p className="text-xs text-muted-foreground">{m.description}</p>
                   </div>
                   <Input
-                    type="number" min="0" step="0.01" className="w-24"
+                    type="number" min="0" step="1" className="w-24"
                     value={editDefaultsMap[m.key] ?? ""}
                     onChange={(e) => setEditDefaultsMap((prev) => ({ ...prev, [m.key]: e.target.value }))}
                   />

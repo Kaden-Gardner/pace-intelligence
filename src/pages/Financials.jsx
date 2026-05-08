@@ -10,6 +10,7 @@ import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, en
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import SuppliesPricingTab from "@/components/financials/SuppliesPricingTab";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
+import { Flame } from "lucide-react";
 
 const PERIODS = [
   { label: "Last Shift", key: "lastshift" },
@@ -69,6 +70,7 @@ export default function Financials() {
   const [flavorSets, setFlavorSets] = useState([]);
   const [supplyPrices, setSupplyPrices] = useState([]);
   const [baseMixDefaults, setBaseMixDefaults] = useState([]);
+  const [matDefaults, setMatDefaults] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Rates UI state
@@ -95,7 +97,7 @@ export default function Financials() {
 
   async function loadData() {
     setLoading(true);
-    const [ord, emps, rt, sh, bms, te, fs, sp, bmd] = await Promise.all([
+    const [ord, emps, rt, sh, bms, te, fs, sp, bmd, mdef] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.Employee.list("name"),
       base44.entities.EmployeeRate.list(),
@@ -105,6 +107,7 @@ export default function Financials() {
       base44.entities.FlavorSet.list("name"),
       base44.entities.SupplyPrice.list(),
       base44.entities.BaseMixDefaults.list(),
+      base44.entities.MaterialDefaults.list(),
     ]);
     setOrders(ord);
     setEmployees(emps);
@@ -115,6 +118,7 @@ export default function Financials() {
     setFlavorSets(fs);
     setSupplyPrices(sp);
     setBaseMixDefaults(bmd);
+    setMatDefaults(mdef);
     setLoading(false);
   }
 
@@ -246,6 +250,48 @@ export default function Financials() {
       total += amountPerBatch * batchCount * priceRec.price_per_unit;
     });
     return total;
+  }
+
+  // Waste cost estimate for a production shift
+  function calcWasteInfo(shift) {
+    const wasteGallons = shift.waste || 0;
+    if (!wasteGallons) return null;
+
+    const ppg = shift.popsicles_per_gallon || 24; // mold size
+    const popWasted = wasteGallons * ppg;
+
+    // Sticks wasted = popsicles wasted (1 stick each)
+    const stickDef = matDefaults.find((d) => d.material_key === "popsicle_sticks");
+    const sticksPerBox = stickDef?.qty_per_shift || null;
+
+    // Avg flavor cost per gallon: look at which flavors were used in this shift
+    // Use flavor case price (4 gal/case) stored under item_key="flavor_case", item_type="flavoring"
+    const flavorCasePrice = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
+    const costPerGalFlavor = flavorCasePrice ? flavorCasePrice.price_per_unit / 4 : null;
+
+    // Ingredient cost per gallon of base (sum across all ingredients using global defaults × price / amountPerBatch)
+    // BaseMixDefaults amount_per_batch is per batch — we need cost per gallon of base
+    // We'll estimate: total batch cost / gallons per batch (assume 1 batch = 1 unit, user sets amounts per batch)
+    // Instead use: cost per gallon = sum(ingredient_amount_per_batch * price) / gallons_per_batch
+    // We don't track gallons_per_batch directly, so just show ingredient cost per gallon if prices are available
+    let ingCostPerGallon = null;
+    const ingCosts = INGREDIENTS.map((ing) => {
+      const priceRec = supplyPrices.find((p) => p.item_key === ing.key && p.item_type === "ingredient");
+      if (!priceRec) return null;
+      // amount_per_batch is per batch; we don't know gallons/batch here so skip ratio
+      return { key: ing.key, price: priceRec.price_per_unit };
+    });
+    // We can only compute waste base cost if we know cost per gallon; skip if unknown
+    // For now surface what we can
+
+    return {
+      wasteGallons,
+      popWasted: Math.round(popWasted),
+      sticksPerBox,
+      stickBoxesWasted: sticksPerBox ? (popWasted / sticksPerBox) : null,
+      costPerGalFlavor,
+      flavorWasteCost: costPerGalFlavor ? wasteGallons * costPerGalFlavor : null,
+    };
   }
 
   // Analytics
@@ -564,6 +610,36 @@ export default function Financials() {
                         })}
                       </div>
                     )}
+                    {/* Waste estimate — production shifts only */}
+                    {!isBaseMix && (() => {
+                      const w = calcWasteInfo(shift);
+                      if (!w) return null;
+                      return (
+                        <div className="mt-3 pt-3 border-t border-border">
+                          <p className="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1">
+                            <Flame className="w-3 h-3 text-orange-400" /> Waste Estimate
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            <span className="text-xs px-2 py-1 bg-orange-50 text-orange-700 border border-orange-100 rounded-lg">
+                              {w.wasteGallons} gal wasted
+                            </span>
+                            <span className="text-xs px-2 py-1 bg-orange-50 text-orange-700 border border-orange-100 rounded-lg">
+                              ~{w.popWasted} popsicles lost
+                            </span>
+                            {w.sticksPerBox && (
+                              <span className="text-xs px-2 py-1 bg-orange-50 text-orange-700 border border-orange-100 rounded-lg">
+                                ~{w.popWasted} sticks ({(w.popWasted / w.sticksPerBox).toFixed(2)} boxes)
+                              </span>
+                            )}
+                            {w.flavorWasteCost != null && (
+                              <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-lg">
+                                ~{fmt$(w.flavorWasteCost)} flavor cost
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}
