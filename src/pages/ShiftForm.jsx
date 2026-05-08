@@ -154,14 +154,16 @@ export default function ShiftForm() {
       if (payload[key] === "") delete payload[key];
     });
 
+    let previousShiftData = null;
     let previousFlavorsetId = null;
     let previousFlavorsetCases = 0;
 
     if (editId) {
-      // Get old shift to reverse previous inventory contribution
+      // Fetch old shift BEFORE updating so we can correctly reverse inventory
       const old = await base44.entities.Shift.filter({ id: editId });
-      if (old.length > 0 && old[0].flavorset_id && old[0].flavorset_cases) {
-        previousFlavorsetId = old[0].flavorset_id;
+      if (old.length > 0) {
+        previousShiftData = old[0];
+        previousFlavorsetId = old[0].flavorset_id || null;
         previousFlavorsetCases = old[0].flavorset_cases || 0;
       }
       await base44.entities.Shift.update(editId, payload);
@@ -211,16 +213,13 @@ export default function ShiftForm() {
 
       if (totalGallonsUsed > 0) {
         let previousGallonsUsed = 0;
-        if (editId) {
-          const old = await base44.entities.Shift.filter({ id: editId });
-          if (old.length > 0) {
-            previousGallonsUsed = [
-              old[0].starting_gallons_flavor_1 || 0,
-              old[0].starting_gallons_flavor_2 || 0,
-              old[0].starting_gallons_flavor_3 || 0,
-              old[0].starting_gallons_flavor_4 || 0,
-            ].reduce((s, g) => s + g, 0);
-          }
+        if (editId && previousShiftData) {
+          previousGallonsUsed = [
+            previousShiftData.starting_gallons_flavor_1 || 0,
+            previousShiftData.starting_gallons_flavor_2 || 0,
+            previousShiftData.starting_gallons_flavor_3 || 0,
+            previousShiftData.starting_gallons_flavor_4 || 0,
+          ].reduce((s, g) => s + g, 0);
         }
         const baseInvRows = await base44.entities.BaseInventory.filter({ flavorset_id: payload.flavorset_id });
         if (baseInvRows.length > 0) {
@@ -273,14 +272,13 @@ export default function ShiftForm() {
       const existing = await base44.entities.Inventory.filter({ flavor_id: flavorId });
       if (existing.length > 0) {
         let base = existing[0].cases || 0;
-        if (editId) {
-          const oldShiftData = editId ? await base44.entities.Shift.filter({ id: editId }) : [];
-          const oldShift = oldShiftData.length > 0 ? oldShiftData[0] : {};
+        if (editId && previousShiftData) {
+          // Use cached pre-update old data — NOT a new fetch (shift is already updated above)
           const oldCases = [
-            [oldShift.individual_flavor_1, oldShift.individual_flavor_1_cases],
-            [oldShift.individual_flavor_2, oldShift.individual_flavor_2_cases],
-            [oldShift.individual_flavor_3, oldShift.individual_flavor_3_cases],
-            [oldShift.individual_flavor_4, oldShift.individual_flavor_4_cases],
+            [previousShiftData.individual_flavor_1, previousShiftData.individual_flavor_1_cases],
+            [previousShiftData.individual_flavor_2, previousShiftData.individual_flavor_2_cases],
+            [previousShiftData.individual_flavor_3, previousShiftData.individual_flavor_3_cases],
+            [previousShiftData.individual_flavor_4, previousShiftData.individual_flavor_4_cases],
           ].find(([id]) => id === flavorId)?.[1] || 0;
           base = base - oldCases + newCases;
         } else {
