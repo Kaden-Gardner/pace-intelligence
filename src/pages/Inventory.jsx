@@ -105,14 +105,14 @@ export default function Inventory() {
 
   async function load() {
     const [fs, fl, inv, pk, frz, fi, bi, ss] = await Promise.all([
-      base44.entities.FlavorSet.list("name"),
-      base44.entities.Flavor.list("name"),
-      base44.entities.Inventory.list(),
-      base44.entities.OrderPickup.list("-pickup_date", 100),
-      base44.entities.Freezer.list("name"),
-      base44.entities.FreezerItem.list(),
-      base44.entities.BaseInventory.list(),
-      base44.entities.ScheduledShift.list("-shift_date", 500),
+      base44.entities.FlavorSet.list("name").catch(() => []),
+      base44.entities.Flavor.list("name").catch(() => []),
+      base44.entities.Inventory.list().catch(() => []),
+      base44.entities.OrderPickup.list("-pickup_date", 100).catch(() => []),
+      base44.entities.Freezer.list("name").catch(() => []),
+      base44.entities.FreezerItem.list().catch(() => []),
+      base44.entities.BaseInventory.list().catch(() => []),
+      base44.entities.ScheduledShift.list("-shift_date", 200).catch(() => []),
     ]);
     setFlavorSets(fs);
     setFlavors(fl);
@@ -122,7 +122,6 @@ export default function Inventory() {
     setFreezerItems(fi);
     setBaseInventory(bi);
     setScheduledShifts(ss);
-    // Load default freezer from DB
     const defaultId = frz.find((f) => f.is_default)?.id || null;
     setDefaultFreezer(defaultId);
     setLoading(false);
