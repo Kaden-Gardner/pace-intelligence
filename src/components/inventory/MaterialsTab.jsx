@@ -48,9 +48,7 @@ export default function MaterialsTab({ flavorSets }) {
   const [addBagPerCase, setAddBagPerCase] = useState(100);
   const [saving, setSaving] = useState(false);
 
-  // Remove single bags
-  const [removeBagId, setRemoveBagId] = useState(null);
-  const [removeBagQty, setRemoveBagQty] = useState(1);
+
 
   useEffect(() => { load(); }, []);
 
@@ -191,18 +189,6 @@ export default function MaterialsTab({ flavorSets }) {
     setEditBagId(null);
   }
 
-  async function removeLooseBags(bag, qty) {
-    const bpc = bag.bags_per_case || 100;
-    let loose = (bag.loose_bags || 0) - qty;
-    let cases = bag.cases || 0;
-    while (loose < 0 && cases > 0) { cases -= 1; loose += bpc; }
-    loose = Math.max(0, loose);
-    await base44.entities.BagInventory.update(bag.id, { cases, loose_bags: loose });
-    setBagInv((prev) => prev.map((b) => b.id === bag.id ? { ...b, cases, loose_bags: loose } : b));
-    setRemoveBagId(null);
-    setRemoveBagQty(1);
-  }
-
   async function deleteBag(id) {
     await base44.entities.BagInventory.delete(id);
     setBagInv((prev) => prev.filter((b) => b.id !== id));
@@ -338,7 +324,7 @@ export default function MaterialsTab({ flavorSets }) {
                       <h4 className="font-heading font-semibold">{fs?.name || "Unknown"}</h4>
                     </div>
                     <div className="flex gap-1">
-                      {editBagId !== bag.id && removeBagId !== bag.id && (
+                      {editBagId !== bag.id && (
                         <>
                           <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditBagId(bag.id); setEditBagCases(bag.cases || 0); setEditBagLoose(bag.loose_bags || 0); }}>
                             <Pencil className="w-3 h-3" />
@@ -374,15 +360,6 @@ export default function MaterialsTab({ flavorSets }) {
                         <Button size="sm" variant="ghost" onClick={() => setEditBagId(null)}><X className="w-3 h-3" /></Button>
                       </div>
                     </div>
-                  ) : removeBagId === bag.id ? (
-                    <div className="space-y-2">
-                      <label className="text-xs text-muted-foreground block">Bags to remove</label>
-                      <Input type="number" min="1" value={removeBagQty} onChange={(e) => setRemoveBagQty(parseFloat(e.target.value) || 1)} autoFocus />
-                      <div className="flex gap-2">
-                        <Button size="sm" variant="destructive" className="gap-1 h-7" onClick={() => removeLooseBags(bag, removeBagQty)}>Remove</Button>
-                        <Button size="sm" variant="ghost" className="h-7" onClick={() => setRemoveBagId(null)}><X className="w-3 h-3" /></Button>
-                      </div>
-                    </div>
                   ) : (
                     <>
                       <div className="grid grid-cols-3 gap-2 mb-3">
@@ -400,9 +377,6 @@ export default function MaterialsTab({ flavorSets }) {
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground mb-2">{bpc} bags/case</p>
-                      <Button variant="outline" size="sm" className="text-xs h-7 gap-1 w-full" onClick={() => { setRemoveBagId(bag.id); setRemoveBagQty(1); }}>
-                        <X className="w-3 h-3" /> Use Bags
-                      </Button>
                     </>
                   )}
                 </div>
