@@ -259,15 +259,15 @@ export default function IngredientsTab({ flavors, flavorSets }) {
       {/* ─── Flavor Jugs ─── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-heading font-semibold text-lg">Flavor Jugs</h3>
+          <h3 className="font-heading font-semibold text-lg">Flavor Containers</h3>
           <Button className="gap-2" size="sm" onClick={() => setShowAddJug(true)}>
-            <Plus className="w-4 h-4" /> Add Jugs
+            <Plus className="w-4 h-4" /> Add Containers
           </Button>
         </div>
 
         {showAddJug && (
           <div className="bg-card rounded-2xl border border-border p-5 mb-4">
-            <h4 className="font-heading font-semibold mb-3">Add Flavor Jugs</h4>
+            <h4 className="font-heading font-semibold mb-3">Add Flavor Containers</h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Flavor</label>
@@ -277,8 +277,8 @@ export default function IngredientsTab({ flavors, flavorSets }) {
                 </Select>
               </div>
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Gallons (jugs) to Add</label>
-                <Input type="number" min="1" value={addJugQty} onChange={(e) => setAddJugQty(parseFloat(e.target.value) || 1)} />
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Containers to Add</label>
+                <Input type="number" min="1" step="1" value={addJugQty} onChange={(e) => setAddJugQty(parseFloat(e.target.value) || 1)} />
               </div>
             </div>
             <div className="flex gap-2 mt-4">
@@ -309,7 +309,7 @@ export default function IngredientsTab({ flavors, flavorSets }) {
                    )}
                   {editJugId === jug.id ? (
                     <div className="space-y-2">
-                      <Input type="number" min="0" step="0.5" value={editJugVal} onChange={(e) => setEditJugVal(parseFloat(e.target.value) || 0)} autoFocus />
+                      <Input type="number" min="0" step="1" value={editJugVal} onChange={(e) => setEditJugVal(parseFloat(e.target.value) || 0)} autoFocus />
                       <div className="flex gap-1">
                         <Button size="sm" className="gap-1 h-7" onClick={() => saveJugQty(jug)}><Check className="w-3 h-3" /></Button>
                         <Button size="sm" variant="ghost" className="h-7" onClick={() => setEditJugId(null)}><X className="w-3 h-3" /></Button>
@@ -320,7 +320,7 @@ export default function IngredientsTab({ flavors, flavorSets }) {
                       <div className="flex items-end justify-between">
                         <div>
                           <p className="text-2xl font-heading font-bold">{jug.gallons ?? 0}</p>
-                          <p className="text-xs text-muted-foreground">gallons</p>
+                          <p className="text-xs text-muted-foreground">containers</p>
                         </div>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditJugId(jug.id); setEditJugVal(jug.gallons ?? 0); }}>
                           <Pencil className="w-3 h-3" />
