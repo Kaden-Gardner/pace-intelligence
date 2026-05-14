@@ -29,30 +29,7 @@ export default function Flavors() {
   const [editingSetId, setEditingSetId] = useState(null);
   const [setForm, setSetForm] = useState({ name: "", color: "", flavor_1: "", flavor_2: "", flavor_3: "", flavor_4: "" });
 
-  // Password gate
-  const [pwDialog, setPwDialog] = useState(null); // { action, data }
-  const [pwInput, setPwInput] = useState("");
-  const [pwError, setPwError] = useState("");
-  const [colorUnlocked, setColorUnlocked] = useState(false);
-
-  function openPw(action, data = null) {
-    setPwDialog({ action, data });
-    setPwInput("");
-    setPwError("");
-  }
-
-  function confirmPw() {
-    if (pwInput !== "ecap") { setPwError("Incorrect password."); return; }
-    const { action, data } = pwDialog;
-    setPwDialog(null);
-    if (action === "change-color") { setColorUnlocked(true); }
-    else if (action === "add-flavor") { resetFlavorForm(); setShowFlavorForm(true); }
-    else if (action === "edit-flavor") { setFlavorForm({ name: data.name, color: data.color || "#1BABAB", flavor_type: data.flavor_type || "", container_type: data.container_type || "" }); setEditingFlavorId(data.id); setShowFlavorForm(true); }
-    else if (action === "delete-flavor") { deleteFlavor(data.id); }
-    else if (action === "add-set") { resetSetForm(); setShowSetForm(true); }
-    else if (action === "edit-set") { setSetForm({ name: data.name, color: data.color || "", flavor_1: data.flavor_1 || "", flavor_2: data.flavor_2 || "", flavor_3: data.flavor_3 || "", flavor_4: data.flavor_4 || "" }); setEditingSetId(data.id); setShowSetForm(true); }
-    else if (action === "delete-set") { deleteSet(data.id); }
-  }
+  const [colorUnlocked, setColorUnlocked] = useState(true);
 
   useEffect(() => {
     async function load() {
@@ -132,12 +109,6 @@ export default function Flavors() {
     );
   }
 
-  const pwLabels = {
-    "change-color": "Change Individual Cases Color",
-    "add-flavor": "Add Flavor", "edit-flavor": "Edit Flavor", "delete-flavor": "Delete Flavor",
-    "add-set": "Add Flavorset", "edit-set": "Edit Flavorset", "delete-set": "Delete Flavorset",
-  };
-
   return (
     <div>
       <div className="mb-8">
@@ -153,7 +124,7 @@ export default function Flavors() {
 
         <TabsContent value="flavors">
           <div className="flex justify-end mb-4">
-            <Button className="gap-2" onClick={() => openPw("add-flavor")}>
+            <Button className="gap-2" onClick={() => { resetFlavorForm(); setShowFlavorForm(true); }}>
               <Plus className="w-4 h-4" /> Add Flavor
             </Button>
           </div>
@@ -220,10 +191,10 @@ export default function Flavors() {
                     {f.container_type && <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{containerLabels[f.container_type]}</span>}
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openPw("edit-flavor", f)}>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setFlavorForm({ name: f.name, color: f.color || "#1BABAB", flavor_type: f.flavor_type || "", container_type: f.container_type || "" }); setEditingFlavorId(f.id); setShowFlavorForm(true); }}>
                       <Pencil className="w-3 h-3 mr-1" /> Edit
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => openPw("delete-flavor", f)}>
+                    <Button variant="ghost" size="sm" className="h-7 text-xs text-destructive hover:text-destructive" onClick={() => deleteFlavor(f.id)}>
                       <Trash2 className="w-3 h-3" />
                     </Button>
                   </div>
@@ -236,7 +207,7 @@ export default function Flavors() {
 
         <TabsContent value="sets">
           <div className="flex justify-end mb-4">
-            <Button className="gap-2" onClick={() => openPw("add-set")}>
+            <Button className="gap-2" onClick={() => { resetSetForm(); setShowSetForm(true); }}>
               <Plus className="w-4 h-4" /> Add Flavorset
             </Button>
           </div>
@@ -287,18 +258,8 @@ export default function Flavors() {
                 <p className="text-xs text-muted-foreground">Color used in the dashboard chart for individual flavor cases</p>
               </div>
               <div className="flex gap-2 items-center">
-                {colorUnlocked ? (
-                  <>
-                    <input type="color" value={individualColor} onChange={(e) => saveIndividualColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
-                    <span className="text-xs text-muted-foreground font-mono">{individualColor}</span>
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => setColorUnlocked(false)}>Lock</Button>
-                  </>
-                ) : (
-                  <>
-                    <span className="text-xs text-muted-foreground font-mono">{individualColor}</span>
-                    <Button variant="outline" size="sm" className="text-xs gap-1" onClick={() => openPw("change-color")}>🔒 Change</Button>
-                  </>
-                )}
+                <input type="color" value={individualColor} onChange={(e) => saveIndividualColor(e.target.value)} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
+                <span className="text-xs text-muted-foreground font-mono">{individualColor}</span>
               </div>
             </div>
           </div>
@@ -325,10 +286,10 @@ export default function Flavors() {
                     })}
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => openPw("edit-set", fs)}>
+                    <Button variant="ghost" size="sm" className="text-xs" onClick={() => { setSetForm({ name: fs.name, color: fs.color || "", flavor_1: fs.flavor_1 || "", flavor_2: fs.flavor_2 || "", flavor_3: fs.flavor_3 || "", flavor_4: fs.flavor_4 || "" }); setEditingSetId(fs.id); setShowSetForm(true); }}>
                       <Pencil className="w-3 h-3 mr-1" /> Edit
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => openPw("delete-set", fs)}>
+                    <Button variant="ghost" size="sm" className="text-xs text-destructive hover:text-destructive" onClick={() => deleteSet(fs.id)}>
                       <Trash2 className="w-3 h-3 mr-1" /> Delete
                     </Button>
                   </div>
@@ -340,28 +301,7 @@ export default function Flavors() {
 
       </Tabs>
 
-      {pwDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
-            <h3 className="font-heading font-semibold text-lg mb-1">{pwLabels[pwDialog.action]}</h3>
-            <p className="text-sm text-muted-foreground mb-4">Enter the admin password to continue.</p>
-            <input
-              type="password"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mb-2"
-              placeholder="Admin password"
-              value={pwInput}
-              onChange={(e) => { setPwInput(e.target.value); setPwError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && confirmPw()}
-              autoFocus
-            />
-            {pwError && <p className="text-xs text-destructive mb-2">{pwError}</p>}
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setPwDialog(null)}>Cancel</Button>
-              <Button size="sm" className={pwDialog.action.startsWith("delete") ? "bg-red-600 hover:bg-red-700 text-white" : ""} onClick={confirmPw}>Confirm</Button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
