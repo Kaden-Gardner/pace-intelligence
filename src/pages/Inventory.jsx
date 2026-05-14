@@ -294,12 +294,59 @@ export default function Inventory() {
   async function saveFreezerItem(freezer_id) {
     if (itemForm.type === "pallet" && !itemForm.flavorset_id) return;
     if (itemForm.type === "individual" && !itemForm.flavor_id) return;
+    if (!freezer_id) return;
     setSaving(true);
-    const payload = { freezer_id, type: itemForm.type, quantity: Number(itemForm.quantity) };
-    if (itemForm.type === "pallet") payload.flavorset_id = itemForm.flavorset_id;
-    else payload.flavor_id = itemForm.flavor_id;
-    const created = await base44.entities.FreezerItem.create(payload);
-    setFreezerItems((prev) => [...prev, created]);
+
+    // Convert entered quantity to stored unit (pallets for pallet items)
+    // itemForm.quantity is entered in the current display mode for pallet items
+    const rawQty = Number(itemForm.quantity);
+    const storedQty = (itemForm.type === "pallet" && flavorsetDisplayMode === "cases")
+      ? rawQty / CASES_PER_PALLET
+      : rawQty;
+
+    const filterKey = itemForm.type === "pallet" ? "flavorset_id" : "flavor_id";
+    const filterVal = itemForm.type === "pallet" ? itemForm.flavorset_id : itemForm.flavor_id;
+
+    // Merge with existing item at same location instead of creating a duplicate
+    const existing = freezerItems.find(
+      (fi) => fi.freezer_id === freezer_id && fi.type === itemForm.type && fi[filterKey] === filterVal
+    );
+
+    let updatedItems;
+    if (existing) {
+      const newQty = (existing.quantity || 0) + storedQty;
+      await base44.entities.FreezerItem.update(existing.id, { quantity: newQty });
+      updatedItems = freezerItems.map((fi) => fi.id === existing.id ? { ...fi, quantity: newQty } : fi);
+    } else {
+      const payload = { freezer_id, type: itemForm.type, quantity: storedQty };
+      payload[filterKey] = filterVal;
+      const created = await base44.entities.FreezerItem.create(payload);
+      updatedItems = [...freezerItems, created];
+    }
+    setFreezerItems(updatedItems);
+
+    // Sync parent Inventory total from all location items
+    if (itemForm.type === "pallet" && itemForm.flavorset_id) {
+      const totalPallets = updatedItems
+        .filter((fi) => fi.type === "pallet" && fi.flavorset_id === itemForm.flavorset_id)
+        .reduce((sum, fi) => sum + (fi.quantity || 0), 0);
+      const totalCases = totalPallets * CASES_PER_PALLET;
+      const invRecord = inventory.find((i) => i.flavorset_id === itemForm.flavorset_id && !i.flavor_id);
+      if (invRecord) {
+        await base44.entities.Inventory.update(invRecord.id, { cases: totalCases });
+        setInventory((prev) => prev.map((i) => i.id === invRecord.id ? { ...i, cases: totalCases } : i));
+      }
+    } else if (itemForm.type === "individual" && itemForm.flavor_id) {
+      const totalCases = updatedItems
+        .filter((fi) => fi.type === "individual" && fi.flavor_id === itemForm.flavor_id)
+        .reduce((sum, fi) => sum + (fi.quantity || 0), 0);
+      const invRecord = inventory.find((i) => i.flavor_id === itemForm.flavor_id && !i.flavorset_id);
+      if (invRecord) {
+        await base44.entities.Inventory.update(invRecord.id, { cases: totalCases });
+        setInventory((prev) => prev.map((i) => i.id === invRecord.id ? { ...i, cases: totalCases } : i));
+      }
+    }
+
     setItemForm({ type: "pallet", flavorset_id: "", flavor_id: "", quantity: 1 });
     setShowItemForm(null);
     setSaving(false);
@@ -580,10 +627,13 @@ export default function Inventory() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {flavorsetInv.map((inv) => {
                   const fs = fsMap[inv.flavorset_id];
-                  const totalPallets = (inv.cases || 0) / CASES_PER_PALLET;
-                  const fullPallets = Math.floor(totalPallets);
-                  const remainder = (inv.cases || 0) % CASES_PER_PALLET;
                   const locItems = freezerItems.filter((fi) => fi.type === "pallet" && fi.flavorset_id === inv.flavorset_id);
+                  // Derive totals from location items (source of truth), fall back to inv.cases if no loc items yet
+                  const totalPalletsFromLocs = locItems.reduce((sum, fi) => sum + (fi.quantity || 0), 0);
+                  const totalPallets = locItems.length > 0 ? totalPalletsFromLocs : (inv.cases || 0) / CASES_PER_PALLET;
+                  const totalCasesCalc = totalPallets * CASES_PER_PALLET;
+                  const fullPallets = Math.floor(totalPallets);
+                  const remainder = Math.round(totalCasesCalc % CASES_PER_PALLET);
                   return (
                     <div key={inv.id} className="bg-card rounded-2xl border border-border p-5">
                       <div className="flex items-start justify-between mb-3">
@@ -633,7 +683,7 @@ export default function Inventory() {
                           ) : (
                             <div className="grid grid-cols-2 gap-3">
                               <div className="bg-muted rounded-xl p-3 text-center">
-                                <p className="text-2xl font-heading font-bold">{inv.cases || 0}</p>
+                                <p className="text-2xl font-heading font-bold">{Math.round(totalCasesCalc)}</p>
                                 <p className="text-xs text-muted-foreground mt-1">Total Cases</p>
                               </div>
                               <div className="bg-muted rounded-xl p-3 text-center">
@@ -688,7 +738,13 @@ export default function Inventory() {
                                   <SelectTrigger className="h-7 text-xs flex-1"><SelectValue placeholder="Location" /></SelectTrigger>
                                   <SelectContent>{freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
                                 </Select>
-                                <Input type="number" min="0" placeholder="Pal" value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: parseFloat(e.target.value) || 0 })} className="h-7 text-xs w-16" />
+                                <Input
+                                  type="number" min="0"
+                                  placeholder={flavorsetDisplayMode === "cases" ? "Cases" : "Pal"}
+                                  value={itemForm.quantity}
+                                  onChange={(e) => setItemForm({ ...itemForm, quantity: parseFloat(e.target.value) || 0 })}
+                                  className="h-7 text-xs w-16"
+                                />
                                 <Button size="sm" className="h-7 px-2" disabled={saving} onClick={() => saveFreezerItem(itemForm.freezer_id)}><Check className="w-3 h-3" /></Button>
                                 <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setShowItemForm(null)}><X className="w-3 h-3" /></Button>
                               </div>
