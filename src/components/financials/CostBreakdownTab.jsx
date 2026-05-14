@@ -134,15 +134,22 @@ export default function CostBreakdownTab() {
   const flavorMap = {};
   flavors.forEach((f) => { flavorMap[f.id] = f; });
 
-  // Helper: get per-oz price for a flavor (per-flavor record first, then global flavor_case fallback)
+  // Container size in oz by container_type (default: 1-gallon jug = 128 oz)
+  const containerOzMap = { liquid_1gal: 128, liquid_5gal: 640, powder_5gal: 640 };
+
+  // Helper: get per-oz price for a flavor using SuppliesPricingTab's per-flavor price (price per container)
   function getFlavorPricePerOz(flavorId) {
+    const fl = flavorMap[flavorId];
+    const containerOz = containerOzMap[fl?.container_type] ?? 128;
+    // SuppliesPricingTab stores price-per-container under key `flavor_${flavorId}` type `flavoring`
+    const supplyRec = supplyPrices.find((p) => p.item_key === `flavor_${flavorId}` && p.item_type === "flavoring");
+    if (supplyRec && supplyRec.price_per_unit > 0) return supplyRec.price_per_unit / containerOz;
+    // Legacy FlavorPrice records
     const fp = flavorPrices.find((p) => p.flavor_id === flavorId);
     if (fp) {
       if (fp.price_per_oz && fp.price_per_oz > 0) return fp.price_per_oz;
       if (fp.price_per_container && fp.container_oz && fp.container_oz > 0) return fp.price_per_container / fp.container_oz;
     }
-    const globalRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
-    if (globalRec) return globalRec.price_per_unit / (4 * 128);
     return null;
   }
 
@@ -156,7 +163,8 @@ export default function CostBreakdownTab() {
     const pricePerOz = getFlavorPricePerOz(jd.flavor_id);
     if (!pricePerOz) return null;
     const costPerPop = (jd.oz_per_gallon_base * pricePerOz) / ppg;
-    const hasPerFlavorPrice = flavorPrices.some((p) => p.flavor_id === jd.flavor_id && (p.price_per_oz > 0 || (p.price_per_container > 0 && p.container_oz > 0)));
+    const hasPerFlavorPrice = !!supplyPrices.find((p) => p.item_key === `flavor_${jd.flavor_id}` && p.item_type === "flavoring" && p.price_per_unit > 0)
+      || flavorPrices.some((p) => p.flavor_id === jd.flavor_id && (p.price_per_oz > 0 || (p.price_per_container > 0 && p.container_oz > 0)));
     return { flavor: fl, ozPerGallon: jd.oz_per_gallon_base, costPerPop, pricePerOz, hasPerFlavorPrice };
   }).filter(Boolean);
 
@@ -269,11 +277,11 @@ export default function CostBreakdownTab() {
       <div>
         <h3 className="font-heading font-semibold text-lg mb-1">Flavoring Cost Per Popsicle</h3>
         <p className="text-xs text-muted-foreground mb-2">
-          Each flavor's oz/gallon-of-base × price/oz ÷ popsicles per gallon. Set per-flavor prices in <strong>Financials → Flavor $</strong>; falls back to the global "Flavor Case" price.
+          Each flavor's oz/gallon-of-base × price/oz ÷ popsicles per gallon. Price per oz is derived from the per-container price set in <strong>Financials → Supplies</strong> ÷ container size (1-gal = 128 oz, 5-gal = 640 oz).
         </p>
-        {!allFlavorsHaveCustomPrice && flavorCasePriceRec && (
+        {!allFlavorsHaveCustomPrice && (
           <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-3 inline-block">
-            Some flavors are using the global flavor case price. Set per-flavor prices in Flavor $ tab for more accuracy.
+            Some flavors are missing a price. Set per-flavor container prices in Financials → Supplies.
           </p>
         )}
         {flavorBreakdown.length === 0 ? (
@@ -296,8 +304,8 @@ export default function CostBreakdownTab() {
             ))}
           </div>
         )}
-        {!flavorCasePriceRec && flavorBreakdown.length === 0 && (
-          <p className="text-xs text-amber-600 mt-3">Set per-flavor prices in Financials → Flavor $ tab, or set a global "Flavor Case" price in Supplies.</p>
+        {flavorBreakdown.length === 0 && (
+          <p className="text-xs text-amber-600 mt-3">Set per-flavor container prices in Financials → Supplies, and set oz/gal defaults in Inventory → Flavor Containers.</p>
         )}
       </div>
 
