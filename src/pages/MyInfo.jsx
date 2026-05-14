@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff } from "lucide-react";
+import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -33,6 +33,8 @@ export default function MyInfo() {
   const [notifyScheduleOnly, setNotifyScheduleOnly] = useState(false);
   const [notificationsDisabled, setNotificationsDisabled] = useState(false);
   const [notifyShiftPosts, setNotifyShiftPosts] = useState(false);
+  const [optOutPostNotifications, setOptOutPostNotifications] = useState(false);
+  const [birthday, setBirthday] = useState("");
   const [savingNotify, setSavingNotify] = useState(false);
 
   // Dark mode state — read from localStorage, fallback to system
@@ -65,6 +67,8 @@ export default function MyInfo() {
           setNotifyScheduleOnly(emps[0].notify_schedule_changes_only || false);
           setNotificationsDisabled(emps[0].notifications_disabled || false);
           setNotifyShiftPosts(emps[0].notify_shift_posts || false);
+          setOptOutPostNotifications(emps[0].opt_out_post_notifications || false);
+          setBirthday(emps[0].birthday || "");
         }
       });
     }
@@ -106,6 +110,19 @@ export default function MyInfo() {
     setSavingNotify(false);
   }
 
+  // Calculate age from birthday string
+  function calcAge(birthdayStr) {
+    if (!birthdayStr) return null;
+    const today = new Date();
+    const bDate = new Date(birthdayStr);
+    let age = today.getFullYear() - bDate.getFullYear();
+    const m = today.getMonth() - bDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) age--;
+    return age;
+  }
+  const age = calcAge(birthday);
+  const isMinor = age !== null && age < 15;
+
   async function handleSave(e) {
     e.preventDefault();
     setSaving(true);
@@ -114,7 +131,7 @@ export default function MyInfo() {
     if (user?.employee_number) {
       const emps = await base44.entities.Employee.filter({ employee_number: user.employee_number });
       if (emps.length > 0) {
-        await base44.entities.Employee.update(emps[0].id, { favorite_flavor: favFlavor, phone_number: phoneNumber });
+        await base44.entities.Employee.update(emps[0].id, { favorite_flavor: favFlavor, phone_number: phoneNumber, birthday: birthday || null });
       }
     }
     setSaving(false);
@@ -169,6 +186,28 @@ export default function MyInfo() {
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 placeholder="(555) 123-4567"
               />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Cake className="w-4 h-4 text-primary" />
+                <label className="text-sm font-medium">Birthday</label>
+              </div>
+              <Input
+                type="date"
+                value={birthday}
+                onChange={(e) => setBirthday(e.target.value)}
+                max={new Date().toISOString().split("T")[0]}
+              />
+              {age !== null && (
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+                  Age: <span className="font-medium">{age}</span>
+                  {isMinor && (
+                    <span className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded-full font-medium text-white" style={{ backgroundColor: "#7dd3fc" }}>
+                      &lt;15
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
             <div>
               <div className="flex items-center gap-2 mb-1">
@@ -257,6 +296,30 @@ export default function MyInfo() {
           {/* Notification prefs — only if they have an employee record */}
           {employeeRecord && (
             <>
+              <div className="border-t border-border pt-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Bell className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-medium">Post Notifications</p>
+                </div>
+                <p className="text-xs text-amber-600 dark:text-amber-400 mb-3 font-medium">
+                  💡 We strongly encourage you to stay subscribed — posts contain important announcements and updates you won't want to miss!
+                </p>
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <p className="text-sm">Opt out of post emails</p>
+                    <p className="text-xs text-muted-foreground">Stop receiving email notifications when a new post is published</p>
+                  </div>
+                  <Switch
+                    checked={optOutPostNotifications}
+                    disabled={savingNotify}
+                    onCheckedChange={async (val) => {
+                      setOptOutPostNotifications(val);
+                      await saveNotificationPrefs({ opt_out_post_notifications: val });
+                    }}
+                  />
+                </div>
+              </div>
+
               <div className="border-t border-border pt-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Bell className="w-4 h-4 text-primary" />

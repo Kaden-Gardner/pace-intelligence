@@ -373,7 +373,7 @@ export default function Inventory() {
     <div>
       <div className="mb-8">
         <h1 className="font-heading text-3xl font-bold">Inventory</h1>
-        <p className="text-muted-foreground mt-1">Track cases on hand, freezer locations, and vendor pickups</p>
+        <p className="text-muted-foreground mt-1">Track cases on hand, storage locations, and vendor pickups</p>
       </div>
 
       <Tabs defaultValue="inventory">
@@ -383,7 +383,7 @@ export default function Inventory() {
           <TabsTrigger value="ingredients">Ingredients</TabsTrigger>
           <TabsTrigger value="materials">Materials</TabsTrigger>
           <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-          <TabsTrigger value="freezers">Freezers</TabsTrigger>
+          <TabsTrigger value="locations">Locations</TabsTrigger>
           <TabsTrigger value="pickups">Order Pickups</TabsTrigger>
         </TabsList>
 
@@ -394,16 +394,16 @@ export default function Inventory() {
             <div className="flex items-center gap-2 flex-1">
               <Snowflake className="w-4 h-4 text-primary flex-shrink-0" />
               <span className="text-sm font-medium">
-                Default Freezer:{" "}
+                Default Location:{" "}
                 <span className={defaultFreezerName ? "text-foreground" : "text-muted-foreground"}>
-                  {defaultFreezerName || "None set — new inventory won't auto-assign to a freezer"}
+                  {defaultFreezerName || "None set — new inventory won't auto-assign to a location"}
                 </span>
               </span>
             </div>
             {freezerSelectUnlocked ? (
               <div className="flex items-center gap-2">
                 <Select value={defaultFreezer || "__none__"} onValueChange={(v) => handleSetDefault(v === "__none__" ? null : v)}>
-                  <SelectTrigger className="w-full sm:w-48 h-8 text-xs"><SelectValue placeholder="Set default freezer" /></SelectTrigger>
+                  <SelectTrigger className="w-full sm:w-48 h-8 text-xs"><SelectValue placeholder="Set default location" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">None</SelectItem>
                     {freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
@@ -426,7 +426,7 @@ export default function Inventory() {
             <div className="bg-card rounded-2xl border border-border p-6 mb-6">
               <h3 className="font-heading font-semibold mb-4">Add Cases to Inventory</h3>
               {defaultFreezerName && (
-                <p className="text-xs text-muted-foreground mb-3">Will auto-sync to <span className="font-medium text-foreground">{defaultFreezerName}</span></p>
+                <p className="text-xs text-muted-foreground mb-3">Will auto-sync to location <span className="font-medium text-foreground">{defaultFreezerName}</span></p>
               )}
               <div className="flex gap-2 mb-4">
                 <button onClick={() => setAddInvType("flavorset")} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${addInvType === "flavorset" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>Flavorset Cases</button>
@@ -516,6 +516,25 @@ export default function Inventory() {
                             </div>
                           </div>
                           {remainder > 0 && <p className="text-xs text-muted-foreground mt-2">+{remainder} cases (partial pallet)</p>}
+                          {/* Per-location breakdown */}
+                          {(() => {
+                            const locItems = freezerItems.filter((fi) => fi.type === "pallet" && fi.flavorset_id === inv.flavorset_id);
+                            if (locItems.length === 0) return null;
+                            return (
+                              <div className="mt-3 pt-3 border-t border-border space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground mb-1">By Location</p>
+                                {locItems.map((fi) => {
+                                  const loc = freezers.find((f) => f.id === fi.freezer_id);
+                                  return (
+                                    <div key={fi.id} className="flex items-center justify-between text-xs">
+                                      <span className="text-muted-foreground truncate">{loc?.name || "Unknown"}</span>
+                                      <span className="font-medium">{fi.quantity} pal</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
                         </>
                       )}
                     </div>
@@ -550,26 +569,46 @@ export default function Inventory() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-2xl font-heading font-bold">{inv.cases || 0}</p>
-                            <p className="text-xs text-muted-foreground">cases</p>
+                        <>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="text-2xl font-heading font-bold">{inv.cases || 0}</p>
+                              <p className="text-xs text-muted-foreground">cases</p>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="sm" className="h-7" onClick={() => { setEditingInvId(inv.id); setEditCases(inv.cases || 0); }}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-7 text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader><AlertDialogTitle>Remove from Inventory</AlertDialogTitle><AlertDialogDescription>Delete this record?</AlertDialogDescription></AlertDialogHeader>
+                                  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteInv(inv.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" className="h-7" onClick={() => { setEditingInvId(inv.id); setEditCases(inv.cases || 0); }}>
-                              <Pencil className="w-3 h-3" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader><AlertDialogTitle>Remove from Inventory</AlertDialogTitle><AlertDialogDescription>Delete this record?</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteInv(inv.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
+                          {/* Per-location breakdown */}
+                          {(() => {
+                            const locItems = freezerItems.filter((fi) => fi.type === "individual" && fi.flavor_id === inv.flavor_id);
+                            if (locItems.length === 0) return null;
+                            return (
+                              <div className="mt-2 pt-2 border-t border-border space-y-0.5">
+                                {locItems.map((fi) => {
+                                  const loc = freezers.find((f) => f.id === fi.freezer_id);
+                                  return (
+                                    <div key={fi.id} className="flex items-center justify-between text-xs">
+                                      <span className="text-muted-foreground truncate">{loc?.name || "Unknown"}</span>
+                                      <span className="font-medium">{fi.quantity} cs</span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            );
+                          })()}
+                        </>
                       )}
                     </div>
                   );
@@ -666,20 +705,20 @@ export default function Inventory() {
           )}
         </TabsContent>
 
-        {/* ====== FREEZERS TAB ====== */}
-        <TabsContent value="freezers">
+        {/* ====== LOCATIONS TAB ====== */}
+        <TabsContent value="locations">
           <div className="flex justify-end mb-4">
             <Button className="gap-2" onClick={() => openCrudPw("add-freezer")}>
-              <Plus className="w-4 h-4" /> Add Freezer
+              <Plus className="w-4 h-4" /> Add Location
             </Button>
           </div>
 
           {showFreezerForm && (
             <div className="bg-card rounded-2xl border border-border p-6 mb-6">
-              <h3 className="font-heading font-semibold mb-4">{editingFreezerId ? "Edit" : "New"} Freezer</h3>
+              <h3 className="font-heading font-semibold mb-4">{editingFreezerId ? "Edit" : "New"} Location</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Freezer Name</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Location Name</label>
                   <Input value={freezerForm.name} onChange={(e) => setFreezerForm({ ...freezerForm, name: e.target.value })} placeholder="Freezer A" />
                 </div>
                 <div>
@@ -695,7 +734,7 @@ export default function Inventory() {
           )}
 
           {freezers.length === 0 && !showFreezerForm ? (
-            <EmptyState icon={Snowflake} title="No freezers yet" description="Add freezers to track product storage locations." />
+            <EmptyState icon={Snowflake} title="No locations yet" description="Add freezers or storage locations to track product storage." />
           ) : (
             <div className="space-y-4">
               {freezers.map((freezer) => {
@@ -751,7 +790,7 @@ export default function Inventory() {
                                 ) : movingItemId === item.id ? (
                                   <div className="flex items-center gap-1 mt-1">
                                     <Select value={moveTargetFreezer} onValueChange={setMoveTargetFreezer}>
-                                      <SelectTrigger className="h-6 text-xs w-32"><SelectValue placeholder="To freezer..." /></SelectTrigger>
+                                      <SelectTrigger className="h-6 text-xs w-32"><SelectValue placeholder="To location..." /></SelectTrigger>
                                       <SelectContent>
                                         {freezers.filter((f) => f.id !== freezer.id).map((f) => (
                                           <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
@@ -767,7 +806,7 @@ export default function Inventory() {
                               </div>
                               {editingItemId !== item.id && movingItemId !== item.id && (
                                 <div className="flex gap-0.5 flex-shrink-0">
-                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Move to another freezer" onClick={() => { setMovingItemId(item.id); setMoveTargetFreezer(""); }}>
+                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Move to another location" onClick={() => { setMovingItemId(item.id); setMoveTargetFreezer(""); }}>
                                     <MoveRight className="w-3 h-3" />
                                   </Button>
                                   <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => { setEditingItemId(item.id); setEditItemQty(item.quantity); }}>
@@ -910,7 +949,7 @@ export default function Inventory() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
             <h3 className="font-heading font-semibold text-lg mb-1">
-              {crudPw.action === "add-freezer" ? "Add Freezer" :
+              {crudPw.action === "add-freezer" ? "Add Location" :
                crudPw.action === "edit-freezer" ? `Edit ${crudPw.data?.name}` :
                crudPw.action === "delete-freezer" ? `Delete ${crudPw.data?.name}` :
                crudPw.action === "add-pickup" ? "Record Pickup" :
@@ -938,7 +977,7 @@ export default function Inventory() {
       {freezerPwOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
-            <h3 className="font-heading font-semibold text-lg mb-1">Change Default Freezer</h3>
+            <h3 className="font-heading font-semibold text-lg mb-1">Change Default Location</h3>
             <p className="text-sm text-muted-foreground mb-4">Enter the admin password to continue.</p>
             <input
               type="password"

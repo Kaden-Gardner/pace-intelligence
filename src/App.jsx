@@ -9,6 +9,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Layout from './components/Layout';
+import Posts from './pages/Posts';
 import Dashboard from './pages/Dashboard';
 import Shifts from './pages/Shifts';
 import ShiftForm from './pages/ShiftForm';
@@ -28,7 +29,8 @@ const AnimatedRoutes = () => {
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         <Route element={<Layout />}>
-          <Route path="/" element={<PageTransition><Schedule /></PageTransition>} />
+          <Route path="/" element={<PageTransition><Posts /></PageTransition>} />
+          <Route path="/posts" element={<PageTransition><Posts /></PageTransition>} />
           <Route path="/dashboard" element={<PageTransition><Dashboard /></PageTransition>} />
           <Route path="/shifts" element={<PageTransition><Shifts /></PageTransition>} />
           <Route path="/shifts/new" element={<PageTransition><ShiftForm /></PageTransition>} />

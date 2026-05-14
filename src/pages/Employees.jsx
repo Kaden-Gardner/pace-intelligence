@@ -209,7 +209,23 @@ export default function Employees() {
                       {emp.name?.charAt(0) || "?"}
                     </div>
                     <div>
-                      <p className="font-medium">{emp.name}</p>
+                      <p className="font-medium flex items-center gap-1.5">
+                        {emp.name}
+                        {(() => {
+                          if (!emp.birthday) return null;
+                          const today = new Date();
+                          const bDate = new Date(emp.birthday);
+                          let age = today.getFullYear() - bDate.getFullYear();
+                          const m = today.getMonth() - bDate.getMonth();
+                          if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) age--;
+                          if (age < 15) return (
+                            <span className="inline-flex items-center text-[10px] px-1.5 py-0.5 rounded-full font-semibold text-white" style={{ backgroundColor: "#7dd3fc" }}>
+                              &lt;15
+                            </span>
+                          );
+                          return null;
+                        })()}
+                      </p>
                       <p className="text-xs text-muted-foreground">#{emp.employee_number}</p>
                       {bestPos && (
                         <p className="text-xs text-primary flex items-center gap-1 mt-0.5">

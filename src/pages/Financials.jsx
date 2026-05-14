@@ -208,6 +208,18 @@ export default function Financials() {
     setEditRateVal("");
   }
 
+  // Helper: get age for an employee at time of a shift
+  function getEmpAge(empId) {
+    const emp = empMap[empId];
+    if (!emp?.birthday) return null;
+    const today = new Date();
+    const bDate = new Date(emp.birthday);
+    let age = today.getFullYear() - bDate.getFullYear();
+    const m = today.getMonth() - bDate.getMonth();
+    if (m < 0 || (m === 0 && today.getDate() < bDate.getDate())) age--;
+    return age;
+  }
+
   // Shift cost calculation
   function calcShiftCost(shift, isBaseMix = false) {
     const shiftDate = shift.shift_date;
@@ -228,14 +240,20 @@ export default function Financials() {
     empIds.forEach((empId) => {
       const rate = getRateForEmp(empId);
       if (!rate) return;
+      const age = getEmpAge(empId);
+      const isMinor = age !== null && age < 15;
+      const MINOR_MAX_HOURS = 3;
+
       // Find time entries overlapping this shift
       const empEntries = timeEntries.filter((te) => te.employee_id === empId || te.employee_number === empMap[empId]?.employee_number);
       let hoursWorked = 0;
       empEntries.forEach((te) => {
         hoursWorked += calcOverlapHours(shiftDate, shiftTime, shiftDuration, te.clock_in, te.clock_out);
       });
-      // If no clock-in found, use shift duration
-      const hours = hoursWorked > 0 ? hoursWorked : shiftDuration;
+      // If no clock-in found, fall back to shift duration
+      let hours = hoursWorked > 0 ? hoursWorked : shiftDuration;
+      // Apply 3-hour cap for minors under 15
+      if (isMinor) hours = Math.min(hours, MINOR_MAX_HOURS);
       totalCost += hours * rate;
     });
     return totalCost;
@@ -733,10 +751,16 @@ export default function Financials() {
                           let hrs = 0;
                           empEntries.forEach((te) => { hrs += calcOverlapHours(shift.shift_date, shift.shift_time, shift.shift_duration, te.clock_in, te.clock_out); });
                           const usedDuration = hrs === 0;
-                          const finalHrs = hrs > 0 ? hrs : (shift.shift_duration || 8);
+                          let finalHrs = hrs > 0 ? hrs : (shift.shift_duration || 8);
+                          const empAge = getEmpAge(id);
+                          const isEmpMinor = empAge !== null && empAge < 15;
+                          const wasCapped = isEmpMinor && finalHrs > 3;
+                          if (isEmpMinor) finalHrs = Math.min(finalHrs, 3);
                           return (
-                            <span key={id} className="text-xs px-2 py-1 bg-muted rounded-lg">
-                              {emp?.name || "?"} · {fmtHours(finalHrs)}{usedDuration ? " (est)" : ""} · {rate > 0 ? fmt$(finalHrs * rate) : "no rate"}
+                            <span key={id} className="text-xs px-2 py-1 bg-muted rounded-lg flex items-center gap-1">
+                              {emp?.name || "?"}
+                              {isEmpMinor && <span className="inline-flex items-center text-[9px] px-1 py-0.5 rounded-full font-semibold text-white" style={{ backgroundColor: "#7dd3fc" }}>&lt;15</span>}
+                              · {fmtHours(finalHrs)}{usedDuration ? " (est)" : ""}{wasCapped ? " (capped)" : ""} · {rate > 0 ? fmt$(finalHrs * rate) : "no rate"}
                             </span>
                           );
                         })}

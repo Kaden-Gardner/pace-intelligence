@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, CalendarClock, Clock, UserCircle, DollarSign, LogOut } from "lucide-react";
+import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, CalendarClock, Clock, UserCircle, DollarSign, LogOut, MessageSquare } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import EmployeeNumberSetup from "./EmployeeNumberSetup";
@@ -8,6 +8,7 @@ import MobileHeader from "./MobileHeader";
 import { cn } from "@/lib/utils";
 
 const adminNavItems = [
+  { path: "/posts", label: "Posts", icon: MessageSquare },
   { path: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { path: "/my-info", label: "My Info", icon: UserCircle },
   { path: "/schedule", label: "Schedule", icon: CalendarClock },
@@ -21,6 +22,7 @@ const adminNavItems = [
 ];
 
 const userNavItems = [
+  { path: "/posts", label: "Posts", icon: MessageSquare },
   { path: "/my-info", label: "My Info", icon: UserCircle },
   { path: "/schedule", label: "Schedule", icon: CalendarClock },
   { path: "/availability", label: "Availability", icon: CalendarDays },

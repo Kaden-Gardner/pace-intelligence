@@ -1,0 +1,59 @@
+{
+  "name": "Post",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "title": "Post Title"
+    },
+    "body": {
+      "type": "string",
+      "title": "Post Body"
+    },
+    "photo_url": {
+      "type": "string",
+      "title": "Photo URL"
+    },
+    "is_pinned": {
+      "type": "boolean",
+      "title": "Pinned to Top",
+      "default": false
+    },
+    "is_birthday": {
+      "type": "boolean",
+      "title": "Birthday Post",
+      "default": false
+    },
+    "post_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Post Date"
+    },
+    "author_name": {
+      "type": "string",
+      "title": "Author Name"
+    }
+  },
+  "required": [
+    "body",
+    "post_date"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

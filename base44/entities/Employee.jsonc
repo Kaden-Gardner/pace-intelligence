@@ -14,6 +14,11 @@
       "type": "string",
       "title": "Phone Number"
     },
+    "birthday": {
+      "type": "string",
+      "format": "date",
+      "title": "Birthday (with year)"
+    },
     "active": {
       "type": "boolean",
       "title": "Active",
@@ -50,6 +55,11 @@
     "notify_shift_posts": {
       "type": "boolean",
       "title": "Notify on Shift Posts (Admin)",
+      "default": false
+    },
+    "opt_out_post_notifications": {
+      "type": "boolean",
+      "title": "Opt Out of Post Notifications",
       "default": false
     }
   },
