@@ -10,6 +10,25 @@
       "type": "string",
       "title": "Color Code",
       "description": "Hex color for display"
+    },
+    "flavor_type": {
+      "type": "string",
+      "title": "Flavor Type",
+      "enum": [
+        "processed",
+        "bought"
+      ],
+      "description": "Whether this flavor is made in-house (processed) or purchased (bought)"
+    },
+    "container_type": {
+      "type": "string",
+      "title": "Container Type",
+      "enum": [
+        "liquid_1gal",
+        "liquid_5gal",
+        "powder_5gal"
+      ],
+      "description": "liquid_1gal = 1-gallon jug, liquid_5gal = 5-gallon jug, powder_5gal = 5-gallon bucket (powdered)"
     }
   },
   "required": [

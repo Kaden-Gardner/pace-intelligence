@@ -35,11 +35,15 @@ function ShiftPostCard({ post }) {
           </div>
           {data.flavor_names && data.flavor_names.length > 0 && (
             <div className="flex flex-wrap gap-2 ml-5">
-              {data.flavor_names.map((name, i) => (
-                <span key={i} className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary font-medium border border-primary/20">
-                  {["①","②","③","④"][i]} {name}
-                </span>
-              ))}
+              {data.flavor_names.map((name, i) => {
+                const color = data.flavor_colors?.[i];
+                return (
+                  <span key={i} className="inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-full bg-muted font-medium border border-border">
+                    {color && <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />}
+                    {name}
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>

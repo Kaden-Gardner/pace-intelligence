@@ -9,7 +9,7 @@ export const INGREDIENTS = [
   { key: "xanthan_gum", label: "Xanthan Gum",  unit: "lbs" },
   { key: "sugar",       label: "Sugar",         unit: "50 lb bags" },
   { key: "dextrose",    label: "Dextrose",       unit: "50 lb bags" },
-  { key: "citric_acid", label: "Citric Acid",   unit: "cups" },
+  { key: "citric_acid", label: "Citric Acid",   unit: "cups (from 50 lb bag)" },
   { key: "pear_juice",  label: "Pear Juice",    unit: "5-gal buckets" },
 ];
 
@@ -298,10 +298,15 @@ export default function IngredientsTab({ flavors, flavorSets }) {
               const isEditingDefault = editJugDefaultId === jug.flavor_id;
               return (
                 <div key={jug.id} className="bg-card rounded-2xl border border-border p-4">
-                  <div className="flex items-center gap-2 mb-2">
-                    {fl?.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: fl.color }} />}
-                    <p className="font-medium text-sm">{fl?.name || "Unknown"}</p>
-                  </div>
+                  <div className="flex items-center gap-2 mb-1">
+                     {fl?.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: fl.color }} />}
+                     <p className="font-medium text-sm">{fl?.name || "Unknown"}</p>
+                   </div>
+                   {fl?.container_type && (
+                     <p className="text-[10px] text-muted-foreground mb-1">
+                       {{ liquid_1gal: "1-gal jug", liquid_5gal: "5-gal jug", powder_5gal: "5-gal bucket (powder)" }[fl.container_type]}
+                     </p>
+                   )}
                   {editJugId === jug.id ? (
                     <div className="space-y-2">
                       <Input type="number" min="0" step="0.5" value={editJugVal} onChange={(e) => setEditJugVal(parseFloat(e.target.value) || 0)} autoFocus />

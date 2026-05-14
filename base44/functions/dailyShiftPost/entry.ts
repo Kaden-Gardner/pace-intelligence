@@ -49,9 +49,13 @@ Deno.serve(async (req) => {
     const fs = fsMap[shift.flavorset_id];
 
     const flavorNames = [];
+    const flavorColors = [];
     if (fs) {
       for (const key of ["flavor_1", "flavor_2", "flavor_3", "flavor_4"]) {
-        if (fs[key] && flavorMap[fs[key]]) flavorNames.push(flavorMap[fs[key]].name);
+        if (fs[key] && flavorMap[fs[key]]) {
+          flavorNames.push(flavorMap[fs[key]].name);
+          flavorColors.push(flavorMap[fs[key]].color || null);
+        }
       }
     }
 
@@ -67,6 +71,7 @@ Deno.serve(async (req) => {
       flavorset_name: fs?.name || null,
       flavorset_color: fs?.color || null,
       flavor_names: flavorNames,
+      flavor_colors: flavorColors,
       working_employees: workingEmps,
       mixer: mixerEmp,
       shift_time: shift.shift_time,

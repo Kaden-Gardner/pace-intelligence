@@ -15,7 +15,7 @@ export default function Flavors() {
   // Flavor form
   const [showFlavorForm, setShowFlavorForm] = useState(false);
   const [editingFlavorId, setEditingFlavorId] = useState(null);
-  const [flavorForm, setFlavorForm] = useState({ name: "", color: "#1BABAB" });
+  const [flavorForm, setFlavorForm] = useState({ name: "", color: "#1BABAB", flavor_type: "", container_type: "" });
 
   const [individualColor, setIndividualColor] = useState(() => localStorage.getItem("individualCasesColor") || "#7c3aed");
 
@@ -47,7 +47,7 @@ export default function Flavors() {
     setPwDialog(null);
     if (action === "change-color") { setColorUnlocked(true); }
     else if (action === "add-flavor") { resetFlavorForm(); setShowFlavorForm(true); }
-    else if (action === "edit-flavor") { setFlavorForm({ name: data.name, color: data.color || "#1BABAB" }); setEditingFlavorId(data.id); setShowFlavorForm(true); }
+    else if (action === "edit-flavor") { setFlavorForm({ name: data.name, color: data.color || "#1BABAB", flavor_type: data.flavor_type || "", container_type: data.container_type || "" }); setEditingFlavorId(data.id); setShowFlavorForm(true); }
     else if (action === "delete-flavor") { deleteFlavor(data.id); }
     else if (action === "add-set") { resetSetForm(); setShowSetForm(true); }
     else if (action === "edit-set") { setSetForm({ name: data.name, color: data.color || "", flavor_1: data.flavor_1 || "", flavor_2: data.flavor_2 || "", flavor_3: data.flavor_3 || "", flavor_4: data.flavor_4 || "" }); setEditingSetId(data.id); setShowSetForm(true); }
@@ -81,7 +81,7 @@ export default function Flavors() {
   }
 
   function resetFlavorForm() {
-    setFlavorForm({ name: "", color: "#1BABAB" });
+    setFlavorForm({ name: "", color: "#1BABAB", flavor_type: "", container_type: "" });
     setEditingFlavorId(null);
     setShowFlavorForm(false);
   }
@@ -161,7 +161,7 @@ export default function Flavors() {
           {showFlavorForm && (
             <div className="bg-card rounded-2xl border border-border p-6 mb-6">
               <h3 className="font-heading font-semibold mb-4">{editingFlavorId ? "Edit" : "New"} Flavor</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
                   <Input value={flavorForm.name} onChange={(e) => setFlavorForm({ ...flavorForm, name: e.target.value })} placeholder="Strawberry" />
@@ -172,6 +172,27 @@ export default function Flavors() {
                     <input type="color" value={flavorForm.color} onChange={(e) => setFlavorForm({ ...flavorForm, color: e.target.value })} className="w-10 h-10 rounded-lg cursor-pointer border-0" />
                     <Input value={flavorForm.color} onChange={(e) => setFlavorForm({ ...flavorForm, color: e.target.value })} className="flex-1" />
                   </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Flavor Type</label>
+                  <Select value={flavorForm.flavor_type} onValueChange={(v) => setFlavorForm({ ...flavorForm, flavor_type: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="processed">Processed (made in-house)</SelectItem>
+                      <SelectItem value="bought">Bought (purchased)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Container Type</label>
+                  <Select value={flavorForm.container_type} onValueChange={(v) => setFlavorForm({ ...flavorForm, container_type: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select container" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="liquid_1gal">Liquid — 1-gallon jug</SelectItem>
+                      <SelectItem value="liquid_5gal">Liquid — 5-gallon jug</SelectItem>
+                      <SelectItem value="powder_5gal">Powder — 5-gallon bucket</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
@@ -185,11 +206,18 @@ export default function Flavors() {
             <EmptyState icon={IceCreamCone} title="No flavors yet" description="Add your popsicle flavors to use in shifts." />
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {flavors.map((f) => (
+              {flavors.map((f) => {
+                const containerLabels = { liquid_1gal: "1-gal jug", liquid_5gal: "5-gal jug", powder_5gal: "5-gal bucket (powder)" };
+                const typeLabels = { processed: "Processed", bought: "Bought" };
+                return (
                 <div key={f.id} className="bg-card rounded-2xl border border-border p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-3">
+                  <div className="flex items-center gap-3 mb-2">
                     <div className="w-8 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: f.color || "hsl(192 75% 42%)" }} />
                     <p className="font-medium text-sm">{f.name}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {f.flavor_type && <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{typeLabels[f.flavor_type]}</span>}
+                    {f.container_type && <span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{containerLabels[f.container_type]}</span>}
                   </div>
                   <div className="flex gap-1">
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => openPw("edit-flavor", f)}>
@@ -200,7 +228,8 @@ export default function Flavors() {
                     </Button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>

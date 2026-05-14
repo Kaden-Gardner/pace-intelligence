@@ -10,8 +10,6 @@ import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, en
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import SuppliesPricingTab from "@/components/financials/SuppliesPricingTab";
 import CostBreakdownTab from "@/components/financials/CostBreakdownTab";
-import FlavorPricingTab from "@/components/financials/FlavorPricingTab";
-import IngredientConversionTab from "@/components/financials/IngredientConversionTab";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const PERIODS = [
@@ -516,8 +514,6 @@ export default function Financials() {
           <TabsTrigger value="employees" className="text-[11px] sm:text-sm px-2 truncate">Staff</TabsTrigger>
           <TabsTrigger value="shifts" className="text-[11px] sm:text-sm px-2 truncate">Shifts</TabsTrigger>
           <TabsTrigger value="supplies" className="text-[11px] sm:text-sm px-2 truncate">Supplies</TabsTrigger>
-          <TabsTrigger value="flavors" className="text-[11px] sm:text-sm px-2 truncate">Flavor $</TabsTrigger>
-          <TabsTrigger value="ingredients" className="text-[11px] sm:text-sm px-2 truncate">Ing. Conv.</TabsTrigger>
           <TabsTrigger value="breakdown" className="text-[11px] sm:text-sm px-2 truncate">Breakdown</TabsTrigger>
           <TabsTrigger value="analytics" className="text-[11px] sm:text-sm px-2 truncate">Analytics</TabsTrigger>
         </TabsList>
@@ -844,16 +840,6 @@ export default function Financials() {
         {/* ===== SUPPLIES ===== */}
         <TabsContent value="supplies">
           <SuppliesPricingTab />
-        </TabsContent>
-
-        {/* ===== FLAVOR PRICING ===== */}
-        <TabsContent value="flavors">
-          <FlavorPricingTab />
-        </TabsContent>
-
-        {/* ===== INGREDIENT CONVERSIONS ===== */}
-        <TabsContent value="ingredients">
-          <IngredientConversionTab />
         </TabsContent>
 
         {/* ===== BREAKDOWN ===== */}
