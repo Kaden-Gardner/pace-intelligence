@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Package, Truck, Plus, Pencil, Check, X, Trash2, Snowflake, Star, MoveRight } from "lucide-react";
+import { Package, Truck, Plus, Pencil, Check, X, Trash2, Snowflake, Star } from "lucide-react";
 import IngredientsTab from "../components/inventory/IngredientsTab";
 import MaterialsTab from "../components/inventory/MaterialsTab";
 import ProductBreakdownTab from "../components/inventory/ProductBreakdownTab";
@@ -39,7 +39,7 @@ export default function Inventory() {
   // Add inventory manually
   const [showAddInv, setShowAddInv] = useState(false);
   const [addInvType, setAddInvType] = useState("flavorset");
-  const [addInvForm, setAddInvForm] = useState({ flavorset_id: "", flavor_id: "", cases: 0 });
+  const [addInvForm, setAddInvForm] = useState({ flavorset_id: "", flavor_id: "", cases: 0, location_id: "" });
 
   // Pickup form
   const [showPickupForm, setShowPickupForm] = useState(false);
@@ -177,7 +177,8 @@ export default function Inventory() {
         record = await base44.entities.Inventory.create({ flavorset_id: addInvForm.flavorset_id, cases: Number(addInvForm.cases) });
         setInventory((prev) => [...prev, record]);
       }
-      if (Number(addInvForm.cases) > 0) await addToDefaultFreezer({ flavorset_id: record.flavorset_id, deltaCases: Number(addInvForm.cases) });
+      const targetLocationId = addInvForm.location_id || defaultFreezer;
+      if (Number(addInvForm.cases) > 0 && targetLocationId) await addToDefaultFreezer({ flavorset_id: record.flavorset_id, deltaCases: Number(addInvForm.cases), overrideFreezerIdForAdd: targetLocationId });
     } else {
       const existing = inventory.find((i) => i.flavor_id === addInvForm.flavor_id && !i.flavorset_id);
       if (existing) {
@@ -189,10 +190,11 @@ export default function Inventory() {
         record = await base44.entities.Inventory.create({ flavor_id: addInvForm.flavor_id, cases: Number(addInvForm.cases) });
         setInventory((prev) => [...prev, record]);
       }
-      if (Number(addInvForm.cases) > 0) await addToDefaultFreezer({ flavor_id: record.flavor_id, deltaCases: Number(addInvForm.cases) });
+      const targetLocationId = addInvForm.location_id || defaultFreezer;
+      if (Number(addInvForm.cases) > 0 && targetLocationId) await addToDefaultFreezer({ flavor_id: record.flavor_id, deltaCases: Number(addInvForm.cases), overrideFreezerIdForAdd: targetLocationId });
     }
     setFreezerItems(await base44.entities.FreezerItem.list());
-    setAddInvForm({ flavorset_id: "", flavor_id: "", cases: 0 });
+    setAddInvForm({ flavorset_id: "", flavor_id: "", cases: 0, location_id: "" });
     setShowAddInv(false);
     setSaving(false);
   }
@@ -383,39 +385,82 @@ export default function Inventory() {
           <TabsTrigger value="ingredients">Ingredients</TabsTrigger>
           <TabsTrigger value="materials">Materials</TabsTrigger>
           <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
-          <TabsTrigger value="locations">Locations</TabsTrigger>
           <TabsTrigger value="pickups">Order Pickups</TabsTrigger>
         </TabsList>
 
         {/* ====== INVENTORY TAB ====== */}
         <TabsContent value="inventory">
-          {/* Default Freezer Banner */}
-          <div className="bg-muted rounded-2xl p-4 mb-6 flex flex-col sm:flex-row sm:items-center gap-3">
-            <div className="flex items-center gap-2 flex-1">
-              <Snowflake className="w-4 h-4 text-primary flex-shrink-0" />
-              <span className="text-sm font-medium">
-                Default Location:{" "}
-                <span className={defaultFreezerName ? "text-foreground" : "text-muted-foreground"}>
-                  {defaultFreezerName || "None set — new inventory won't auto-assign to a location"}
-                </span>
-              </span>
+
+          {/* ── Locations Management Section ── */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-heading font-semibold text-lg flex items-center gap-2">
+                <Snowflake className="w-4 h-4 text-primary" /> Storage Locations
+              </h3>
+              <Button size="sm" className="gap-2 h-8 text-xs" onClick={() => openCrudPw("add-freezer")}>
+                <Plus className="w-3 h-3" /> Add Location
+              </Button>
             </div>
-            {freezerSelectUnlocked ? (
-              <div className="flex items-center gap-2">
-                <Select value={defaultFreezer || "__none__"} onValueChange={(v) => handleSetDefault(v === "__none__" ? null : v)}>
-                  <SelectTrigger className="w-full sm:w-48 h-8 text-xs"><SelectValue placeholder="Set default location" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">None</SelectItem>
-                    {freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Button variant="outline" size="sm" className="text-xs h-8" onClick={() => setFreezerSelectUnlocked(false)}>Lock</Button>
+
+            {showFreezerForm && (
+              <div className="bg-card rounded-2xl border border-border p-5 mb-4">
+                <h4 className="font-heading font-semibold mb-3">{editingFreezerId ? "Edit" : "New"} Location</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Location Name</label>
+                    <Input value={freezerForm.name} onChange={(e) => setFreezerForm({ ...freezerForm, name: e.target.value })} placeholder="Freezer A" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes (optional)</label>
+                    <Input value={freezerForm.notes} onChange={(e) => setFreezerForm({ ...freezerForm, notes: e.target.value })} placeholder="Location, capacity..." />
+                  </div>
+                </div>
+                <div className="flex gap-2 mt-4">
+                  <Button onClick={saveFreezer} disabled={saving} className="gap-2"><Check className="w-4 h-4" /> Save</Button>
+                  <Button variant="ghost" onClick={() => setShowFreezerForm(false)}><X className="w-4 h-4" /></Button>
+                </div>
+              </div>
+            )}
+
+            {freezers.length === 0 ? (
+              <div className="bg-muted rounded-2xl p-4 text-sm text-muted-foreground">
+                No locations yet — add a freezer or storage location to start tracking where inventory is stored.
               </div>
             ) : (
-              <Button variant="outline" size="sm" className="text-xs h-8 gap-1" onClick={openFreezerPw}>🔒 Change</Button>
+              <div className="flex flex-wrap gap-2 items-center">
+                {freezers.map((f) => (
+                  <div key={f.id} className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm ${defaultFreezer === f.id ? "border-primary bg-primary/5" : "border-border bg-card"}`}>
+                    {defaultFreezer === f.id && <Star className="w-3 h-3 text-primary flex-shrink-0" />}
+                    <span className="font-medium">{f.name}</span>
+                    {f.notes && <span className="text-xs text-muted-foreground">· {f.notes}</span>}
+                    <div className="flex gap-0.5 ml-1">
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => openCrudPw("edit-freezer", f)}><Pencil className="w-3 h-3" /></Button>
+                      <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive hover:text-destructive" onClick={() => openCrudPw("delete-freezer", f)}><Trash2 className="w-3 h-3" /></Button>
+                    </div>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground ml-1">
+                  <span>Default:</span>
+                  {freezerSelectUnlocked ? (
+                    <div className="flex items-center gap-1">
+                      <Select value={defaultFreezer || "__none__"} onValueChange={(v) => handleSetDefault(v === "__none__" ? null : v)}>
+                        <SelectTrigger className="w-36 h-7 text-xs"><SelectValue placeholder="Set default" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">None</SelectItem>
+                          {freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                      <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setFreezerSelectUnlocked(false)}>Lock</Button>
+                    </div>
+                  ) : (
+                    <button className="underline text-xs" onClick={openFreezerPw}>{defaultFreezerName || "None"} 🔒</button>
+                  )}
+                </div>
+              </div>
             )}
           </div>
 
+          {/* ── Inventory controls ── */}
           <div className="flex justify-end mb-4">
             <Button className="gap-2" onClick={() => setShowAddInv(true)}>
               <Plus className="w-4 h-4" /> Adjust Inventory
@@ -425,14 +470,11 @@ export default function Inventory() {
           {showAddInv && (
             <div className="bg-card rounded-2xl border border-border p-6 mb-6">
               <h3 className="font-heading font-semibold mb-4">Add Cases to Inventory</h3>
-              {defaultFreezerName && (
-                <p className="text-xs text-muted-foreground mb-3">Will auto-sync to location <span className="font-medium text-foreground">{defaultFreezerName}</span></p>
-              )}
               <div className="flex gap-2 mb-4">
                 <button onClick={() => setAddInvType("flavorset")} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${addInvType === "flavorset" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>Flavorset Cases</button>
                 <button onClick={() => setAddInvType("individual")} className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${addInvType === "individual" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>Individual Flavor Cases</button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">{addInvType === "flavorset" ? "Flavorset" : "Flavor"}</label>
                   {addInvType === "flavorset" ? (
@@ -450,6 +492,16 @@ export default function Inventory() {
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Cases to Add</label>
                   <Input type="number" min="0" value={addInvForm.cases} onChange={(e) => setAddInvForm({ ...addInvForm, cases: parseFloat(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Location (optional)</label>
+                  <Select value={addInvForm.location_id || "__default__"} onValueChange={(v) => setAddInvForm({ ...addInvForm, location_id: v === "__default__" ? "" : v })}>
+                    <SelectTrigger><SelectValue placeholder="Use default" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__default__">{defaultFreezerName ? `Default (${defaultFreezerName})` : "Default location"}</SelectItem>
+                      {freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
@@ -470,6 +522,7 @@ export default function Inventory() {
                   const fs = fsMap[inv.flavorset_id];
                   const pallets = Math.floor((inv.cases || 0) / CASES_PER_PALLET);
                   const remainder = (inv.cases || 0) % CASES_PER_PALLET;
+                  const locItems = freezerItems.filter((fi) => fi.type === "pallet" && fi.flavorset_id === inv.flavorset_id);
                   return (
                     <div key={inv.id} className="bg-card rounded-2xl border border-border p-5">
                       <div className="flex items-start justify-between mb-3">
@@ -516,25 +569,50 @@ export default function Inventory() {
                             </div>
                           </div>
                           {remainder > 0 && <p className="text-xs text-muted-foreground mt-2">+{remainder} cases (partial pallet)</p>}
-                          {/* Per-location breakdown */}
-                          {(() => {
-                            const locItems = freezerItems.filter((fi) => fi.type === "pallet" && fi.flavorset_id === inv.flavorset_id);
-                            if (locItems.length === 0) return null;
-                            return (
-                              <div className="mt-3 pt-3 border-t border-border space-y-1">
-                                <p className="text-xs font-medium text-muted-foreground mb-1">By Location</p>
-                                {locItems.map((fi) => {
-                                  const loc = freezers.find((f) => f.id === fi.freezer_id);
-                                  return (
-                                    <div key={fi.id} className="flex items-center justify-between text-xs">
-                                      <span className="text-muted-foreground truncate">{loc?.name || "Unknown"}</span>
-                                      <span className="font-medium">{fi.quantity} pal</span>
+                          {/* Per-location breakdown + item editing */}
+                          <div className="mt-3 pt-3 border-t border-border">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-xs font-medium text-muted-foreground">By Location</p>
+                              <Button variant="ghost" size="sm" className="h-5 text-xs px-1 gap-0.5" onClick={() => { setItemForm({ type: "pallet", flavorset_id: inv.flavorset_id, flavor_id: "", quantity: 1 }); setShowItemForm("inline-" + inv.id); }}>
+                                <Plus className="w-3 h-3" /> Add
+                              </Button>
+                            </div>
+                            {locItems.length === 0 && showItemForm !== "inline-" + inv.id && (
+                              <p className="text-xs text-muted-foreground italic">No location assigned</p>
+                            )}
+                            {locItems.map((fi) => {
+                              const loc = freezers.find((f) => f.id === fi.freezer_id);
+                              return (
+                                <div key={fi.id} className="flex items-center justify-between text-xs py-0.5">
+                                  <span className="text-muted-foreground truncate">{loc?.name || "Unknown"}</span>
+                                  {editingItemId === fi.id ? (
+                                    <div className="flex items-center gap-1">
+                                      <Input type="number" min="0" value={editItemQty} onChange={(e) => setEditItemQty(parseFloat(e.target.value) || 0)} className="h-5 text-xs px-1 w-14" autoFocus />
+                                      <Button size="sm" className="h-5 px-1" onClick={() => saveEditItem(fi)}><Check className="w-3 h-3" /></Button>
+                                      <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => setEditingItemId(null)}><X className="w-3 h-3" /></Button>
                                     </div>
-                                  );
-                                })}
+                                  ) : (
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium">{fi.quantity} pal</span>
+                                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => { setEditingItemId(fi.id); setEditItemQty(fi.quantity); }}><Pencil className="w-2.5 h-2.5" /></Button>
+                                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive hover:text-destructive" onClick={() => deleteFreezerItem(fi.id)}><Trash2 className="w-2.5 h-2.5" /></Button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {showItemForm === "inline-" + inv.id && (
+                              <div className="mt-2 flex items-center gap-2">
+                                <Select value={itemForm.flavorset_id === inv.flavorset_id ? (itemForm.freezer_id || "") : ""} onValueChange={(v) => setItemForm({ ...itemForm, flavorset_id: inv.flavorset_id, freezer_id: v })}>
+                                  <SelectTrigger className="h-7 text-xs flex-1"><SelectValue placeholder="Location" /></SelectTrigger>
+                                  <SelectContent>{freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                                <Input type="number" min="0" placeholder="Pal" value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: parseFloat(e.target.value) || 0 })} className="h-7 text-xs w-16" />
+                                <Button size="sm" className="h-7 px-2" disabled={saving} onClick={() => saveFreezerItem(itemForm.freezer_id)}><Check className="w-3 h-3" /></Button>
+                                <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setShowItemForm(null)}><X className="w-3 h-3" /></Button>
                               </div>
-                            );
-                          })()}
+                            )}
+                          </div>
                         </>
                       )}
                     </div>
@@ -553,11 +631,12 @@ export default function Inventory() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {individualInv.map((inv) => {
                   const fl = flMap[inv.flavor_id];
+                  const locItems = freezerItems.filter((fi) => fi.type === "individual" && fi.flavor_id === inv.flavor_id);
                   return (
                     <div key={inv.id} className="bg-card rounded-2xl border border-border p-4">
                       <div className="flex items-center gap-2 mb-3">
                         {fl?.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: fl.color }} />}
-                        <p className="font-medium text-sm">{fl?.name || "Unknown Flavor"}</p>
+                        <p className="font-medium text-sm flex-1 truncate">{fl?.name || "Unknown Flavor"}</p>
                       </div>
                       {editingInvId === inv.id ? (
                         <div className="space-y-2">
@@ -590,24 +669,50 @@ export default function Inventory() {
                               </AlertDialog>
                             </div>
                           </div>
-                          {/* Per-location breakdown */}
-                          {(() => {
-                            const locItems = freezerItems.filter((fi) => fi.type === "individual" && fi.flavor_id === inv.flavor_id);
-                            if (locItems.length === 0) return null;
-                            return (
-                              <div className="mt-2 pt-2 border-t border-border space-y-0.5">
-                                {locItems.map((fi) => {
-                                  const loc = freezers.find((f) => f.id === fi.freezer_id);
-                                  return (
-                                    <div key={fi.id} className="flex items-center justify-between text-xs">
-                                      <span className="text-muted-foreground truncate">{loc?.name || "Unknown"}</span>
-                                      <span className="font-medium">{fi.quantity} cs</span>
+                          {/* Per-location breakdown + item editing */}
+                          <div className="mt-2 pt-2 border-t border-border">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <p className="text-xs text-muted-foreground">Locations</p>
+                              <Button variant="ghost" size="sm" className="h-5 text-xs px-1 gap-0.5" onClick={() => { setItemForm({ type: "individual", flavorset_id: "", flavor_id: inv.flavor_id, quantity: 1 }); setShowItemForm("inline-ind-" + inv.id); }}>
+                                <Plus className="w-3 h-3" />
+                              </Button>
+                            </div>
+                            {locItems.length === 0 && showItemForm !== "inline-ind-" + inv.id && (
+                              <p className="text-xs text-muted-foreground italic">None</p>
+                            )}
+                            {locItems.map((fi) => {
+                              const loc = freezers.find((f) => f.id === fi.freezer_id);
+                              return (
+                                <div key={fi.id} className="flex items-center justify-between text-xs py-0.5">
+                                  <span className="text-muted-foreground truncate">{loc?.name || "?"}</span>
+                                  {editingItemId === fi.id ? (
+                                    <div className="flex items-center gap-1">
+                                      <Input type="number" min="0" value={editItemQty} onChange={(e) => setEditItemQty(parseFloat(e.target.value) || 0)} className="h-5 text-xs px-1 w-12" autoFocus />
+                                      <Button size="sm" className="h-5 px-1" onClick={() => saveEditItem(fi)}><Check className="w-3 h-3" /></Button>
+                                      <Button size="sm" variant="ghost" className="h-5 px-1" onClick={() => setEditingItemId(null)}><X className="w-3 h-3" /></Button>
                                     </div>
-                                  );
-                                })}
+                                  ) : (
+                                    <div className="flex items-center gap-1">
+                                      <span className="font-medium">{fi.quantity} cs</span>
+                                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => { setEditingItemId(fi.id); setEditItemQty(fi.quantity); }}><Pencil className="w-2.5 h-2.5" /></Button>
+                                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive hover:text-destructive" onClick={() => deleteFreezerItem(fi.id)}><Trash2 className="w-2.5 h-2.5" /></Button>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            {showItemForm === "inline-ind-" + inv.id && (
+                              <div className="mt-1 flex items-center gap-1">
+                                <Select value={itemForm.freezer_id || ""} onValueChange={(v) => setItemForm({ ...itemForm, flavor_id: inv.flavor_id, freezer_id: v })}>
+                                  <SelectTrigger className="h-6 text-xs flex-1"><SelectValue placeholder="Loc" /></SelectTrigger>
+                                  <SelectContent>{freezers.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+                                </Select>
+                                <Input type="number" min="0" value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: parseFloat(e.target.value) || 0 })} className="h-6 text-xs w-14" />
+                                <Button size="sm" className="h-6 px-1" disabled={saving} onClick={() => saveFreezerItem(itemForm.freezer_id)}><Check className="w-3 h-3" /></Button>
+                                <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => setShowItemForm(null)}><X className="w-3 h-3" /></Button>
                               </div>
-                            );
-                          })()}
+                            )}
+                          </div>
                         </>
                       )}
                     </div>
@@ -705,167 +810,6 @@ export default function Inventory() {
           )}
         </TabsContent>
 
-        {/* ====== LOCATIONS TAB ====== */}
-        <TabsContent value="locations">
-          <div className="flex justify-end mb-4">
-            <Button className="gap-2" onClick={() => openCrudPw("add-freezer")}>
-              <Plus className="w-4 h-4" /> Add Location
-            </Button>
-          </div>
-
-          {showFreezerForm && (
-            <div className="bg-card rounded-2xl border border-border p-6 mb-6">
-              <h3 className="font-heading font-semibold mb-4">{editingFreezerId ? "Edit" : "New"} Location</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Location Name</label>
-                  <Input value={freezerForm.name} onChange={(e) => setFreezerForm({ ...freezerForm, name: e.target.value })} placeholder="Freezer A" />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes (optional)</label>
-                  <Input value={freezerForm.notes} onChange={(e) => setFreezerForm({ ...freezerForm, notes: e.target.value })} placeholder="Location, capacity..." />
-                </div>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <Button onClick={saveFreezer} disabled={saving} className="gap-2"><Check className="w-4 h-4" /> Save</Button>
-                <Button variant="ghost" onClick={() => setShowFreezerForm(false)}><X className="w-4 h-4" /></Button>
-              </div>
-            </div>
-          )}
-
-          {freezers.length === 0 && !showFreezerForm ? (
-            <EmptyState icon={Snowflake} title="No locations yet" description="Add freezers or storage locations to track product storage." />
-          ) : (
-            <div className="space-y-4">
-              {freezers.map((freezer) => {
-                const items = freezerItems.filter((fi) => fi.freezer_id === freezer.id);
-                const isDefault = defaultFreezer === freezer.id;
-                return (
-                  <div key={freezer.id} className={`bg-card rounded-2xl border p-5 ${isDefault ? "border-primary" : "border-border"}`}>
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-heading font-semibold text-lg">{freezer.name}</h4>
-                        {isDefault && (
-                          <span className="flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-                            <Star className="w-3 h-3" /> Default
-                          </span>
-                        )}
-                        {freezer.notes && <span className="text-xs text-muted-foreground">· {freezer.notes}</span>}
-                      </div>
-                      <div className="flex gap-1 flex-wrap justify-end">
-
-                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => openCrudPw("edit-freezer", freezer)}>
-                          <Pencil className="w-3 h-3 mr-1" /> Edit
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-xs h-7 text-destructive hover:text-destructive" onClick={() => openCrudPw("delete-freezer", freezer)}>
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Items list */}
-                    {items.length > 0 && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-4">
-                        {items.map((item) => (
-                          <div key={item.id} className="bg-muted rounded-xl px-3 py-2">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
-                                <p className="text-xs font-medium truncate flex items-center gap-1">
-                                  {item.type === "pallet" && fsMap[item.flavorset_id]?.color && (
-                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: fsMap[item.flavorset_id].color }} />
-                                  )}
-                                  {item.type === "individual" && flMap[item.flavor_id]?.color && (
-                                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 inline-block" style={{ backgroundColor: flMap[item.flavor_id].color }} />
-                                  )}
-                                  {item.type === "pallet"
-                                    ? `${fsMap[item.flavorset_id]?.name || "?"} — Pallets`
-                                    : `${flMap[item.flavor_id]?.name || "?"} — Cases`}
-                                </p>
-                                {editingItemId === item.id ? (
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <Input type="number" min="0" value={editItemQty} onChange={(e) => setEditItemQty(parseFloat(e.target.value) || 0)} className="h-6 text-xs px-1 w-16" autoFocus />
-                                    <Button size="sm" className="h-6 px-1" onClick={() => saveEditItem(item)}><Check className="w-3 h-3" /></Button>
-                                    <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => setEditingItemId(null)}><X className="w-3 h-3" /></Button>
-                                  </div>
-                                ) : movingItemId === item.id ? (
-                                  <div className="flex items-center gap-1 mt-1">
-                                    <Select value={moveTargetFreezer} onValueChange={setMoveTargetFreezer}>
-                                      <SelectTrigger className="h-6 text-xs w-32"><SelectValue placeholder="To location..." /></SelectTrigger>
-                                      <SelectContent>
-                                        {freezers.filter((f) => f.id !== freezer.id).map((f) => (
-                                          <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                    <Button size="sm" className="h-6 px-1" disabled={saving} onClick={() => moveItem(item)}><Check className="w-3 h-3" /></Button>
-                                    <Button size="sm" variant="ghost" className="h-6 px-1" onClick={() => setMovingItemId(null)}><X className="w-3 h-3" /></Button>
-                                  </div>
-                                ) : (
-                                  <p className="text-lg font-heading font-bold">{item.quantity}</p>
-                                )}
-                              </div>
-                              {editingItemId !== item.id && movingItemId !== item.id && (
-                                <div className="flex gap-0.5 flex-shrink-0">
-                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" title="Move to another location" onClick={() => { setMovingItemId(item.id); setMoveTargetFreezer(""); }}>
-                                    <MoveRight className="w-3 h-3" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => { setEditingItemId(item.id); setEditItemQty(item.quantity); }}>
-                                    <Pencil className="w-3 h-3" />
-                                  </Button>
-                                  <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-destructive hover:text-destructive" onClick={() => deleteFreezerItem(item.id)}>
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Add item form */}
-                    {showItemForm === freezer.id ? (
-                      <div className="border border-border rounded-xl p-4 bg-background space-y-3">
-                        <div className="flex gap-2">
-                          <button onClick={() => setItemForm({ ...itemForm, type: "pallet", flavor_id: "" })} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${itemForm.type === "pallet" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>Pallets</button>
-                          <button onClick={() => setItemForm({ ...itemForm, type: "individual", flavorset_id: "" })} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${itemForm.type === "individual" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>Individual Cases</button>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="text-xs text-muted-foreground mb-1 block">{itemForm.type === "pallet" ? "Flavorset" : "Flavor"}</label>
-                            {itemForm.type === "pallet" ? (
-                              <Select value={itemForm.flavorset_id} onValueChange={(v) => setItemForm({ ...itemForm, flavorset_id: v })}>
-                                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select flavorset" /></SelectTrigger>
-                                <SelectContent>{flavorSets.map((fs) => <SelectItem key={fs.id} value={fs.id}>{fs.name}</SelectItem>)}</SelectContent>
-                              </Select>
-                            ) : (
-                              <Select value={itemForm.flavor_id} onValueChange={(v) => setItemForm({ ...itemForm, flavor_id: v })}>
-                                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select flavor" /></SelectTrigger>
-                                <SelectContent>{flavors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
-                              </Select>
-                            )}
-                          </div>
-                          <div>
-                            <label className="text-xs text-muted-foreground mb-1 block">Quantity</label>
-                            <Input type="number" min="0" value={itemForm.quantity} onChange={(e) => setItemForm({ ...itemForm, quantity: parseFloat(e.target.value) || 0 })} className="h-8 text-xs" />
-                          </div>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button size="sm" onClick={() => saveFreezerItem(freezer.id)} disabled={saving} className="gap-1"><Check className="w-3 h-3" /> Add</Button>
-                          <Button size="sm" variant="ghost" onClick={() => setShowItemForm(null)}><X className="w-3 h-3" /></Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <Button variant="outline" size="sm" className="gap-1 text-xs" onClick={() => { setItemForm({ type: "pallet", flavorset_id: "", flavor_id: "", quantity: 1 }); setShowItemForm(freezer.id); }}>
-                        <Plus className="w-3 h-3" /> Add Item
-                      </Button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
 
         {/* ====== ORDER PICKUPS TAB ====== */}
         <TabsContent value="pickups">

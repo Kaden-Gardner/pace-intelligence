@@ -31,8 +31,8 @@ export async function setDefaultFreezerInDB(newId) {
  * flavorset_id → tracked as pallets (cases / CASES_PER_PALLET)
  * flavor_id    → tracked as individual cases
  */
-export async function addToDefaultFreezer({ flavorset_id, flavor_id, deltaCases }) {
-  const defaultFreezerId = await getDefaultFreezerIdFromDB();
+export async function addToDefaultFreezer({ flavorset_id, flavor_id, deltaCases, overrideFreezerIdForAdd }) {
+  const defaultFreezerId = overrideFreezerIdForAdd || await getDefaultFreezerIdFromDB();
   if (!defaultFreezerId) return;
 
   const deltaQty = flavorset_id
