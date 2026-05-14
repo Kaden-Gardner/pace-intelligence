@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { Package, Truck, Plus, Pencil, Check, X, Trash2, Snowflake, Star } from "lucide-react";
+import { Package, Truck, Plus, Pencil, Check, X, Trash2, Snowflake, Star, ArrowRightLeft } from "lucide-react";
 import IngredientsTab from "../components/inventory/IngredientsTab";
 import MaterialsTab from "../components/inventory/MaterialsTab";
 import ProductBreakdownTab from "../components/inventory/ProductBreakdownTab";
@@ -97,6 +97,13 @@ export default function Inventory() {
     else if (action === "add-pickup") { setShowPickupForm(true); }
     else if (action === "delete-pickup") { deletePickup(data); }
   }
+
+  // Flavorset display toggle: "pallets" | "cases"
+  const [flavorsetDisplayMode, setFlavorsetDisplayMode] = useState("pallets");
+
+  // Move modal state
+  const [moveModal, setMoveModal] = useState(null); // { fi, itemType: "pallet"|"individual", allLocItems }
+  const [moveForm, setMoveForm] = useState({ toFreezerId: "", qty: 1, unit: "pallets" }); // unit: "pallets"|"cases" (pallet items only)
 
   // Base inventory edit/delete
   const [editingBaseId, setEditingBaseId] = useState(null);
@@ -337,13 +344,11 @@ export default function Inventory() {
   async function moveItem(item) {
     if (!moveTargetFreezer || moveTargetFreezer === item.freezer_id) { setMovingItemId(null); return; }
     setSaving(true);
-    // Check if target freezer already has this item type
     const filterKey = item.type === "pallet" ? "flavorset_id" : "flavor_id";
     const targetExisting = freezerItems.find(
       (fi) => fi.freezer_id === moveTargetFreezer && fi.type === item.type && fi[filterKey] === item[filterKey]
     );
     if (targetExisting) {
-      // Merge quantities
       await base44.entities.FreezerItem.update(targetExisting.id, { quantity: (targetExisting.quantity || 0) + (item.quantity || 0) });
       await base44.entities.FreezerItem.delete(item.id);
       setFreezerItems((prev) => prev
@@ -356,6 +361,55 @@ export default function Inventory() {
     }
     setMovingItemId(null);
     setMoveTargetFreezer("");
+    setSaving(false);
+  }
+
+  // Move qty (cases or pallets) from one location item to another
+  async function handleMoveSubmit() {
+    const { fi, itemType } = moveModal;
+    const { toFreezerId, qty, unit } = moveForm;
+    if (!toFreezerId || qty <= 0) return;
+    setSaving(true);
+
+    // Convert move qty to the stored unit (pallets for pallet items, cases for individual)
+    const moveQty = (itemType === "pallet" && unit === "cases")
+      ? qty / CASES_PER_PALLET   // convert cases → pallets (can be fractional)
+      : qty;
+
+    const actualMoveQty = itemType === "pallet" ? Math.max(0, Math.min(moveQty, fi.quantity)) : Math.max(0, Math.min(moveQty, fi.quantity));
+
+    if (actualMoveQty <= 0) { setSaving(false); return; }
+
+    const newSourceQty = fi.quantity - actualMoveQty;
+    const filterKey = itemType === "pallet" ? "flavorset_id" : "flavor_id";
+    const filterVal = itemType === "pallet" ? fi.flavorset_id : fi.flavor_id;
+
+    // Update or create destination
+    const destExisting = freezerItems.find(
+      (x) => x.freezer_id === toFreezerId && x.type === fi.type && x[filterKey] === filterVal
+    );
+
+    const updates = [];
+    if (destExisting) {
+      updates.push(base44.entities.FreezerItem.update(destExisting.id, { quantity: (destExisting.quantity || 0) + actualMoveQty }));
+    } else {
+      const payload = { freezer_id: toFreezerId, type: fi.type, quantity: actualMoveQty };
+      if (itemType === "pallet") payload.flavorset_id = fi.flavorset_id;
+      else payload.flavor_id = fi.flavor_id;
+      updates.push(base44.entities.FreezerItem.create(payload));
+    }
+
+    // Update or delete source
+    if (newSourceQty <= 0) {
+      updates.push(base44.entities.FreezerItem.delete(fi.id));
+    } else {
+      updates.push(base44.entities.FreezerItem.update(fi.id, { quantity: newSourceQty }));
+    }
+
+    await Promise.all(updates);
+    const fresh = await base44.entities.FreezerItem.list();
+    setFreezerItems(fresh);
+    setMoveModal(null);
     setSaving(false);
   }
 
@@ -513,14 +567,21 @@ export default function Inventory() {
 
           {/* Flavorset Cases */}
           <div className="mb-8">
-            <h3 className="font-heading font-semibold mb-3">Flavorset Cases (Pallet Tracked)</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-heading font-semibold">Flavorset Cases (Pallet Tracked)</h3>
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+                <button onClick={() => setFlavorsetDisplayMode("pallets")} className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${flavorsetDisplayMode === "pallets" ? "bg-background shadow text-foreground" : "text-muted-foreground"}`}>Pallets</button>
+                <button onClick={() => setFlavorsetDisplayMode("cases")} className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${flavorsetDisplayMode === "cases" ? "bg-background shadow text-foreground" : "text-muted-foreground"}`}>Cases</button>
+              </div>
+            </div>
             {flavorsetInv.length === 0 ? (
               <p className="text-sm text-muted-foreground">No flavorset inventory yet.</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {flavorsetInv.map((inv) => {
                   const fs = fsMap[inv.flavorset_id];
-                  const pallets = Math.floor((inv.cases || 0) / CASES_PER_PALLET);
+                  const totalPallets = (inv.cases || 0) / CASES_PER_PALLET;
+                  const fullPallets = Math.floor(totalPallets);
                   const remainder = (inv.cases || 0) % CASES_PER_PALLET;
                   const locItems = freezerItems.filter((fi) => fi.type === "pallet" && fi.flavorset_id === inv.flavorset_id);
                   return (
@@ -558,18 +619,31 @@ export default function Inventory() {
                         </div>
                       ) : (
                         <>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-muted rounded-xl p-3 text-center">
-                              <p className="text-2xl font-heading font-bold">{pallets}</p>
-                              <p className="text-xs text-muted-foreground mt-1">Full Pallets</p>
+                          {flavorsetDisplayMode === "pallets" ? (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="bg-muted rounded-xl p-3 text-center">
+                                <p className="text-2xl font-heading font-bold">{fullPallets}</p>
+                                <p className="text-xs text-muted-foreground mt-1">Full Pallets</p>
+                              </div>
+                              <div className="bg-muted rounded-xl p-3 text-center">
+                                <p className="text-2xl font-heading font-bold">{totalPallets.toFixed(2)}</p>
+                                <p className="text-xs text-muted-foreground mt-1">Total Pallets</p>
+                              </div>
                             </div>
-                            <div className="bg-muted rounded-xl p-3 text-center">
-                              <p className="text-2xl font-heading font-bold">{inv.cases || 0}</p>
-                              <p className="text-xs text-muted-foreground mt-1">Total Cases</p>
+                          ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="bg-muted rounded-xl p-3 text-center">
+                                <p className="text-2xl font-heading font-bold">{inv.cases || 0}</p>
+                                <p className="text-xs text-muted-foreground mt-1">Total Cases</p>
+                              </div>
+                              <div className="bg-muted rounded-xl p-3 text-center">
+                                <p className="text-2xl font-heading font-bold">{fullPallets}</p>
+                                <p className="text-xs text-muted-foreground mt-1">Full Pallets</p>
+                              </div>
                             </div>
-                          </div>
-                          {remainder > 0 && <p className="text-xs text-muted-foreground mt-2">+{remainder} cases (partial pallet)</p>}
-                          {/* Per-location breakdown + item editing */}
+                          )}
+                          {remainder > 0 && <p className="text-xs text-muted-foreground mt-2">+{remainder} loose cases (partial pallet)</p>}
+                          {/* Per-location breakdown */}
                           <div className="mt-3 pt-3 border-t border-border">
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-xs font-medium text-muted-foreground">By Location</p>
@@ -582,6 +656,9 @@ export default function Inventory() {
                             )}
                             {locItems.map((fi) => {
                               const loc = freezers.find((f) => f.id === fi.freezer_id);
+                              const displayQty = flavorsetDisplayMode === "cases"
+                                ? `${Math.round(fi.quantity * CASES_PER_PALLET)} cs`
+                                : `${fi.quantity} pal`;
                               return (
                                 <div key={fi.id} className="flex items-center justify-between text-xs py-0.5">
                                   <span className="text-muted-foreground truncate">{loc?.name || "Unknown"}</span>
@@ -593,7 +670,11 @@ export default function Inventory() {
                                     </div>
                                   ) : (
                                     <div className="flex items-center gap-1">
-                                      <span className="font-medium">{fi.quantity} pal</span>
+                                      <span className="font-medium">{displayQty}</span>
+                                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" title="Move to another location"
+                                        onClick={() => { setMoveModal({ fi, itemType: "pallet", locItems }); setMoveForm({ toFreezerId: "", qty: 1, unit: flavorsetDisplayMode === "cases" ? "cases" : "pallets" }); }}>
+                                        <ArrowRightLeft className="w-2.5 h-2.5" />
+                                      </Button>
                                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => { setEditingItemId(fi.id); setEditItemQty(fi.quantity); }}><Pencil className="w-2.5 h-2.5" /></Button>
                                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive hover:text-destructive" onClick={() => deleteFreezerItem(fi.id)}><Trash2 className="w-2.5 h-2.5" /></Button>
                                     </div>
@@ -694,6 +775,10 @@ export default function Inventory() {
                                   ) : (
                                     <div className="flex items-center gap-1">
                                       <span className="font-medium">{fi.quantity} cs</span>
+                                      <Button variant="ghost" size="sm" className="h-5 w-5 p-0" title="Move to another location"
+                                        onClick={() => { setMoveModal({ fi, itemType: "individual", locItems }); setMoveForm({ toFreezerId: "", qty: 1, unit: "cases" }); }}>
+                                        <ArrowRightLeft className="w-2.5 h-2.5" />
+                                      </Button>
                                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0" onClick={() => { setEditingItemId(fi.id); setEditItemQty(fi.quantity); }}><Pencil className="w-2.5 h-2.5" /></Button>
                                       <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-destructive hover:text-destructive" onClick={() => deleteFreezerItem(fi.id)}><Trash2 className="w-2.5 h-2.5" /></Button>
                                     </div>
@@ -940,6 +1025,84 @@ export default function Inventory() {
           </div>
         </div>
       )}
+
+      {/* ── Move Modal ── */}
+      {moveModal && (() => {
+        const { fi, itemType, locItems } = moveModal;
+        const sourceLoc = freezers.find((f) => f.id === fi.freezer_id);
+        const otherLocs = freezers.filter((f) => f.id !== fi.freezer_id);
+        const isPallet = itemType === "pallet";
+        const maxPallets = fi.quantity;
+        const maxCases = isPallet ? Math.round(fi.quantity * CASES_PER_PALLET) : fi.quantity;
+        const moveQtyInPallets = isPallet && moveForm.unit === "cases"
+          ? moveForm.qty / CASES_PER_PALLET
+          : moveForm.qty;
+        const moveQtyInCases = isPallet
+          ? (moveForm.unit === "cases" ? moveForm.qty : Math.round(moveForm.qty * CASES_PER_PALLET))
+          : moveForm.qty;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
+              <h3 className="font-heading font-semibold text-lg mb-1 flex items-center gap-2">
+                <ArrowRightLeft className="w-4 h-4 text-primary" /> Move Inventory
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                From <span className="font-medium text-foreground">{sourceLoc?.name || "Unknown"}</span>
+                {isPallet && <span> · {maxPallets} pal ({maxCases} cs) available</span>}
+                {!isPallet && <span> · {maxCases} cs available</span>}
+              </p>
+
+              {/* Unit toggle — only for pallet items */}
+              {isPallet && (
+                <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5 mb-4 w-fit">
+                  <button onClick={() => setMoveForm({ ...moveForm, unit: "pallets" })} className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${moveForm.unit === "pallets" ? "bg-background shadow text-foreground" : "text-muted-foreground"}`}>Pallets</button>
+                  <button onClick={() => setMoveForm({ ...moveForm, unit: "cases" })} className={`px-3 py-1 rounded-md text-xs font-medium transition-all ${moveForm.unit === "cases" ? "bg-background shadow text-foreground" : "text-muted-foreground"}`}>Cases</button>
+                </div>
+              )}
+
+              <div className="space-y-3 mb-5">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                    Quantity to Move ({isPallet ? moveForm.unit : "cases"})
+                  </label>
+                  <Input
+                    type="number" min="0" step={isPallet && moveForm.unit === "pallets" ? "0.5" : "1"}
+                    max={isPallet && moveForm.unit === "pallets" ? maxPallets : maxCases}
+                    value={moveForm.qty}
+                    onChange={(e) => setMoveForm({ ...moveForm, qty: parseFloat(e.target.value) || 0 })}
+                    autoFocus
+                  />
+                  {isPallet && moveForm.qty > 0 && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      = {moveForm.unit === "pallets"
+                        ? `${Math.round(moveForm.qty * CASES_PER_PALLET)} cases`
+                        : `${(moveForm.qty / CASES_PER_PALLET).toFixed(2)} pallets`}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Move To</label>
+                  {otherLocs.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic">No other locations available. Add another location first.</p>
+                  ) : (
+                    <Select value={moveForm.toFreezerId} onValueChange={(v) => setMoveForm({ ...moveForm, toFreezerId: v })}>
+                      <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
+                      <SelectContent>{otherLocs.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+                    </Select>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" size="sm" onClick={() => setMoveModal(null)}>Cancel</Button>
+                <Button size="sm" disabled={saving || !moveForm.toFreezerId || moveForm.qty <= 0} onClick={handleMoveSubmit} className="gap-1">
+                  <ArrowRightLeft className="w-3 h-3" /> Move
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
