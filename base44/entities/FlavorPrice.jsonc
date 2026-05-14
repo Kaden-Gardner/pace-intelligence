@@ -1,0 +1,51 @@
+{
+  "name": "FlavorPrice",
+  "type": "object",
+  "properties": {
+    "flavor_id": {
+      "type": "string",
+      "title": "Flavor"
+    },
+    "price_per_oz": {
+      "type": "number",
+      "title": "Price Per Oz ($)",
+      "default": 0
+    },
+    "container_oz": {
+      "type": "number",
+      "title": "Container Size (oz)",
+      "description": "Size of one container/jug in oz (e.g. 128 = 1 gallon)",
+      "default": 128
+    },
+    "price_per_container": {
+      "type": "number",
+      "title": "Price Per Container ($)",
+      "default": 0
+    }
+  },
+  "required": [
+    "flavor_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -10,6 +10,8 @@ import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, en
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import SuppliesPricingTab from "@/components/financials/SuppliesPricingTab";
 import CostBreakdownTab from "@/components/financials/CostBreakdownTab";
+import FlavorPricingTab from "@/components/financials/FlavorPricingTab";
+import IngredientConversionTab from "@/components/financials/IngredientConversionTab";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const PERIODS = [
@@ -73,6 +75,7 @@ export default function Financials() {
   const [matDefaults, setMatDefaults] = useState([]);
   const [jugDefaults, setJugDefaults] = useState([]);
   const [bagInventory, setBagInventory] = useState([]);
+  const [flavorPrices, setFlavorPrices] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Rates UI state
@@ -99,7 +102,7 @@ export default function Financials() {
 
   async function loadData() {
     setLoading(true);
-    const [ord, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, baginv] = await Promise.all([
+    const [ord, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, baginv, fp] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.Employee.list("name"),
       base44.entities.EmployeeRate.list(),
@@ -112,6 +115,7 @@ export default function Financials() {
       base44.entities.MaterialDefaults.list(),
       base44.entities.FlavorJugDefaults.list(),
       base44.entities.BagInventory.list(),
+      base44.entities.FlavorPrice.list(),
     ]);
     setOrders(ord);
     setEmployees(emps);
@@ -125,6 +129,7 @@ export default function Financials() {
     setMatDefaults(mdef);
     setJugDefaults(jdef);
     setBagInventory(baginv);
+    setFlavorPrices(fp);
     setLoading(false);
   }
 
@@ -276,38 +281,52 @@ export default function Financials() {
     return total;
   }
 
+  // Helper: get per-oz price for a specific flavor (uses FlavorPrice if available, else falls back to global flavor_case)
+  function getFlavorPricePerOz(flavorId) {
+    const fp = flavorPrices.find((p) => p.flavor_id === flavorId);
+    if (fp) {
+      // If price_per_oz is set directly, use it
+      if (fp.price_per_oz && fp.price_per_oz > 0) return fp.price_per_oz;
+      // Otherwise derive from container price ÷ container oz
+      if (fp.price_per_container && fp.container_oz && fp.container_oz > 0) {
+        return fp.price_per_container / fp.container_oz;
+      }
+    }
+    // Fallback: global flavor_case price (1 case = 4 gal = 512 oz)
+    const globalRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
+    if (globalRec) return globalRec.price_per_unit / (4 * 128);
+    return null;
+  }
+
   // Supply cost for a production shift: flavoring, bags, box stacks, popsicle sticks, wrap
   function calcProductionSupplyCost(shift) {
     const totalCases = getTotalCases(shift);
     const ppCase = shift.popsicles_per_case || 144;
     let total = 0;
 
-    // ── Flavoring: starting gallons per flavor × oz/gal × price/oz ──
-    const flavorCasePriceRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
-    if (flavorCasePriceRec) {
-      const pricePerOz = flavorCasePriceRec.price_per_unit / (4 * 128); // 1 case = 4 gal = 512 oz
-      const flavorGallonFields = [
-        { gallons: shift.starting_gallons_flavor_1, flavorId: fsMap[shift.flavorset_id]?.flavor_1 },
-        { gallons: shift.starting_gallons_flavor_2, flavorId: fsMap[shift.flavorset_id]?.flavor_2 },
-        { gallons: shift.starting_gallons_flavor_3, flavorId: fsMap[shift.flavorset_id]?.flavor_3 },
-        { gallons: shift.starting_gallons_flavor_4, flavorId: fsMap[shift.flavorset_id]?.flavor_4 },
-        { gallons: shift.individual_flavor_1_cases, flavorId: shift.individual_flavor_1 },
-        { gallons: shift.individual_flavor_2_cases, flavorId: shift.individual_flavor_2 },
-        { gallons: shift.individual_flavor_3_cases, flavorId: shift.individual_flavor_3 },
-        { gallons: shift.individual_flavor_4_cases, flavorId: shift.individual_flavor_4 },
-      ];
-      flavorGallonFields.forEach(({ gallons, flavorId }) => {
-        if (!gallons || !flavorId) return;
-        const jugDefault = jugDefaults.find((d) => d.flavor_id === flavorId);
-        const ozPerGal = jugDefault?.oz_per_gallon_base || 0;
-        if (ozPerGal > 0) {
-          total += gallons * ozPerGal * pricePerOz;
-        } else {
-          // fallback: price per gallon from case price
-          total += gallons * (flavorCasePriceRec.price_per_unit / 4);
-        }
-      });
-    }
+    // ── Flavoring: starting gallons per flavor × oz/gal × per-flavor price/oz ──
+    const flavorGallonFields = [
+      { gallons: shift.starting_gallons_flavor_1, flavorId: fsMap[shift.flavorset_id]?.flavor_1 },
+      { gallons: shift.starting_gallons_flavor_2, flavorId: fsMap[shift.flavorset_id]?.flavor_2 },
+      { gallons: shift.starting_gallons_flavor_3, flavorId: fsMap[shift.flavorset_id]?.flavor_3 },
+      { gallons: shift.starting_gallons_flavor_4, flavorId: fsMap[shift.flavorset_id]?.flavor_4 },
+      { gallons: shift.individual_flavor_1_cases, flavorId: shift.individual_flavor_1 },
+      { gallons: shift.individual_flavor_2_cases, flavorId: shift.individual_flavor_2 },
+      { gallons: shift.individual_flavor_3_cases, flavorId: shift.individual_flavor_3 },
+      { gallons: shift.individual_flavor_4_cases, flavorId: shift.individual_flavor_4 },
+    ];
+    flavorGallonFields.forEach(({ gallons, flavorId }) => {
+      if (!gallons || !flavorId) return;
+      const jugDefault = jugDefaults.find((d) => d.flavor_id === flavorId);
+      const ozPerGal = jugDefault?.oz_per_gallon_base || 0;
+      const pricePerOz = getFlavorPricePerOz(flavorId);
+      if (pricePerOz && ozPerGal > 0) {
+        total += gallons * ozPerGal * pricePerOz;
+      } else if (pricePerOz) {
+        // No oz/gal default — use gallons × 128 oz/gal as fallback
+        total += gallons * 128 * pricePerOz;
+      }
+    });
 
     // ── Bags: 12 bags per case of popsicles produced ──
     const bagCasePriceRec = supplyPrices.find((p) => p.item_key === "bag_case" && p.item_type === "bags");
@@ -383,32 +402,33 @@ export default function Financials() {
     const ingWasteCost = ingCostPerGallon != null ? wasteGallons * ingCostPerGallon : null;
 
     // ── Flavor jug cost per wasted gallon ──
-    // Average oz/gal across the flavors used in this shift, then price per oz from flavor case (4 gal/case).
-    // Flavor case price is per case; 1 case = 4 gallons of flavoring = 128 oz.
-    const flavorCasePriceRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
+    // Average cost per oz across the flavors used, weighted by oz/gal default
     let flavorWasteCost = null;
-    if (flavorCasePriceRec) {
-      const pricePerOz = flavorCasePriceRec.price_per_unit / (4 * 128); // case = 4 gal = 512 oz
+    {
       // Collect flavors used in this shift
       const usedFlavorIds = [
         shift.individual_flavor_1, shift.individual_flavor_2,
         shift.individual_flavor_3, shift.individual_flavor_4,
       ].filter(Boolean);
-      // Also flavors from the flavorset
       const fs = fsMap[shift.flavorset_id];
       if (fs) {
         [fs.flavor_1, fs.flavor_2, fs.flavor_3, fs.flavor_4].forEach((fid) => { if (fid && !usedFlavorIds.includes(fid)) usedFlavorIds.push(fid); });
       }
-      const ozPerGalSamples = usedFlavorIds
-        .map((fid) => jugDefaults.find((d) => d.flavor_id === fid)?.oz_per_gallon_base)
-        .filter((v) => v != null && v > 0);
-      if (ozPerGalSamples.length > 0) {
-        const avgOzPerGal = ozPerGalSamples.reduce((a, b) => a + b, 0) / ozPerGalSamples.length;
-        flavorWasteCost = wasteGallons * avgOzPerGal * pricePerOz;
+      // For each flavor, compute oz_per_gal × price_per_oz
+      const costPerGalSamples = usedFlavorIds.map((fid) => {
+        const ozPerGal = jugDefaults.find((d) => d.flavor_id === fid)?.oz_per_gallon_base || 0;
+        const pricePerOz = getFlavorPricePerOz(fid);
+        if (ozPerGal > 0 && pricePerOz) return ozPerGal * pricePerOz;
+        return null;
+      }).filter((v) => v != null);
+
+      if (costPerGalSamples.length > 0) {
+        const avgCostPerGal = costPerGalSamples.reduce((a, b) => a + b, 0) / costPerGalSamples.length;
+        flavorWasteCost = wasteGallons * avgCostPerGal;
       } else {
-        // Fall back to price per gallon of flavoring case (price per case / 4 gal)
-        const costPerGal = flavorCasePriceRec.price_per_unit / 4;
-        flavorWasteCost = wasteGallons * costPerGal;
+        // Absolute fallback: global flavor_case price per gallon
+        const globalRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
+        if (globalRec) flavorWasteCost = wasteGallons * (globalRec.price_per_unit / 4);
       }
     }
 
@@ -496,6 +516,8 @@ export default function Financials() {
           <TabsTrigger value="employees" className="text-[11px] sm:text-sm px-2 truncate">Staff</TabsTrigger>
           <TabsTrigger value="shifts" className="text-[11px] sm:text-sm px-2 truncate">Shifts</TabsTrigger>
           <TabsTrigger value="supplies" className="text-[11px] sm:text-sm px-2 truncate">Supplies</TabsTrigger>
+          <TabsTrigger value="flavors" className="text-[11px] sm:text-sm px-2 truncate">Flavor $</TabsTrigger>
+          <TabsTrigger value="ingredients" className="text-[11px] sm:text-sm px-2 truncate">Ing. Conv.</TabsTrigger>
           <TabsTrigger value="breakdown" className="text-[11px] sm:text-sm px-2 truncate">Breakdown</TabsTrigger>
           <TabsTrigger value="analytics" className="text-[11px] sm:text-sm px-2 truncate">Analytics</TabsTrigger>
         </TabsList>
@@ -822,6 +844,16 @@ export default function Financials() {
         {/* ===== SUPPLIES ===== */}
         <TabsContent value="supplies">
           <SuppliesPricingTab />
+        </TabsContent>
+
+        {/* ===== FLAVOR PRICING ===== */}
+        <TabsContent value="flavors">
+          <FlavorPricingTab />
+        </TabsContent>
+
+        {/* ===== INGREDIENT CONVERSIONS ===== */}
+        <TabsContent value="ingredients">
+          <IngredientConversionTab />
         </TabsContent>
 
         {/* ===== BREAKDOWN ===== */}

@@ -1,0 +1,62 @@
+{
+  "name": "IngredientConversion",
+  "type": "object",
+  "properties": {
+    "ingredient": {
+      "type": "string",
+      "title": "Ingredient",
+      "enum": [
+        "xanthan_gum",
+        "sugar",
+        "dextrose",
+        "citric_acid",
+        "pear_juice"
+      ]
+    },
+    "unit_label": {
+      "type": "string",
+      "title": "Unit Label (e.g. '50 lb bag', 'cup', '5-gal bucket')"
+    },
+    "grams_per_unit": {
+      "type": "number",
+      "title": "Grams Per Unit",
+      "description": "How many grams in one unit (used for cost-per-gram conversions)",
+      "default": 0
+    },
+    "price_per_unit": {
+      "type": "number",
+      "title": "Price Per Unit ($)",
+      "default": 0
+    },
+    "units_per_container": {
+      "type": "number",
+      "title": "Units per Container (if applicable)",
+      "default": 1
+    }
+  },
+  "required": [
+    "ingredient"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

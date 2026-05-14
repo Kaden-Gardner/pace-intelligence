@@ -48,15 +48,18 @@ export default function CostBreakdownTab() {
   const [flavors, setFlavors] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [flavorPrices, setFlavorPrices] = useState([]);
+
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [mdef, bmd, jdef, sp, fl] = await Promise.all([
+    const [mdef, bmd, jdef, sp, fl, fp] = await Promise.all([
       base44.entities.MaterialDefaults.list(),
       base44.entities.BaseMixDefaults.list(),
       base44.entities.FlavorJugDefaults.list(),
       base44.entities.SupplyPrice.list(),
       base44.entities.Flavor.list("name"),
+      base44.entities.FlavorPrice.list(),
     ]);
     const map = {};
     mdef.forEach((d) => { map[d.material_key] = d; });
@@ -65,6 +68,7 @@ export default function CostBreakdownTab() {
     setJugDefaults(jdef);
     setSupplyPrices(sp);
     setFlavors(fl);
+    setFlavorPrices(fp);
     setLoading(false);
   }
 
@@ -127,25 +131,41 @@ export default function CostBreakdownTab() {
   const boxStackPriceRec = supplyPrices.find((p) => p.item_key === "box_stacks" && p.item_type === "material");
   const boxStackCostPerCase = (boxStackPriceRec && casesPerStack) ? boxStackPriceRec.price_per_unit / casesPerStack : null;
 
-  // ── Flavoring cost per popsicle — average across all flavors with a jug default + price ──
-  const flavorCasePriceRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
-  // flavor_case = price per case of 4 gallons of flavoring
-  const pricePerOzFlavor = flavorCasePriceRec ? flavorCasePriceRec.price_per_unit / (4 * 128) : null;
-
   const flavorMap = {};
   flavors.forEach((f) => { flavorMap[f.id] = f; });
 
-  // Per-flavor cost per popsicle: oz/gal_base × price/oz / ppg (oz of flavor used per gallon of base ÷ pops per gallon)
+  // Helper: get per-oz price for a flavor (per-flavor record first, then global flavor_case fallback)
+  function getFlavorPricePerOz(flavorId) {
+    const fp = flavorPrices.find((p) => p.flavor_id === flavorId);
+    if (fp) {
+      if (fp.price_per_oz && fp.price_per_oz > 0) return fp.price_per_oz;
+      if (fp.price_per_container && fp.container_oz && fp.container_oz > 0) return fp.price_per_container / fp.container_oz;
+    }
+    const globalRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
+    if (globalRec) return globalRec.price_per_unit / (4 * 128);
+    return null;
+  }
+
+  // Global fallback price per oz (for avg display)
+  const flavorCasePriceRec = supplyPrices.find((p) => p.item_key === "flavor_case" && p.item_type === "flavoring");
+
+  // Per-flavor cost per popsicle: oz/gal_base × price/oz / ppg
   const flavorBreakdown = jugDefaults.map((jd) => {
     const fl = flavorMap[jd.flavor_id];
-    if (!fl || !jd.oz_per_gallon_base || !pricePerOzFlavor) return null;
-    const costPerPop = (jd.oz_per_gallon_base * pricePerOzFlavor) / ppg;
-    return { flavor: fl, ozPerGallon: jd.oz_per_gallon_base, costPerPop };
+    if (!fl || !jd.oz_per_gallon_base) return null;
+    const pricePerOz = getFlavorPricePerOz(jd.flavor_id);
+    if (!pricePerOz) return null;
+    const costPerPop = (jd.oz_per_gallon_base * pricePerOz) / ppg;
+    const hasPerFlavorPrice = flavorPrices.some((p) => p.flavor_id === jd.flavor_id && (p.price_per_oz > 0 || (p.price_per_container > 0 && p.container_oz > 0)));
+    return { flavor: fl, ozPerGallon: jd.oz_per_gallon_base, costPerPop, pricePerOz, hasPerFlavorPrice };
   }).filter(Boolean);
 
   const avgFlavorCostPerPop = flavorBreakdown.length > 0
     ? flavorBreakdown.reduce((s, f) => s + f.costPerPop, 0) / flavorBreakdown.length
     : null;
+
+  // For display note
+  const allFlavorsHaveCustomPrice = flavorBreakdown.length > 0 && flavorBreakdown.every((f) => f.hasPerFlavorPrice);
 
   // ── Totals ──
   // Flavorset popsicle: base mix + stick + clear wrap + flavoring
@@ -248,28 +268,36 @@ export default function CostBreakdownTab() {
       {/* ── Per-Flavor Breakdown ── */}
       <div>
         <h3 className="font-heading font-semibold text-lg mb-1">Flavoring Cost Per Popsicle</h3>
-        <p className="text-xs text-muted-foreground mb-4">
-          Each flavor's oz/gallon-of-base default × flavor case price ÷ popsicles per gallon. Set oz/gal defaults in the Ingredients tab.
+        <p className="text-xs text-muted-foreground mb-2">
+          Each flavor's oz/gallon-of-base × price/oz ÷ popsicles per gallon. Set per-flavor prices in <strong>Financials → Flavor $</strong>; falls back to the global "Flavor Case" price.
         </p>
+        {!allFlavorsHaveCustomPrice && flavorCasePriceRec && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-1.5 mb-3 inline-block">
+            Some flavors are using the global flavor case price. Set per-flavor prices in Flavor $ tab for more accuracy.
+          </p>
+        )}
         {flavorBreakdown.length === 0 ? (
           <p className="text-sm text-muted-foreground">No flavor defaults configured yet. Set oz/gal values in the Ingredients → Flavor Jugs section.</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {flavorBreakdown.map(({ flavor, ozPerGallon, costPerPop }) => (
+            {flavorBreakdown.map(({ flavor, ozPerGallon, costPerPop, pricePerOz, hasPerFlavorPrice }) => (
               <div key={flavor.id} className="bg-card rounded-2xl border border-border p-4">
                 <div className="flex items-center gap-2 mb-2">
                   {flavor.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: flavor.color }} />}
-                  <p className="font-medium text-sm truncate">{flavor.name}</p>
+                  <p className="font-medium text-sm truncate flex-1">{flavor.name}</p>
+                  {hasPerFlavorPrice && (
+                    <span className="text-[9px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium flex-shrink-0">custom $</span>
+                  )}
                 </div>
                 <p className="text-xl font-heading font-bold text-primary">{fmt$(costPerPop)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">per popsicle</p>
-                <p className="text-xs text-muted-foreground mt-1">{ozPerGallon} oz/gal base</p>
+                <p className="text-xs text-muted-foreground mt-1">{ozPerGallon} oz/gal · {fmt$(pricePerOz)}/oz</p>
               </div>
             ))}
           </div>
         )}
-        {!flavorCasePriceRec && (
-          <p className="text-xs text-amber-600 mt-3">Set the "Flavor (per case)" price in Financials → Supplies to enable flavor cost calculations.</p>
+        {!flavorCasePriceRec && flavorBreakdown.length === 0 && (
+          <p className="text-xs text-amber-600 mt-3">Set per-flavor prices in Financials → Flavor $ tab, or set a global "Flavor Case" price in Supplies.</p>
         )}
       </div>
 
