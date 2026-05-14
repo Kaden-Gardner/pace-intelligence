@@ -4,9 +4,85 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Pin, Camera, Plus, X, Check, Trash2, Image } from "lucide-react";
+import { Pin, Camera, Plus, X, Check, Trash2, Image, CalendarClock } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import PullToRefresh from "@/components/PullToRefresh";
+
+function ShiftPostCard({ post }) {
+  let data;
+  try { data = JSON.parse(post.body); } catch { return null; }
+  const dateLabel = post.title.replace("__SHIFT_POST__", "");
+
+  return (
+    <div className="bg-gradient-to-br from-primary/5 to-accent/5 rounded-2xl border border-primary/20 p-5">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <CalendarClock className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <p className="font-heading font-bold text-base">{dateLabel}</p>
+          <p className="text-xs text-muted-foreground">Today's Shift · Pace Bars</p>
+        </div>
+      </div>
+
+      {/* Flavorset */}
+      {data.flavorset_name && (
+        <div className="mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            {data.flavorset_color && <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: data.flavorset_color }} />}
+            <p className="font-heading font-semibold text-lg">{data.flavorset_name}</p>
+          </div>
+          {data.flavor_names && data.flavor_names.length > 0 && (
+            <div className="flex flex-wrap gap-2 ml-5">
+              {data.flavor_names.map((name, i) => (
+                <span key={i} className="text-xs px-3 py-1 rounded-full bg-primary/10 text-primary font-medium border border-primary/20">
+                  {["①","②","③","④"][i]} {name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Special Order */}
+      {data.special_order && data.special_order_name && (
+        <div className="mb-3">
+          <span className="text-xs px-2.5 py-1 bg-green-100 text-green-700 rounded-full font-medium">🟢 Special Order: {data.special_order_name}</span>
+        </div>
+      )}
+
+      {/* Mixer */}
+      {data.mixer && (
+        <div className="mb-3">
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">🥄 Mixer</p>
+          <span className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-blue-100 text-blue-800 rounded-full font-medium">
+            {data.mixer.name}
+            {data.mixer.age === 14 && <span className="bg-blue-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">14</span>}
+          </span>
+        </div>
+      )}
+
+      {/* Working employees */}
+      {data.working_employees && data.working_employees.length > 0 && (
+        <div className="mb-3">
+          <p className="text-xs font-medium text-muted-foreground mb-1.5">👥 Working Today</p>
+          <div className="flex flex-wrap gap-2">
+            {data.working_employees.map((emp) => (
+              <span key={emp.id} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-primary/10 text-primary rounded-full font-medium">
+                {emp.name}
+                {emp.age === 14 && <span className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">14</span>}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Notes */}
+      {data.notes && <p className="text-xs text-muted-foreground mt-3 italic">📝 {data.notes}</p>}
+    </div>
+  );
+}
 
 function timeAgo(dateStr) {
   const now = new Date();
@@ -182,7 +258,9 @@ export default function Posts() {
           </div>
         ) : (
           <div className="space-y-4">
-            {posts.map((post) => (
+            {posts.map((post) => {
+              const isShiftPost = post.title && post.title.startsWith("__SHIFT_POST__");
+              return (
               <div key={post.id} className={`bg-card rounded-2xl border p-5 ${post.is_pinned ? "border-primary" : "border-border"} ${post.is_birthday ? "bg-gradient-to-br from-yellow-50/50 to-pink-50/50 dark:from-yellow-900/10 dark:to-pink-900/10" : ""}`}>
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3 mb-3">
@@ -197,7 +275,7 @@ export default function Posts() {
                         🎂 Birthday
                       </span>
                     )}
-                    {post.author_name && (
+                    {!isShiftPost && post.author_name && (
                       <span className="text-xs text-muted-foreground font-medium">{post.author_name}</span>
                     )}
                     <span className="text-xs text-muted-foreground">{timeAgo(post.post_date)}</span>
@@ -232,22 +310,24 @@ export default function Posts() {
                   )}
                 </div>
 
-                {/* Title */}
-                {post.title && (
-                  <h3 className="font-heading font-semibold text-lg mb-2">{post.title}</h3>
-                )}
-
-                {/* Body */}
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.body}</p>
-
-                {/* Photo */}
-                {post.photo_url && (
-                  <div className="mt-4">
-                    <img src={post.photo_url} alt="Post" className="w-full max-h-96 object-cover rounded-xl border border-border" />
-                  </div>
+                {/* Shift post rich content or regular content */}
+                {isShiftPost ? (
+                  <ShiftPostCard post={post} />
+                ) : (
+                  <>
+                    {post.title && (
+                      <h3 className="font-heading font-semibold text-lg mb-2">{post.title}</h3>
+                    )}
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{post.body}</p>
+                    {post.photo_url && (
+                      <div className="mt-4">
+                        <img src={post.photo_url} alt="Post" className="w-full max-h-96 object-cover rounded-xl border border-border" />
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
-            ))}
+            );})}
           </div>
         )}
       </div>
