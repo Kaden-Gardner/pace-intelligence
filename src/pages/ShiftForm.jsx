@@ -234,11 +234,12 @@ export default function ShiftForm() {
 
     // Deduct flavor jug usage based on gallons of each flavor used × oz-per-gallon default
     if (!editId) {
+      const fs = flavorSets.find(f => f.id === payload.flavorset_id);
       const flavorGallonPairs = [
-        { flavorId: payload.flavorset_id ? flavorSets.find(fs => fs.id === payload.flavorset_id)?.flavor_1 : null, gallons: payload.starting_gallons_flavor_1 || 0 },
-        { flavorId: payload.flavorset_id ? flavorSets.find(fs => fs.id === payload.flavorset_id)?.flavor_2 : null, gallons: payload.starting_gallons_flavor_2 || 0 },
-        { flavorId: payload.flavorset_id ? flavorSets.find(fs => fs.id === payload.flavorset_id)?.flavor_3 : null, gallons: payload.starting_gallons_flavor_3 || 0 },
-        { flavorId: payload.flavorset_id ? flavorSets.find(fs => fs.id === payload.flavorset_id)?.flavor_4 : null, gallons: payload.starting_gallons_flavor_4 || 0 },
+        { flavorId: fs?.flavor_1 || null, gallons: payload.starting_gallons_flavor_1 || 0 },
+        { flavorId: fs?.flavor_2 || null, gallons: payload.starting_gallons_flavor_2 || 0 },
+        { flavorId: fs?.flavor_3 || null, gallons: payload.starting_gallons_flavor_3 || 0 },
+        { flavorId: fs?.flavor_4 || null, gallons: payload.starting_gallons_flavor_4 || 0 },
       ].filter((p) => p.flavorId && p.gallons > 0);
 
       if (flavorGallonPairs.length > 0) {

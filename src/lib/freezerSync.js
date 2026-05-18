@@ -36,7 +36,7 @@ export async function addToDefaultFreezer({ flavorset_id, flavor_id, deltaCases,
   if (!defaultFreezerId) return;
 
   const deltaQty = flavorset_id
-    ? Math.floor((deltaCases || 0) / CASES_PER_PALLET)
+    ? (deltaCases || 0) / CASES_PER_PALLET
     : (deltaCases || 0);
 
   if (deltaQty <= 0) return;
