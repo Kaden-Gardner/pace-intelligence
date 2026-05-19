@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake, BarChart2, Loader2 } from "lucide-react";
+import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -42,6 +43,7 @@ export default function MyInfo() {
   const [stats, setStats] = useState(null);
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsLoaded, setStatsLoaded] = useState(false);
+  const [isPpm, setIsPpm] = useRateUnit();
 
   // Dark mode state — read from localStorage, fallback to system
   const getInitialDark = () => {
@@ -270,16 +272,19 @@ export default function MyInfo() {
                   </div>
                 ) : stats && stats.shiftsWithData > 0 ? (
                   <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">Averaged across {stats.shiftsWithData} shift{stats.shiftsWithData !== 1 ? "s" : ""}</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-muted rounded-xl p-4 text-center">
-                        <p className="text-2xl font-heading font-bold text-primary">{stats.avgCasesPerHour}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Cases / Hour</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">Averaged across {stats.shiftsWithData} shift{stats.shiftsWithData !== 1 ? "s" : ""}</p>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>Cases/hr</span>
+                        <Switch checked={isPpm} onCheckedChange={setIsPpm} className="scale-75" />
+                        <span>Pops/min</span>
                       </div>
-                      <div className="bg-muted rounded-xl p-4 text-center">
-                        <p className="text-2xl font-heading font-bold text-primary">{stats.avgPopsPerMinute}</p>
-                        <p className="text-xs text-muted-foreground mt-1">Pops / Minute</p>
-                      </div>
+                    </div>
+                    <div className="bg-muted rounded-xl p-4 text-center">
+                      <p className="text-3xl font-heading font-bold text-primary">
+                        {formatRate(stats.avgCasesPerHour, isPpm).value}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{formatRate(stats.avgCasesPerHour, isPpm).label}</p>
                     </div>
                   </div>
                 ) : (

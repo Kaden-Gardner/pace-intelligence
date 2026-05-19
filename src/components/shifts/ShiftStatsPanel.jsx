@@ -1,5 +1,7 @@
 import { X, Package, Clock, Users, Layers, Wrench } from "lucide-react";
 import { getTotalCases, getCasesPerHour } from "@/lib/analyticsHelpers";
+import { Switch } from "@/components/ui/switch";
+import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 
 function StatCard({ label, value, sub, color }) {
   return (
@@ -12,10 +14,13 @@ function StatCard({ label, value, sub, color }) {
 }
 
 export default function ShiftStatsPanel({ shift, fsMap, empMap, matDefaults, onClose }) {
+  const [isPpm, setIsPpm] = useRateUnit();
+
   if (!shift) return null;
 
   const totalCases = getTotalCases(shift);
   const cph = getCasesPerHour(shift);
+  const rate = formatRate(cph, isPpm);
   const fs = fsMap[shift.flavorset_id];
 
   const positions = [
@@ -61,14 +66,21 @@ export default function ShiftStatsPanel({ shift, fsMap, empMap, matDefaults, onC
             {fs?.name || "No flavorset"} · {shift.shift_time} · {shift.shift_duration}h
           </p>
         </div>
-        <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>Cases/hr</span>
+            <Switch checked={isPpm} onCheckedChange={setIsPpm} className="scale-75" />
+            <span>Pops/min</span>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         <StatCard label="Total Cases" value={totalCases} sub="produced" color="text-primary" />
-        <StatCard label="Cases / Hour" value={cph.toFixed(1)} sub="efficiency" color={roiColor} />
+        <StatCard label={isPpm ? "Pops / Min" : "Cases / Hour"} value={rate.value} sub="efficiency" color={roiColor} />
         <StatCard label="Duration" value={`${shift.shift_duration}h`} sub="shift length" />
         <StatCard label="Crew Size" value={allEmpIds.length} sub={`${trainees.length > 0 ? `+${trainees.length} trainee${trainees.length !== 1 ? "s" : ""}` : "no trainees"}`} />
       </div>

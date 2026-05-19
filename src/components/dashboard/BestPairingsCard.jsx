@@ -1,7 +1,10 @@
 import { Users } from "lucide-react";
 import { findBestPairings } from "../../lib/analyticsHelpers";
+import { Switch } from "@/components/ui/switch";
+import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 
 export default function BestPairingsCard({ shifts, employees }) {
+  const [isPpm, setIsPpm] = useRateUnit();
   const pairings = findBestPairings(shifts, employees);
 
   return (
@@ -10,7 +13,14 @@ export default function BestPairingsCard({ shifts, employees }) {
         <Users className="w-5 h-5 text-primary" />
         <h3 className="font-heading font-semibold text-lg">Best Pairings</h3>
       </div>
-      <p className="text-sm text-muted-foreground mb-5">Employee combos that maximize production</p>
+      <div className="flex items-center gap-2 mb-4">
+        <p className="text-sm text-muted-foreground">Employee combos that maximize production</p>
+        <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
+          <span>Cases/hr</span>
+          <Switch checked={isPpm} onCheckedChange={setIsPpm} className="scale-75" />
+          <span>Pops/min</span>
+        </div>
+      </div>
       {pairings.length === 0 ? (
         <p className="text-sm text-muted-foreground">Need more shift data (at least 2 shared shifts per pair)</p>
       ) : (
@@ -36,8 +46,8 @@ export default function BestPairingsCard({ shifts, employees }) {
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-sm font-heading font-bold">{pair.avgCph.toFixed(1)}</p>
-                <p className="text-xs text-muted-foreground">avg cases/hr</p>
+                <p className="text-sm font-heading font-bold">{formatRate(pair.avgCph, isPpm).value}</p>
+                <p className="text-xs text-muted-foreground">avg {formatRate(pair.avgCph, isPpm).label}</p>
               </div>
             </div>
           ))}

@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { TrendingUp, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 
 export default function TopEmployeesCard({ empStats }) {
   const [selectedId, setSelectedId] = useState(null);
+  const [isPpm, setIsPpm] = useRateUnit();
   const top5 = empStats.slice(0, 5);
 
   const selectedStat = selectedId ? empStats.find((s) => s.employee.id === selectedId) : null;
@@ -20,7 +23,14 @@ export default function TopEmployeesCard({ empStats }) {
         <TrendingUp className="w-5 h-5 text-primary" />
         <h3 className="font-heading font-semibold text-lg">Top Employees</h3>
       </div>
-      <p className="text-sm text-muted-foreground mb-5">By average cases per hour</p>
+      <div className="flex items-center gap-2 mb-4">
+        <p className="text-sm text-muted-foreground">By average {isPpm ? "pops/min" : "cases/hr"}</p>
+        <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
+          <span>Cases/hr</span>
+          <Switch checked={isPpm} onCheckedChange={setIsPpm} className="scale-75" />
+          <span>Pops/min</span>
+        </div>
+      </div>
 
       {top5.length === 0 ? (
         <p className="text-sm text-muted-foreground">No data yet</p>
@@ -46,9 +56,9 @@ export default function TopEmployeesCard({ empStats }) {
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-heading font-bold">{cph.toFixed(1)}</p>
-                  <p className="text-xs text-muted-foreground">cases/hr</p>
-                </div>
+                   <p className="text-sm font-heading font-bold">{formatRate(cph, isPpm).value}</p>
+                   <p className="text-xs text-muted-foreground">{formatRate(cph, isPpm).label}</p>
+                 </div>
               </div>
             );
           })}
@@ -68,7 +78,7 @@ export default function TopEmployeesCard({ empStats }) {
                 const cph = s.totalHours > 0 ? s.totalCases / s.totalHours : 0;
                 return (
                   <SelectItem key={s.employee.id} value={s.employee.id}>
-                    {s.employee.name} — {cph.toFixed(1)} cases/hr
+                    {s.employee.name} — {formatRate(cph, isPpm).value} {formatRate(cph, isPpm).label}
                   </SelectItem>
                 );
               })}
@@ -80,8 +90,8 @@ export default function TopEmployeesCard({ empStats }) {
               <div className="flex items-center justify-between mb-3">
                 <p className="font-medium text-sm">{selectedStat.employee.name}</p>
                 <div className="text-right">
-                  <p className="font-heading font-bold text-lg text-primary">{selectedCph.toFixed(1)}</p>
-                  <p className="text-xs text-muted-foreground">cases/hr overall</p>
+                  <p className="font-heading font-bold text-lg text-primary">{formatRate(selectedCph, isPpm).value}</p>
+                  <p className="text-xs text-muted-foreground">{formatRate(selectedCph, isPpm).label} overall</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-3">
@@ -101,7 +111,7 @@ export default function TopEmployeesCard({ empStats }) {
                     {selectedPositions.map(({ pos, cph, shifts }) => (
                       <div key={pos} className="flex items-center justify-between text-xs">
                         <span className="text-muted-foreground">{pos}</span>
-                        <span className="font-medium">{cph.toFixed(1)} cases/hr · {shifts} shift{shifts !== 1 ? "s" : ""}</span>
+                        <span className="font-medium">{formatRate(cph, isPpm).value} {formatRate(cph, isPpm).label} · {shifts} shift{shifts !== 1 ? "s" : ""}</span>
                       </div>
                     ))}
                   </div>

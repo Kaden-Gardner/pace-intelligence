@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { BarChart3, Users, Package, TrendingUp, Trash2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 import StatCard from "../components/StatCard";
 import WeeklyChart from "../components/dashboard/WeeklyChart";
 import DreamTeamCard from "../components/dashboard/DreamTeamCard";
@@ -40,6 +42,7 @@ function filterShiftsByPeriod(shifts, period) {
 
 export default function Dashboard() {
   const [period, setPeriod] = useState("year");
+  const [isPpm, setIsPpm] = useRateUnit();
   const [shifts, setShifts] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [flavors, setFlavors] = useState([]);
@@ -171,7 +174,18 @@ export default function Dashboard() {
       {/* Stat Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard title="Total Cases" value={totalCases.toLocaleString()} subtitle={periodLabel} icon={Package} />
-        <StatCard title="Avg Cases / Hour" value={avgCph.toFixed(1)} subtitle="Cases per hour" icon={TrendingUp} />
+        <StatCard
+          title={isPpm ? "Avg Pops / Min" : "Avg Cases / Hour"}
+          value={formatRate(avgCph, isPpm).value}
+          subtitle={
+            <span className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">Cases/hr</span>
+              <Switch checked={isPpm} onCheckedChange={setIsPpm} className="scale-75" />
+              <span className="text-xs text-muted-foreground">Pops/min</span>
+            </span>
+          }
+          icon={TrendingUp}
+        />
         <StatCard title="Total Shifts" value={periodShifts.length} subtitle={`${employees.length} employees`} icon={BarChart3} />
         <StatCard title="Total Waste" value={`${totalWaste.toLocaleString()} gal`} subtitle="Gallons wasted" icon={Trash2} />
       </div>
