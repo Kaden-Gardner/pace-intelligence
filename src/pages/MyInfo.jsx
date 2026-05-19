@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake } from "lucide-react";
+import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake, BarChart2, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -36,6 +36,12 @@ export default function MyInfo() {
   const [optOutPostNotifications, setOptOutPostNotifications] = useState(false);
   const [birthday, setBirthday] = useState("");
   const [savingNotify, setSavingNotify] = useState(false);
+
+  // My Stats
+  const [showStats, setShowStats] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [statsLoaded, setStatsLoaded] = useState(false);
 
   // Dark mode state — read from localStorage, fallback to system
   const getInitialDark = () => {
@@ -100,6 +106,20 @@ export default function MyInfo() {
     }
     loadShifts();
   }, [user]);
+
+  async function loadStats() {
+    if (statsLoaded) return;
+    setStatsLoading(true);
+    const res = await base44.functions.invoke("myStats", {});
+    setStats(res.data);
+    setStatsLoaded(true);
+    setStatsLoading(false);
+  }
+
+  async function handleStatsToggle(val) {
+    setShowStats(val);
+    if (val) loadStats();
+  }
 
   async function saveNotificationPrefs(updates) {
     if (!employeeRecord) return;
@@ -231,6 +251,44 @@ export default function MyInfo() {
             </Button>
           </form>
         </div>
+
+        {/* My Production Stats */}
+        {employeeRecord && (
+          <div className="bg-card rounded-2xl border border-border p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-primary" />
+                <h2 className="font-heading font-semibold text-base">My Production Stats</h2>
+              </div>
+              <Switch checked={showStats} onCheckedChange={handleStatsToggle} />
+            </div>
+            {showStats && (
+              <div className="mt-4">
+                {statsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading stats...
+                  </div>
+                ) : stats && stats.shiftsWithData > 0 ? (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">Averaged across {stats.shiftsWithData} shift{stats.shiftsWithData !== 1 ? "s" : ""}</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-muted rounded-xl p-4 text-center">
+                        <p className="text-2xl font-heading font-bold text-primary">{stats.avgCasesPerHour}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Cases / Hour</p>
+                      </div>
+                      <div className="bg-muted rounded-xl p-4 text-center">
+                        <p className="text-2xl font-heading font-bold text-primary">{stats.avgPopsPerMinute}</p>
+                        <p className="text-xs text-muted-foreground mt-1">Pops / Minute</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground mt-3 italic">No shift data found yet.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* When Do I Work? */}
         <div className="bg-card rounded-2xl border border-border p-6">
