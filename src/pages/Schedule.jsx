@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay, isSameDay, addYears, isSameMonth } from "date-fns";
 import { findDreamTeam } from "../lib/analyticsHelpers";
 import UpcomingShiftTab from "@/components/schedule/UpcomingShiftTab";
+import AvailabilityPlannerTab from "@/components/schedule/AvailabilityPlannerTab";
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -31,7 +32,7 @@ export default function Schedule() {
   const [editBaseMix, setEditBaseMix] = useState(null);
   const [activeTab, setActiveTab] = useState("production"); // "production" | "basemix"
   const [saving, setSaving] = useState(false);
-  const [scheduleView, setScheduleView] = useState("calendar"); // "calendar" | "upcoming-shift"
+  const [scheduleView, setScheduleView] = useState("calendar"); // "calendar" | "upcoming-shift" | "planner"
 
   const [form, setForm] = useState({
     shift_time: "08:00", flavorset_id: "", mixer_employee: "",
@@ -274,6 +275,12 @@ export default function Schedule() {
             <CalendarClock className="w-3.5 h-3.5" /> Upcoming Shift
           </button>
         )}
+        <button
+          onClick={() => setScheduleView("planner")}
+          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${scheduleView === "planner" ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+        >
+          Planner
+        </button>
       </div>
 
       {/* Upcoming Shift tab (admin only) */}
@@ -283,6 +290,14 @@ export default function Schedule() {
           employees={employees}
           flavorSets={flavorSets}
           shifts={shifts}
+        />
+      )}
+
+      {/* Planner tab */}
+      {scheduleView === "planner" && (
+        <AvailabilityPlannerTab
+          employees={employees}
+          availabilities={availabilities}
         />
       )}
 
