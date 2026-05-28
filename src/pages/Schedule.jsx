@@ -275,12 +275,14 @@ export default function Schedule() {
             <CalendarClock className="w-3.5 h-3.5" /> Upcoming Shift
           </button>
         )}
-        <button
-          onClick={() => setScheduleView("planner")}
-          className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${scheduleView === "planner" ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
-        >
-          Planner
-        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setScheduleView("planner")}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${scheduleView === "planner" ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+          >
+            Planner
+          </button>
+        )}
       </div>
 
       {/* Upcoming Shift tab (admin only) */}

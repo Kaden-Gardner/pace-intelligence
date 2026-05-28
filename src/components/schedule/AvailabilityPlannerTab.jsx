@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
 import { format, addDays, subDays } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-const HOURS = Array.from({ length: 24 }, (_, i) => i); // 0 = 12 AM, 23 = 11 PM
+const HOURS = Array.from({ length: 24 }, (_, i) => i);
 const TOTAL_MINS = 24 * 60;
+const MAX_MARKERS = 5;
 
 function timeStrToMins(str) {
   if (!str) return null;
@@ -22,17 +23,25 @@ function hourLabel(h) {
   return h < 12 ? `${h} AM` : `${h - 12} PM`;
 }
 
+function markerCrossesAvail(markerMins, fromMins, untilMins, isAvailable, hasRange) {
+  if (!isAvailable) return false;
+  if (!hasRange) return true; // all day
+  if (fromMins !== null && untilMins !== null) return markerMins >= fromMins && markerMins <= untilMins;
+  if (fromMins !== null) return markerMins >= fromMins;
+  return false;
+}
+
 export default function AvailabilityPlannerTab({ employees, availabilities }) {
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [markers, setMarkers] = useState([]); // array of "HH:MM" strings
+  const [newMarker, setNewMarker] = useState("08:00");
   const scrollRef = useRef(null);
 
   const ds = format(currentDate, "yyyy-MM-dd");
   const dayLabel = format(currentDate, "EEEE, MMMM d, yyyy");
 
-  // Only active, non-terminated employees
   const activeEmployees = employees.filter((e) => e.active !== false && !e.terminated);
 
-  // Get availability record for this employee on this date
   function getAvail(emp) {
     return availabilities.find(
       (a) =>
@@ -41,6 +50,17 @@ export default function AvailabilityPlannerTab({ employees, availabilities }) {
           (a.employee_number && a.employee_number === emp.employee_number))
     );
   }
+
+  function addMarker() {
+    if (!newMarker || markers.includes(newMarker) || markers.length >= MAX_MARKERS) return;
+    setMarkers((prev) => [...prev, newMarker].sort());
+  }
+
+  function removeMarker(t) {
+    setMarkers((prev) => prev.filter((m) => m !== t));
+  }
+
+  const markerMinsArr = markers.map((m) => timeStrToMins(m));
 
   return (
     <div className="bg-card rounded-2xl border border-border overflow-hidden">
@@ -57,14 +77,38 @@ export default function AvailabilityPlannerTab({ employees, availabilities }) {
         </Button>
       </div>
 
+      {/* Marker controls */}
+      <div className="px-5 py-3 border-b border-border flex flex-wrap items-center gap-3">
+        <span className="text-xs font-medium text-muted-foreground">Time Markers ({markers.length}/{MAX_MARKERS}):</span>
+        {markers.map((m) => (
+          <span key={m} className="inline-flex items-center gap-1 text-xs px-2 py-1 bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300 rounded-full font-medium">
+            {m}
+            <button onClick={() => removeMarker(m)} className="hover:text-red-500 transition-colors">
+              <X className="w-3 h-3" />
+            </button>
+          </span>
+        ))}
+        {markers.length < MAX_MARKERS && (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="time"
+              value={newMarker}
+              onChange={(e) => setNewMarker(e.target.value)}
+              className="text-xs h-7 px-2 rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <Button size="sm" variant="outline" className="h-7 px-2 gap-1 text-xs" onClick={addMarker}>
+              <Plus className="w-3 h-3" /> Add
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* Grid */}
       <div className="overflow-x-auto" ref={scrollRef}>
         <div className="min-w-[640px]">
           {/* Time header row */}
           <div className="flex border-b border-border">
-            {/* Name column spacer */}
             <div className="w-32 flex-shrink-0 border-r border-border" />
-            {/* Hour ticks */}
             <div className="flex-1 relative h-8">
               {HOURS.map((h) => (
                 <div
@@ -77,6 +121,14 @@ export default function AvailabilityPlannerTab({ employees, availabilities }) {
                   </span>
                   <div className="absolute left-0 top-0 h-full w-px bg-border" />
                 </div>
+              ))}
+              {/* Marker lines in header */}
+              {markerMinsArr.map((mm, i) => (
+                <div
+                  key={i}
+                  className="absolute top-0 h-full w-px border-l-2 border-dashed border-purple-500 z-10"
+                  style={{ left: `${pct(mm)}%` }}
+                />
               ))}
             </div>
           </div>
@@ -91,7 +143,6 @@ export default function AvailabilityPlannerTab({ employees, availabilities }) {
               const fromMins = timeStrToMins(avail?.available_from);
               const untilMins = timeStrToMins(avail?.available_until);
 
-              // Determine bar rendering
               let barLeft = 0;
               let barWidth = 100;
               let hasRange = false;
@@ -101,11 +152,14 @@ export default function AvailabilityPlannerTab({ employees, availabilities }) {
                 barWidth = pct(untilMins - fromMins);
                 hasRange = true;
               } else if (isAvailable && fromMins !== null && untilMins === null) {
-                // Available from X onward
                 barLeft = pct(fromMins);
                 barWidth = pct(TOTAL_MINS - fromMins);
                 hasRange = true;
               }
+
+              const isHighlighted = markerMinsArr.length > 0 && markerMinsArr.some((mm) =>
+                markerCrossesAvail(mm, fromMins, untilMins, isAvailable, hasRange)
+              );
 
               return (
                 <div key={emp.id} className="flex border-b border-border last:border-b-0 group hover:bg-muted/20 transition-colors">
@@ -125,6 +179,15 @@ export default function AvailabilityPlannerTab({ employees, availabilities }) {
                       />
                     ))}
 
+                    {/* Marker dotted lines */}
+                    {markerMinsArr.map((mm, i) => (
+                      <div
+                        key={i}
+                        className="absolute top-0 h-full w-px border-l-2 border-dashed border-purple-500 z-10"
+                        style={{ left: `${pct(mm)}%` }}
+                      />
+                    ))}
+
                     {/* Availability bar */}
                     {!avail && (
                       <div className="absolute inset-y-1 left-0 right-0 flex items-center px-2">
@@ -137,20 +200,20 @@ export default function AvailabilityPlannerTab({ employees, availabilities }) {
                       </div>
                     )}
                     {isAvailable && !hasRange && (
-                      <div className="absolute inset-y-1 left-0 right-0 bg-green-100 dark:bg-green-900/30 rounded flex items-center px-2">
+                      <div className={`absolute inset-y-1 left-0 right-0 bg-green-100 dark:bg-green-900/30 rounded flex items-center px-2 ${isHighlighted ? "ring-2 ring-purple-500" : ""}`}>
                         <span className="text-[10px] text-green-700 dark:text-green-400 font-medium">All day</span>
                       </div>
                     )}
                     {isAvailable && hasRange && (
                       <>
-                        {/* Unavailable zones (dimmed) */}
+                        {barLeft > 0 && (
+                          <div
+                            className="absolute inset-y-1 bg-muted/50 rounded-l"
+                            style={{ left: 0, width: `${barLeft}%` }}
+                          />
+                        )}
                         <div
-                          className="absolute inset-y-1 bg-muted/50 rounded-l"
-                          style={{ left: 0, width: `${barLeft}%` }}
-                        />
-                        {/* Available bar */}
-                        <div
-                          className="absolute inset-y-1 bg-green-400 dark:bg-green-500 rounded flex items-center px-2 overflow-hidden"
+                          className={`absolute inset-y-1 bg-green-400 dark:bg-green-500 rounded flex items-center px-2 overflow-hidden ${isHighlighted ? "ring-2 ring-purple-500" : ""}`}
                           style={{ left: `${barLeft}%`, width: `${barWidth}%` }}
                         >
                           <span className="text-[10px] text-white font-medium whitespace-nowrap">
@@ -158,7 +221,6 @@ export default function AvailabilityPlannerTab({ employees, availabilities }) {
                             {avail.available_until ? ` – ${avail.available_until}` : "+"}
                           </span>
                         </div>
-                        {/* Trailing unavailable */}
                         {untilMins !== null && (
                           <div
                             className="absolute inset-y-1 bg-muted/50 rounded-r"

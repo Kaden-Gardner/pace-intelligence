@@ -22,7 +22,9 @@ function ShiftPostCard({ post }) {
         </div>
         <div>
           <p className="font-heading font-bold text-base">{dateLabel}</p>
-          <p className="text-xs text-muted-foreground">Today's Shift · Pace Bars</p>
+          <p className="text-xs text-muted-foreground">
+            Today's Shift{data.shift_time ? ` · Start: ${data.shift_time}` : ""} · Pace Bars
+          </p>
         </div>
       </div>
 
