@@ -703,25 +703,34 @@ export default function Financials() {
                   : null;
                 const predictedRevenue = (!isBaseMix && cases > 0 && avgCasePrice) ? avgCasePrice * cases : null;
                 const profitRatio = (predictedRevenue && totalCost > 0) ? predictedRevenue / totalCost : null;
-                const profitColor = profitRatio === null ? null
-                  : profitRatio >= 5.0 ? "bg-purple-100 text-purple-800 border-purple-200"
-                  : profitRatio >= 4.0 ? "bg-green-100 text-green-800 border-green-200"
-                  : profitRatio >= 2.0 ? "bg-yellow-100 text-yellow-800 border-yellow-200"
-                  : profitRatio >= 1.0 ? "bg-orange-100 text-orange-800 border-orange-200"
-                  : "bg-red-100 text-red-800 border-red-200";
-                const profitDot = profitRatio === null ? null
-                  : profitRatio >= 5.0 ? "bg-purple-500"
-                  : profitRatio >= 4.0 ? "bg-green-500"
-                  : profitRatio >= 2.0 ? "bg-yellow-500"
-                  : profitRatio >= 1.0 ? "bg-orange-500"
-                  : "bg-red-500";
-                const profitLabel = profitRatio === null ? null
-                  : profitRatio >= 5.0 ? "Extremely High ROI"
-                  : profitRatio >= 4.0 ? "High ROI"
-                  : profitRatio >= 2.0 ? "Good ROI"
-                  : profitRatio >= 1.0 ? "Low ROI"
-                  : "Unprofitable";
+                const laborRatio = (predictedRevenue && laborCost > 0) ? predictedRevenue / laborCost : null;
+
+                function roiColor(r) {
+                  if (r === null) return null;
+                  return r >= 5.0 ? "bg-purple-100 text-purple-800 border-purple-200"
+                    : r >= 4.0 ? "bg-green-100 text-green-800 border-green-200"
+                    : r >= 2.0 ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                    : r >= 1.0 ? "bg-orange-100 text-orange-800 border-orange-200"
+                    : "bg-red-100 text-red-800 border-red-200";
+                }
+                function roiDot(r) {
+                  if (r === null) return null;
+                  return r >= 5.0 ? "bg-purple-500" : r >= 4.0 ? "bg-green-500" : r >= 2.0 ? "bg-yellow-500" : r >= 1.0 ? "bg-orange-500" : "bg-red-500";
+                }
+                function roiLabel(r) {
+                  if (r === null) return null;
+                  return r >= 5.0 ? "Extremely High ROI" : r >= 4.0 ? "High ROI" : r >= 2.0 ? "Good ROI" : r >= 1.0 ? "Low ROI" : "Unprofitable";
+                }
+
+                const profitColor = roiColor(profitRatio);
+                const profitDot = roiDot(profitRatio);
+                const profitLabel = roiLabel(profitRatio);
                 const profitPct = profitRatio !== null ? `${Math.round(profitRatio * 100)}%` : null;
+
+                const laborColor = roiColor(laborRatio);
+                const laborDot = roiDot(laborRatio);
+                const laborLabel = roiLabel(laborRatio);
+                const laborPct = laborRatio !== null ? `${Math.round(laborRatio * 100)}%` : null;
 
                 let empIds = [];
                 if (isBaseMix) {
@@ -754,10 +763,20 @@ export default function Financials() {
                         )}
                       </div>
                     </div>
-                    {profitColor && (
-                      <div className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border mb-3 ${profitColor}`}>
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${profitDot}`} />
-                        {profitLabel} · {profitPct}
+                    {(profitColor || laborColor) && (
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        {profitColor && (
+                          <div className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${profitColor}`}>
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${profitDot}`} />
+                            {profitLabel} · {profitPct}
+                          </div>
+                        )}
+                        {laborColor && (
+                          <div className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${laborColor}`}>
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${laborDot}`} />
+                            Labor only · {laborPct}
+                          </div>
+                        )}
                       </div>
                     )}
                     {empIds.length > 0 && (
