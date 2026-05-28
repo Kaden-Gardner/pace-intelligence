@@ -41,6 +41,26 @@ function getPeriodRange(key, shifts) {
 function fmt$(n) { return n == null ? "—" : `$${Number(n).toFixed(2)}`; }
 function fmtHours(h) { if (!h) return "0h 0m"; const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60); return `${hrs}h ${mins}m`; }
 
+// Returns true if a time entry overlaps with a shift window at all
+function entryOverlapsShift(shiftDate, shiftTime, shiftDuration, clockIn, clockOut) {
+  if (!clockIn) return false;
+  const shiftStart = new Date(`${shiftDate}T${shiftTime || "00:00"}:00`);
+  const shiftEnd = new Date(shiftStart.getTime() + (shiftDuration || 8) * 3600000);
+  const entryStart = parseISO(clockIn);
+  const entryEnd = clockOut ? parseISO(clockOut) : new Date();
+  return entryStart < shiftEnd && entryEnd > shiftStart;
+}
+
+// Returns the total actual hours for a time entry (not clamped to shift window)
+function entryTotalHours(clockIn, clockOut) {
+  if (!clockIn) return 0;
+  const entryStart = parseISO(clockIn);
+  const entryEnd = clockOut ? parseISO(clockOut) : new Date();
+  const mins = differenceInMinutes(entryEnd, entryStart);
+  return Math.max(0, mins / 60);
+}
+
+// Kept for any legacy references (not used in main logic anymore)
 function calcOverlapHours(shiftDate, shiftTime, shiftDuration, clockIn, clockOut) {
   if (!clockIn) return 0;
   const shiftStart = new Date(`${shiftDate}T${shiftTime || "00:00"}:00`);
@@ -224,6 +244,24 @@ export default function Financials() {
   }
 
   // Shift cost calculation
+  // All shifts combined (used for cross-shift span detection)
+  const allShiftsForSpan = [
+    ...shifts.map((s) => ({ date: s.shift_date, time: s.shift_time || "06:00", duration: s.shift_duration || 8 })),
+    ...baseMixShifts.map((s) => ({ date: s.shift_date, time: s.shift_time || "06:00", duration: s.shift_duration || 8 })),
+  ];
+
+  // Get the actual hours to attribute to this shift for a given employee time entry.
+  // If the entry spans multiple shifts, divide its hours by the number of shifts it touches.
+  function getAttributedHours(te, shiftDate, shiftTime, shiftDuration) {
+    if (!entryOverlapsShift(shiftDate, shiftTime, shiftDuration, te.clock_in, te.clock_out)) return 0;
+    const totalHrs = entryTotalHours(te.clock_in, te.clock_out);
+    // Count how many shifts this entry overlaps
+    const shiftCount = allShiftsForSpan.filter((s) =>
+      entryOverlapsShift(s.date, s.time, s.duration, te.clock_in, te.clock_out)
+    ).length;
+    return totalHrs / Math.max(1, shiftCount);
+  }
+
   function calcShiftCost(shift, isBaseMix = false) {
     const shiftDate = shift.shift_date;
     const shiftTime = shift.shift_time || "06:00";
@@ -237,7 +275,7 @@ export default function Financials() {
        shift.sorting_employee, shift.bagging_employee, shift.boxing_employee, shift.shift_lead].forEach((id) => { if (id) empIds.push(id); });
       if (shift.training_employees) empIds.push(...shift.training_employees);
     }
-    empIds = [...new Set(empIds)];
+    empIds = [...new Set(empIds)].filter(Boolean);
 
     let totalCost = 0;
     empIds.forEach((empId) => {
@@ -248,13 +286,19 @@ export default function Financials() {
       const MINOR_MAX_HOURS = 3;
 
       // Find time entries overlapping this shift
-      const empEntries = timeEntries.filter((te) => te.employee_id === empId || te.employee_number === empMap[empId]?.employee_number);
-      let hoursWorked = 0;
-      empEntries.forEach((te) => {
-        hoursWorked += calcOverlapHours(shiftDate, shiftTime, shiftDuration, te.clock_in, te.clock_out);
-      });
-      // If no clock-in found, fall back to shift duration
-      let hours = hoursWorked > 0 ? hoursWorked : shiftDuration;
+      const emp = empMap[empId];
+      const empEntries = timeEntries.filter((te) => te.employee_id === empId || te.employee_number === emp?.employee_number);
+      const overlapping = empEntries.filter((te) => entryOverlapsShift(shiftDate, shiftTime, shiftDuration, te.clock_in, te.clock_out));
+
+      let hours;
+      if (overlapping.length > 0) {
+        // Use actual clock time, divided by number of shifts crossed
+        hours = overlapping.reduce((sum, te) => sum + getAttributedHours(te, shiftDate, shiftTime, shiftDuration), 0);
+      } else {
+        // No clock-in found — fall back to shift duration
+        hours = shiftDuration;
+      }
+
       // Apply 3-hour cap for minors under 15
       if (isMinor) hours = Math.min(hours, MINOR_MAX_HOURS);
       totalCost += hours * rate;
@@ -785,17 +829,19 @@ export default function Financials() {
                           const emp = empMap[id];
                           const rate = getRateForEmp(id);
                           const empEntries = timeEntries.filter((te) => te.employee_id === id || te.employee_number === emp?.employee_number);
-                          let hrs = 0;
-                          empEntries.forEach((te) => { hrs += calcOverlapHours(shift.shift_date, shift.shift_time, shift.shift_duration, te.clock_in, te.clock_out); });
-                          const usedDuration = hrs === 0;
-                          let finalHrs = hrs > 0 ? hrs : (shift.shift_duration || 8);
+                          const overlapping = empEntries.filter((te) => entryOverlapsShift(shift.shift_date, shift.shift_time || "06:00", shift.shift_duration || 8, te.clock_in, te.clock_out));
+                          const usedDuration = overlapping.length === 0;
+                          let finalHrs = usedDuration
+                            ? (shift.shift_duration || 8)
+                            : overlapping.reduce((sum, te) => sum + getAttributedHours(te, shift.shift_date, shift.shift_time || "06:00", shift.shift_duration || 8), 0);
                           const empAge = getEmpAge(id);
                           const isEmpMinor = empAge !== null && empAge < 15;
                           const wasCapped = isEmpMinor && finalHrs > 3;
                           if (isEmpMinor) finalHrs = Math.min(finalHrs, 3);
+                          const displayName = emp?.name || `Emp #${id.slice(-4)}`;
                           return (
                             <span key={id} className="text-xs px-2 py-1 bg-muted rounded-lg flex items-center gap-1">
-                              {emp?.name || "?"}
+                              {displayName}
                               {isEmpMinor && <span className="inline-flex items-center text-[9px] px-1 py-0.5 rounded-full font-semibold text-white" style={{ backgroundColor: "#7dd3fc" }}>&lt;15</span>}
                               · {fmtHours(finalHrs)}{usedDuration ? " (est)" : ""}{wasCapped ? " (capped)" : ""} · {rate > 0 ? fmt$(finalHrs * rate) : "no rate"}
                             </span>
