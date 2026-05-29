@@ -94,14 +94,12 @@ export default function TimeTracking() {
     // Check if already clocked in (any open entry for this employee)
     const activeEmpEntry = entries.find((e) => e.employee_id === emp.id && e.clock_in && !e.clock_out);
     if (activeEmpEntry) {
-      // Clock them out
       const clockOut = new Date().toISOString();
       const total_hours = calcHours(activeEmpEntry.clock_in, clockOut);
       await base44.entities.TimeEntry.update(activeEmpEntry.id, { clock_out: clockOut, total_hours });
       setEntries((prev) => prev.map((e) => e.id === activeEmpEntry.id ? { ...e, clock_out: clockOut, total_hours } : e));
       setTerminalStatus({ type: "success", message: `${emp.name} clocked out at ${format(new Date(), "h:mm a")}.` });
     } else {
-      // Clock them in
       const now = new Date().toISOString();
       const created = await base44.entities.TimeEntry.create({
         employee_id: emp.id,
