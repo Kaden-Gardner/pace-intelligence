@@ -565,7 +565,6 @@ export default function Inventory() {
                                   <p key={it.id} className="text-xs text-muted-foreground flex items-center gap-1.5">
                                     {color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: color }} />}
                                     {label} · {it.pallets > 0 ? `${it.pallets} pal` : ""} {Math.round(it.cases || 0)} cases
-                                    {it.case_sell_price > 0 && <span className="text-primary font-medium">· ${it.case_sell_price}/case</span>}
                                   </p>
                                 );
                               })}
