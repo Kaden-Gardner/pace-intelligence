@@ -335,31 +335,98 @@ export default function TimeTracking() {
       )}
 
       {/* Admin clock-in terminal tab */}
-      {isAdmin && adminView === "terminal" && (
-        <div className="bg-card rounded-2xl border border-border p-8 max-w-md">
-          <h2 className="font-heading font-semibold text-xl mb-1">Clock-In Terminal</h2>
-          <p className="text-sm text-muted-foreground mb-6">Enter an employee number to clock them in or out.</p>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Employee #"
-              value={terminalEmpNum}
-              onChange={(e) => { setTerminalEmpNum(e.target.value); setTerminalStatus(null); }}
-              onKeyDown={(e) => e.key === "Enter" && handleTerminalClockIn()}
-              className="font-mono text-lg h-11"
-              disabled={terminalSaving}
-              autoFocus
-            />
-            <Button onClick={handleTerminalClockIn} disabled={terminalSaving || !terminalEmpNum.trim()} className="gap-2 h-11 px-5">
-              <Clock className="w-4 h-4" /> {terminalSaving ? "Processing..." : "Submit"}
-            </Button>
+      {isAdmin && adminView === "terminal" && (() => {
+        const activeEmployees = entries.filter((e) => e.clock_in && !e.clock_out);
+        // Last 12 clock actions: entries sorted by most recent action (clock_out if present, else clock_in)
+        const recentActions = [...entries]
+          .flatMap((e) => {
+            const actions = [{ time: e.clock_in, type: "in", name: e.employee_name, number: e.employee_number }];
+            if (e.clock_out) actions.push({ time: e.clock_out, type: "out", name: e.employee_name, number: e.employee_number });
+            return actions;
+          })
+          .sort((a, b) => new Date(b.time) - new Date(a.time))
+          .slice(0, 12);
+
+        return (
+          <div className="space-y-6">
+            {/* Input row */}
+            <div className="bg-card rounded-2xl border border-border p-6">
+              <h2 className="font-heading font-semibold text-xl mb-1">Clock-In Terminal</h2>
+              <p className="text-sm text-muted-foreground mb-4">Enter an employee number to clock them in or out.</p>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Employee #"
+                  value={terminalEmpNum}
+                  onChange={(e) => { setTerminalEmpNum(e.target.value); setTerminalStatus(null); }}
+                  onKeyDown={(e) => e.key === "Enter" && handleTerminalClockIn()}
+                  className="font-mono text-lg h-11 max-w-[200px]"
+                  disabled={terminalSaving}
+                  autoFocus
+                />
+                <Button onClick={handleTerminalClockIn} disabled={terminalSaving || !terminalEmpNum.trim()} className="gap-2 h-11 px-5">
+                  <Clock className="w-4 h-4" /> {terminalSaving ? "Processing..." : "Submit"}
+                </Button>
+              </div>
+              {terminalStatus && (
+                <p className={`text-sm mt-3 font-medium ${terminalStatus.type === "success" ? "text-green-600" : "text-destructive"}`}>
+                  {terminalStatus.message}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Currently clocked in */}
+              <div className="bg-card rounded-2xl border border-border p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <h3 className="font-heading font-semibold">Currently Clocked In</h3>
+                  <span className="ml-auto text-xs font-medium bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{activeEmployees.length}</span>
+                </div>
+                {activeEmployees.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No employees currently clocked in.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {activeEmployees.map((e) => (
+                      <div key={e.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                        <div>
+                          <p className="text-sm font-medium">{e.employee_name || "Unknown"}</p>
+                          {e.employee_number && <p className="text-xs text-muted-foreground">#{e.employee_number}</p>}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-green-600 font-medium">Since {fmtDatetime(e.clock_in)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Recent history */}
+              <div className="bg-card rounded-2xl border border-border p-6">
+                <h3 className="font-heading font-semibold mb-4">Recent Activity</h3>
+                {recentActions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No recent activity.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {recentActions.map((action, i) => (
+                      <div key={i} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${action.type === "in" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"}`}>
+                          {action.type === "in" ? <LogIn className="w-3.5 h-3.5" /> : <LogOut className="w-3.5 h-3.5" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{action.name || "Unknown"}</p>
+                          <p className="text-xs text-muted-foreground">{action.type === "in" ? "Clocked in" : "Clocked out"}</p>
+                        </div>
+                        <p className="text-xs text-muted-foreground text-right shrink-0">{fmtDatetime(action.time)}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-          {terminalStatus && (
-            <p className={`text-sm mt-4 font-medium ${terminalStatus.type === "success" ? "text-green-600" : "text-destructive"}`}>
-              {terminalStatus.message}
-            </p>
-          )}
-        </div>
-      )}
+        );
+      })()}
 
       {/* Admin summary table */}
       {isAdmin && adminView === "all" && (
