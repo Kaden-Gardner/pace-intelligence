@@ -1,45 +1,47 @@
 {
-  "name": "OrderPickup",
+  "name": "OrderPickupItem",
   "type": "object",
   "properties": {
-    "vendor_name": {
+    "order_id": {
       "type": "string",
-      "title": "Vendor Name"
+      "title": "Order ID"
     },
-    "pickup_date": {
+    "item_type": {
       "type": "string",
-      "format": "date",
-      "title": "Pickup Date"
-    },
-    "notes": {
-      "type": "string",
-      "title": "Notes"
-    },
-    "is_priced": {
-      "type": "boolean",
-      "title": "Has Been Priced",
-      "default": false
+      "title": "Item Type",
+      "enum": [
+        "flavorset",
+        "individual"
+      ],
+      "default": "flavorset"
     },
     "flavorset_id": {
       "type": "string",
-      "title": "Flavorset (legacy)"
+      "title": "Flavorset"
+    },
+    "flavor_id": {
+      "type": "string",
+      "title": "Individual Flavor"
     },
     "pallets": {
       "type": "number",
-      "title": "Pallets (legacy)"
+      "title": "Pallets",
+      "default": 0
     },
     "cases": {
       "type": "number",
-      "title": "Cases (legacy)"
+      "title": "Cases",
+      "default": 0
     },
     "case_sell_price": {
       "type": "number",
-      "title": "Case Sell Price - legacy"
+      "title": "Case Sell Price ($)",
+      "default": 0
     }
   },
   "required": [
-    "vendor_name",
-    "pickup_date"
+    "order_id",
+    "item_type"
   ],
   "rls": {
     "create": {

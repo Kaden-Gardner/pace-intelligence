@@ -4,6 +4,7 @@ import { Package, Truck, Plus, Pencil, Check, X, Trash2 } from "lucide-react";
 import IngredientsTab from "../components/inventory/IngredientsTab";
 import MaterialsTab from "../components/inventory/MaterialsTab";
 import ProductBreakdownTab from "../components/inventory/ProductBreakdownTab";
+import OrderPickupForm from "../components/inventory/OrderPickupForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,9 +24,12 @@ export default function Inventory() {
   const [flavors, setFlavors] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [pickups, setPickups] = useState([]);
+  const [pickupItems, setPickupItems] = useState([]);
   const [scheduledShifts, setScheduledShifts] = useState([]);
   const [baseInventory, setBaseInventory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showOrderForm, setShowOrderForm] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
 
   // Inventory edit
   const [editingInvId, setEditingInvId] = useState(null);
@@ -36,12 +40,8 @@ export default function Inventory() {
   const [addInvType, setAddInvType] = useState("flavorset");
   const [addInvForm, setAddInvForm] = useState({ flavorset_id: "", flavor_id: "", cases: 0 });
 
-  // Pickup form
-  const [showPickupForm, setShowPickupForm] = useState(false);
-  const [pickupForm, setPickupForm] = useState({ vendor_name: "", flavorset_id: "", pallets: 1, pickup_date: new Date().toISOString().split("T")[0], notes: "" });
-
   // Password gate for pickup CRUD
-  const [crudPw, setCrudPw] = useState(null); // { action, data }
+  const [crudPw, setCrudPw] = useState(null);
   const [crudPwInput, setCrudPwInput] = useState("");
   const [crudPwError, setCrudPwError] = useState("");
 
@@ -55,7 +55,8 @@ export default function Inventory() {
     if (crudPwInput !== "ecap") { setCrudPwError("Incorrect password."); return; }
     const { action, data } = crudPw;
     setCrudPw(null);
-    if (action === "add-pickup") { setShowPickupForm(true); }
+    if (action === "add-pickup") { setShowOrderForm(true); setEditingOrder(null); }
+    else if (action === "edit-pickup") { setEditingOrder(data); setShowOrderForm(true); }
     else if (action === "delete-pickup") { deletePickup(data); }
   }
 
@@ -71,18 +72,32 @@ export default function Inventory() {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [fs, fl, inv, pk, bi, ss] = await Promise.all([
+    const [fs, fl, inv, pk, pi, bi, ss] = await Promise.all([
       base44.entities.FlavorSet.list("name").catch(() => []),
       base44.entities.Flavor.list("name").catch(() => []),
       base44.entities.Inventory.list().catch(() => []),
       base44.entities.OrderPickup.list("-pickup_date", 100).catch(() => []),
+      base44.entities.OrderPickupItem.list().catch(() => []),
       base44.entities.BaseInventory.list().catch(() => []),
       base44.entities.ScheduledShift.list("-shift_date", 200).catch(() => []),
     ]);
+    // Migrate legacy orders: create items for any order with a flavorset_id but no items yet
+    const legacyOrders = pk.filter((o) => o.flavorset_id && !pi.some((i) => i.order_id === o.id));
+    const migratedItems = await Promise.all(legacyOrders.map((o) =>
+      base44.entities.OrderPickupItem.create({
+        order_id: o.id,
+        item_type: "flavorset",
+        flavorset_id: o.flavorset_id,
+        pallets: o.pallets || 0,
+        cases: o.cases || 0,
+        case_sell_price: o.case_sell_price || 0,
+      }).catch(() => null)
+    ));
     setFlavorSets(fs);
     setFlavors(fl);
     setInventory(inv);
     setPickups(pk);
+    setPickupItems([...pi, ...migratedItems.filter(Boolean)]);
     setBaseInventory(bi);
     setScheduledShifts(ss);
     setLoading(false);
@@ -92,6 +107,7 @@ export default function Inventory() {
   flavorSets.forEach((fs) => { fsMap[fs.id] = fs; });
   const flMap = {};
   flavors.forEach((f) => { flMap[f.id] = f; });
+  // flMap already defined above, used in pickups tab too
 
   const specialOrderNames = new Set(
     scheduledShifts
@@ -142,34 +158,53 @@ export default function Inventory() {
   }
 
   // ---- PICKUP HELPERS ----
-  async function savePickup(e) {
-    e.preventDefault();
-    setSaving(true);
-    const pickupCases = Math.round(pickupForm.pallets * CASES_PER_PALLET);
-    const created = await base44.entities.OrderPickup.create({ ...pickupForm, pallets: Number(pickupForm.pallets), cases: pickupCases });
-    setPickups((prev) => [created, ...prev]);
-    // Deduct from inventory
-    const invRecord = inventory.find((i) => i.flavorset_id === pickupForm.flavorset_id && !i.flavor_id);
-    if (invRecord) {
-      const newCases = Math.max(0, (invRecord.cases || 0) - pickupCases);
-      await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
-      setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
-    }
-    setPickupForm({ vendor_name: "", flavorset_id: "", pallets: 1, pickup_date: new Date().toISOString().split("T")[0], notes: "" });
-    setShowPickupForm(false);
-    setSaving(false);
-  }
-
   async function deletePickup(pickup) {
+    // Restore inventory for all items
+    const items = pickupItems.filter((pi) => pi.order_id === pickup.id);
+    // If no items (legacy order), restore from order's own cases field
+    if (items.length === 0 && pickup.flavorset_id) {
+      const invRecord = inventory.find((i) => i.flavorset_id === pickup.flavorset_id && !i.flavor_id);
+      if (invRecord) {
+        const newCases = (invRecord.cases || 0) + (pickup.cases || 0);
+        await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
+        setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
+      }
+    }
+    for (const item of items) {
+      if (item.item_type === "flavorset" && item.flavorset_id) {
+        const invRecord = inventory.find((i) => i.flavorset_id === item.flavorset_id && !i.flavor_id);
+        if (invRecord) {
+          const newCases = (invRecord.cases || 0) + (item.cases || 0);
+          await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
+          setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
+        }
+      } else if (item.item_type === "individual" && item.flavor_id) {
+        const invRecord = inventory.find((i) => i.flavor_id === item.flavor_id && !i.flavorset_id);
+        if (invRecord) {
+          const newCases = (invRecord.cases || 0) + (item.cases || 0);
+          await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
+          setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
+        }
+      }
+      await base44.entities.OrderPickupItem.delete(item.id);
+    }
     await base44.entities.OrderPickup.delete(pickup.id);
     setPickups((prev) => prev.filter((p) => p.id !== pickup.id));
-    // Restore cases to inventory
-    const invRecord = inventory.find((i) => i.flavorset_id === pickup.flavorset_id && !i.flavor_id);
-    if (invRecord) {
-      const newCases = (invRecord.cases || 0) + (pickup.cases || 0);
-      await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
-      setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
-    }
+    setPickupItems((prev) => prev.filter((pi) => pi.order_id !== pickup.id));
+  }
+
+  function handleOrderSaved(order, items) {
+    setPickups((prev) => {
+      const exists = prev.find((p) => p.id === order.id);
+      if (exists) return prev.map((p) => p.id === order.id ? order : p);
+      return [order, ...prev];
+    });
+    setPickupItems((prev) => {
+      const without = prev.filter((pi) => pi.order_id !== order.id);
+      return [...without, ...items];
+    });
+    setShowOrderForm(false);
+    setEditingOrder(null);
   }
 
   if (loading) {
@@ -476,44 +511,19 @@ export default function Inventory() {
         <TabsContent value="pickups">
           <div className="flex justify-end mb-4">
             <Button className="gap-2" onClick={() => openCrudPw("add-pickup")}>
-              <Plus className="w-4 h-4" /> Record Pickup
+              <Plus className="w-4 h-4" /> Record Order
             </Button>
           </div>
 
-          {showPickupForm && (
-            <div className="bg-card rounded-2xl border border-border p-6 mb-6">
-              <h3 className="font-heading font-semibold mb-4">Record Order Pickup</h3>
-              <form onSubmit={savePickup} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Vendor Name</label>
-                  <Input value={pickupForm.vendor_name} onChange={(e) => setPickupForm({ ...pickupForm, vendor_name: e.target.value })} placeholder="Vendor Co." required />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Pickup Date</label>
-                  <Input type="date" value={pickupForm.pickup_date} onChange={(e) => setPickupForm({ ...pickupForm, pickup_date: e.target.value })} required />
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Flavorset</label>
-                  <Select value={pickupForm.flavorset_id} onValueChange={(v) => setPickupForm({ ...pickupForm, flavorset_id: v })}>
-                    <SelectTrigger><SelectValue placeholder="Select flavorset" /></SelectTrigger>
-                    <SelectContent>{flavorSets.map((fs) => <SelectItem key={fs.id} value={fs.id}>{fs.name}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Pallets ({CASES_PER_PALLET} cases each)</label>
-                  <Input type="number" min="0" step="any" value={pickupForm.pallets} onChange={(e) => setPickupForm({ ...pickupForm, pallets: parseFloat(e.target.value) || 0 })} required />
-                  {pickupForm.pallets > 0 && <p className="text-xs text-muted-foreground mt-1">= {Math.round(pickupForm.pallets * CASES_PER_PALLET)} cases</p>}
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes (optional)</label>
-                  <Textarea value={pickupForm.notes} onChange={(e) => setPickupForm({ ...pickupForm, notes: e.target.value })} rows={2} />
-                </div>
-                <div className="sm:col-span-2 flex gap-2">
-                  <Button type="submit" disabled={saving} className="gap-2"><Check className="w-4 h-4" /> Save Pickup</Button>
-                  <Button type="button" variant="ghost" onClick={() => setShowPickupForm(false)}><X className="w-4 h-4" /></Button>
-                </div>
-              </form>
-            </div>
+          {showOrderForm && (
+            <OrderPickupForm
+              flavorSets={flavorSets}
+              flavors={flavors}
+              existingOrder={editingOrder}
+              existingItems={editingOrder ? pickupItems.filter((pi) => pi.order_id === editingOrder.id) : []}
+              onSaved={handleOrderSaved}
+              onCancel={() => { setShowOrderForm(false); setEditingOrder(null); }}
+            />
           )}
 
           {pickups.length === 0 ? (
@@ -522,26 +532,61 @@ export default function Inventory() {
             <div className="space-y-3">
               {pickups.map((p) => {
                 const isSpecial = specialOrderNames.has((p.vendor_name || "").trim().toLowerCase());
+                const orderItems = pickupItems.filter((pi) => pi.order_id === p.id);
+                // Support legacy orders with no items
+                const totalCases = orderItems.length > 0
+                  ? orderItems.reduce((sum, it) => sum + (it.cases || 0), 0)
+                  : (p.cases || 0);
                 return (
-                  <div key={p.id} className="bg-card rounded-2xl border border-border p-5 flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                        <Truck className="w-5 h-5 text-muted-foreground" />
+                  <div key={p.id} className="bg-card rounded-2xl border border-border p-5">
+                    <div className="flex items-start justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
+                          <Truck className="w-5 h-5 text-muted-foreground" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium flex items-center gap-2 flex-wrap">
+                            {isSpecial && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 bg-green-500" />}
+                            {p.vendor_name}
+                            {isSpecial && <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Special Order</span>}
+                            {p.is_priced && <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full font-medium">Priced</span>}
+                          </p>
+                          <p className="text-xs text-muted-foreground">{p.pickup_date} · {Math.round(totalCases)} cases total</p>
+                          {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}
+                          {/* Items breakdown */}
+                          {orderItems.length > 0 ? (
+                            <div className="mt-2 space-y-1">
+                              {orderItems.map((it) => {
+                                const fs = fsMap[it.flavorset_id];
+                                const fl = flMap[it.flavor_id];
+                                const label = it.item_type === "flavorset" ? (fs?.name || "Unknown") : (fl?.name || "Unknown");
+                                const color = it.item_type === "flavorset" ? fs?.color : fl?.color;
+                                return (
+                                  <p key={it.id} className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                    {color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: color }} />}
+                                    {label} · {it.pallets > 0 ? `${it.pallets} pal` : ""} {Math.round(it.cases || 0)} cases
+                                    {it.case_sell_price > 0 && <span className="text-primary font-medium">· ${it.case_sell_price}/case</span>}
+                                  </p>
+                                );
+                              })}
+                            </div>
+                          ) : p.flavorset_id ? (
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                              {fsMap[p.flavorset_id]?.color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[p.flavorset_id].color }} />}
+                              {fsMap[p.flavorset_id]?.name} · {p.pallets} pal · {Math.round(p.cases || 0)} cases
+                            </p>
+                          ) : null}
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-medium flex items-center gap-2">
-                          {isSpecial && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 bg-green-500" />}
-                          {p.vendor_name}
-                          {isSpecial && <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Special Order</span>}
-                        </p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1">
-                          {fsMap[p.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[p.flavorset_id].color }} />}
-                          {fsMap[p.flavorset_id]?.name || "Unknown"} · {p.pallets} pallet{p.pallets !== 1 ? "s" : ""} ({Math.round(p.cases)} cases) · {p.pickup_date}
-                        </p>
-                        {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}
+                      <div className="flex gap-1 flex-shrink-0">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCrudPw("edit-pickup", p)}>
+                          <Pencil className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => openCrudPw("delete-pickup", p)}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive flex-shrink-0" onClick={() => openCrudPw("delete-pickup", p)}><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 );
               })}
@@ -555,7 +600,9 @@ export default function Inventory() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
             <h3 className="font-heading font-semibold text-lg mb-1">
-              {crudPw.action === "add-pickup" ? "Record Pickup" : `Delete Pickup — ${crudPw.data?.vendor_name}`}
+              {crudPw.action === "add-pickup" ? "Record Order" :
+               crudPw.action === "edit-pickup" ? `Edit Order — ${crudPw.data?.vendor_name}` :
+               `Delete Order — ${crudPw.data?.vendor_name}`}
             </h3>
             <p className="text-sm text-muted-foreground mb-4">Enter the admin password to continue.</p>
             <input
@@ -570,7 +617,9 @@ export default function Inventory() {
             {crudPwError && <p className="text-xs text-destructive mb-2">{crudPwError}</p>}
             <div className="flex gap-2 justify-end">
               <Button variant="outline" size="sm" onClick={() => setCrudPw(null)}>Cancel</Button>
-              <Button size="sm" className={crudPw.action === "delete-pickup" ? "bg-red-600 hover:bg-red-700 text-white" : ""} onClick={confirmCrudPw}>Confirm</Button>
+              <Button size="sm" className={crudPw.action === "delete-pickup" ? "bg-red-600 hover:bg-red-700 text-white" : ""} onClick={confirmCrudPw}>
+                {crudPw.action === "delete-pickup" ? "Delete" : "Confirm"}
+              </Button>
             </div>
           </div>
         </div>
