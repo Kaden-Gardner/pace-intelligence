@@ -85,32 +85,40 @@ export default function TimeTracking() {
     if (!num) return;
     setTerminalSaving(true);
     setTerminalStatus(null);
-    const emp = employees.find((e) => e.employee_number === num);
-    if (!emp) {
-      setTerminalStatus({ type: "error", message: `No employee found with number #${num}.` });
-      setTerminalSaving(false);
-      return;
+    try {
+      const emp = employees.find((e) => e.employee_number === num);
+      if (!emp) {
+        setTerminalStatus({ type: "error", message: `No employee found with number #${num}.` });
+        setTerminalSaving(false);
+        return;
+      }
+      // Match by employee_id OR employee_number (in case employee_id wasn't stored)
+      const activeEmpEntry = entries.find((e) =>
+        (e.employee_id === emp.id || e.employee_number === emp.employee_number) &&
+        e.clock_in && !e.clock_out
+      );
+      if (activeEmpEntry) {
+        const clockOut = new Date().toISOString();
+        const total_hours = calcHours(activeEmpEntry.clock_in, clockOut);
+        await base44.entities.TimeEntry.update(activeEmpEntry.id, { clock_out: clockOut, total_hours });
+        setEntries((prev) => prev.map((e) => e.id === activeEmpEntry.id ? { ...e, clock_out: clockOut, total_hours } : e));
+        setTerminalStatus({ type: "success", message: `${emp.name} clocked out at ${format(new Date(), "h:mm a")}.` });
+      } else {
+        const now = new Date().toISOString();
+        const created = await base44.entities.TimeEntry.create({
+          employee_id: emp.id,
+          employee_name: emp.name,
+          employee_number: emp.employee_number,
+          clock_in: now,
+        });
+        setEntries((prev) => [created, ...prev]);
+        setTerminalStatus({ type: "success", message: `${emp.name} clocked in at ${format(new Date(), "h:mm a")}.` });
+      }
+      setTerminalEmpNum("");
+    } catch (err) {
+      console.error("Terminal clock-in error:", err);
+      setTerminalStatus({ type: "error", message: `Something went wrong: ${err.message || "Unknown error"}` });
     }
-    // Check if already clocked in (any open entry for this employee)
-    const activeEmpEntry = entries.find((e) => e.employee_id === emp.id && e.clock_in && !e.clock_out);
-    if (activeEmpEntry) {
-      const clockOut = new Date().toISOString();
-      const total_hours = calcHours(activeEmpEntry.clock_in, clockOut);
-      await base44.entities.TimeEntry.update(activeEmpEntry.id, { clock_out: clockOut, total_hours });
-      setEntries((prev) => prev.map((e) => e.id === activeEmpEntry.id ? { ...e, clock_out: clockOut, total_hours } : e));
-      setTerminalStatus({ type: "success", message: `${emp.name} clocked out at ${format(new Date(), "h:mm a")}.` });
-    } else {
-      const now = new Date().toISOString();
-      const created = await base44.entities.TimeEntry.create({
-        employee_id: emp.id,
-        employee_name: emp.name,
-        employee_number: emp.employee_number,
-        clock_in: now,
-      });
-      setEntries((prev) => [created, ...prev]);
-      setTerminalStatus({ type: "success", message: `${emp.name} clocked in at ${format(new Date(), "h:mm a")}.` });
-    }
-    setTerminalEmpNum("");
     setTerminalSaving(false);
   }
 
