@@ -73,7 +73,48 @@ export default function TimeTracking() {
   }
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deletePassword, setDeletePassword] = useState("");
-  const [deleteError, setDeleteError] = useState(false); // "my" | "all"
+  const [deleteError, setDeleteError] = useState(false);
+
+  // Admin terminal state
+  const [terminalEmpNum, setTerminalEmpNum] = useState("");
+  const [terminalStatus, setTerminalStatus] = useState(null); // { type: "success"|"error", message }
+  const [terminalSaving, setTerminalSaving] = useState(false);
+
+  async function handleTerminalClockIn() {
+    const num = terminalEmpNum.trim();
+    if (!num) return;
+    setTerminalSaving(true);
+    setTerminalStatus(null);
+    const emp = employees.find((e) => e.employee_number === num);
+    if (!emp) {
+      setTerminalStatus({ type: "error", message: `No employee found with number #${num}.` });
+      setTerminalSaving(false);
+      return;
+    }
+    // Check if already clocked in (any open entry for this employee)
+    const activeEmpEntry = entries.find((e) => e.employee_id === emp.id && e.clock_in && !e.clock_out);
+    if (activeEmpEntry) {
+      // Clock them out
+      const clockOut = new Date().toISOString();
+      const total_hours = calcHours(activeEmpEntry.clock_in, clockOut);
+      await base44.entities.TimeEntry.update(activeEmpEntry.id, { clock_out: clockOut, total_hours });
+      setEntries((prev) => prev.map((e) => e.id === activeEmpEntry.id ? { ...e, clock_out: clockOut, total_hours } : e));
+      setTerminalStatus({ type: "success", message: `${emp.name} clocked out at ${format(new Date(), "h:mm a")}.` });
+    } else {
+      // Clock them in
+      const now = new Date().toISOString();
+      const created = await base44.entities.TimeEntry.create({
+        employee_id: emp.id,
+        employee_name: emp.name,
+        employee_number: emp.employee_number,
+        clock_in: now,
+      });
+      setEntries((prev) => [created, ...prev]);
+      setTerminalStatus({ type: "success", message: `${emp.name} clocked in at ${format(new Date(), "h:mm a")}.` });
+    }
+    setTerminalEmpNum("");
+    setTerminalSaving(false);
+  }
 
   useEffect(() => {
     async function load() {
@@ -290,6 +331,32 @@ export default function TimeTracking() {
               {v === "my" ? "My Hours" : "All Employees"}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Admin clock-in terminal */}
+      {isAdmin && (
+        <div className="bg-card rounded-2xl border border-border p-6 mb-6">
+          <h2 className="font-heading font-semibold mb-1">Clock-In Terminal</h2>
+          <p className="text-xs text-muted-foreground mb-4">Enter an employee number to clock them in or out.</p>
+          <div className="flex gap-2">
+            <Input
+              placeholder="Employee #"
+              value={terminalEmpNum}
+              onChange={(e) => { setTerminalEmpNum(e.target.value); setTerminalStatus(null); }}
+              onKeyDown={(e) => e.key === "Enter" && handleTerminalClockIn()}
+              className="max-w-[180px] font-mono"
+              disabled={terminalSaving}
+            />
+            <Button onClick={handleTerminalClockIn} disabled={terminalSaving || !terminalEmpNum.trim()} className="gap-2">
+              <Clock className="w-4 h-4" /> {terminalSaving ? "Processing..." : "Submit"}
+            </Button>
+          </div>
+          {terminalStatus && (
+            <p className={`text-sm mt-3 font-medium ${terminalStatus.type === "success" ? "text-green-600" : "text-destructive"}`}>
+              {terminalStatus.message}
+            </p>
+          )}
         </div>
       )}
 
