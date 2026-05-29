@@ -82,12 +82,14 @@ export default function Financials() {
   const [pwError, setPwError] = useState("");
 
   const [orders, setOrders] = useState([]);
+  const [orderItems, setOrderItems] = useState([]); // all OrderPickupItem records
   const [employees, setEmployees] = useState([]);
   const [rates, setRates] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [baseMixShifts, setBaseMixShifts] = useState([]);
   const [timeEntries, setTimeEntries] = useState([]);
   const [flavorSets, setFlavorSets] = useState([]);
+  const [flavors, setFlavors] = useState([]);
   const [supplyPrices, setSupplyPrices] = useState([]);
   const [baseMixDefaults, setBaseMixDefaults] = useState([]);
   const [matDefaults, setMatDefaults] = useState([]);
@@ -103,8 +105,8 @@ export default function Financials() {
   const [editingRateId, setEditingRateId] = useState(null);
   const [editRateVal, setEditRateVal] = useState("");
 
-  // Orders UI state
-  const [pricingId, setPricingId] = useState(null);
+  // Orders UI state — per item pricing
+  const [pricingItemId, setPricingItemId] = useState(null);
   const [priceInput, setPriceInput] = useState("");
 
   // Analytics period
@@ -120,14 +122,16 @@ export default function Financials() {
 
   async function loadData() {
     setLoading(true);
-    const [ord, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, baginv, fp] = await Promise.all([
+    const [ord, oi, emps, rt, sh, bms, te, fs, fl, sp, bmd, mdef, jdef, baginv, fp] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
+      base44.entities.OrderPickupItem.list(),
       base44.entities.Employee.list("name"),
       base44.entities.EmployeeRate.list(),
       base44.entities.Shift.list("-shift_date", 500),
       base44.entities.BaseMixingShift.list("-shift_date", 500),
       base44.entities.TimeEntry.list("-clock_in", 2000),
       base44.entities.FlavorSet.list("name"),
+      base44.entities.Flavor.list("name"),
       base44.entities.SupplyPrice.list(),
       base44.entities.BaseMixDefaults.list(),
       base44.entities.MaterialDefaults.list(),
@@ -136,12 +140,14 @@ export default function Financials() {
       base44.entities.FlavorPrice.list(),
     ]);
     setOrders(ord);
+    setOrderItems(oi);
     setEmployees(emps);
     setRates(rt);
     setShifts(sh);
     setBaseMixShifts(bms);
     setTimeEntries(te);
     setFlavorSets(fs);
+    setFlavors(fl);
     setSupplyPrices(sp);
     setBaseMixDefaults(bmd);
     setMatDefaults(mdef);
@@ -193,21 +199,42 @@ export default function Financials() {
 
   const fsMap = {};
   flavorSets.forEach((fs) => { fsMap[fs.id] = fs; });
+  const flMap = {};
+  flavors.forEach((f) => { flMap[f.id] = f; });
   const empMap = {};
   employees.forEach((e) => { empMap[e.id] = e; });
   const rateMap = {};
   rates.forEach((r) => { rateMap[r.employee_id] = r; });
 
-  const newOrders = orders.filter((o) => !o.is_priced);
-  const prevOrders = orders.filter((o) => o.is_priced);
+  // Build items-per-order map
+  const itemsByOrder = {};
+  orderItems.forEach((item) => {
+    if (!itemsByOrder[item.order_id]) itemsByOrder[item.order_id] = [];
+    itemsByOrder[item.order_id].push(item);
+  });
 
-  async function handlePriceOrder(order) {
+  // An order is "new" if any of its items are unpriced
+  const newOrders = orders.filter((o) => {
+    const items = itemsByOrder[o.id] || [];
+    return items.length === 0 ? !o.is_priced : items.some((i) => !i.is_priced);
+  });
+  const prevOrders = orders.filter((o) => {
+    const items = itemsByOrder[o.id] || [];
+    return items.length > 0 && items.every((i) => i.is_priced);
+  });
+
+  async function handlePriceItem(item) {
     const price = parseFloat(priceInput);
     if (!price || price <= 0) return;
-    const totalRevenue = price * Math.round(order.cases || 0);
-    await base44.entities.OrderPickup.update(order.id, { case_sell_price: price, is_priced: true });
-    setOrders((prev) => prev.map((o) => o.id === order.id ? { ...o, case_sell_price: price, is_priced: true } : o));
-    setPricingId(null);
+    await base44.entities.OrderPickupItem.update(item.id, { case_sell_price: price, is_priced: true });
+    setOrderItems((prev) => prev.map((i) => i.id === item.id ? { ...i, case_sell_price: price, is_priced: true } : i));
+    // Check if all items for this order are now priced
+    const allItems = orderItems.map((i) => i.id === item.id ? { ...i, is_priced: true } : i).filter((i) => i.order_id === item.order_id);
+    if (allItems.every((i) => i.is_priced)) {
+      await base44.entities.OrderPickup.update(item.order_id, { is_priced: true });
+      setOrders((prev) => prev.map((o) => o.id === item.order_id ? { ...o, is_priced: true } : o));
+    }
+    setPricingItemId(null);
     setPriceInput("");
   }
 
@@ -523,8 +550,14 @@ export default function Financials() {
   const avgShiftCost = totalShiftCount > 0 ? totalShiftCost / totalShiftCount : 0;
   const totalCasesProduced = analyticsShifts.reduce((sum, s) => sum + getTotalCases(s), 0);
   const avgCostPerCase = totalCasesProduced > 0 ? totalShiftCost / totalCasesProduced : 0;
-  const totalRevenue = filteredOrders.reduce((sum, o) => sum + ((o.case_sell_price || 0) * Math.round(o.cases || 0)), 0);
-  const totalCasesSold = filteredOrders.reduce((sum, o) => sum + Math.round(o.cases || 0), 0);
+  const totalRevenue = filteredOrders.reduce((sum, o) => {
+    const items = itemsByOrder[o.id] || [];
+    return sum + items.reduce((s, i) => s + (i.case_sell_price || 0) * (i.cases || 0), 0);
+  }, 0);
+  const totalCasesSold = filteredOrders.reduce((sum, o) => {
+    const items = itemsByOrder[o.id] || [];
+    return sum + items.reduce((s, i) => s + (i.cases || 0), 0);
+  }, 0);
 
   // Avg cases/hour across filtered production shifts
   const totalProductionHours = analyticsShifts.reduce((sum, s) => sum + (s.shift_duration || 0), 0);
@@ -564,54 +597,59 @@ export default function Financials() {
 
         {/* ===== NEW ORDERS ===== */}
         <TabsContent value="new-orders">
-          <p className="text-sm text-muted-foreground mb-4">Orders awaiting a sell price. Click an order to enter the price per case.</p>
+          <p className="text-sm text-muted-foreground mb-4">Orders awaiting a sell price. Set the price per case for each item.</p>
           {newOrders.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Package className="w-10 h-10 mx-auto mb-3 opacity-30" />
               <p>No new orders — all orders have been priced.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {newOrders.map((o) => (
-                <div key={o.id} className="bg-card rounded-2xl border border-border p-5">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <p className="font-heading font-semibold">{o.vendor_name}</p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        {fsMap[o.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[o.flavorset_id].color }} />}
-                        {fsMap[o.flavorset_id]?.name || "?"} · {o.pallets} pallets · {Math.round(o.cases)} cases · {o.pickup_date}
-                      </p>
-                      {o.notes && <p className="text-xs text-muted-foreground mt-0.5">{o.notes}</p>}
+            <div className="space-y-4">
+              {newOrders.map((o) => {
+                const items = itemsByOrder[o.id] || [];
+                return (
+                  <div key={o.id} className="bg-card rounded-2xl border border-border p-5">
+                    <p className="font-heading font-semibold">{o.vendor_name}</p>
+                    <p className="text-xs text-muted-foreground mb-3">{o.pickup_date}{o.notes ? ` · ${o.notes}` : ""}</p>
+                    <div className="space-y-2">
+                      {items.map((item) => {
+                        const label = item.flavorset_id
+                          ? `${fsMap[item.flavorset_id]?.name || "?"} · ${item.pallets > 0 ? `${item.pallets} pal / ` : ""}${item.cases} cases`
+                          : `${flMap[item.flavor_id]?.name || "?"} · ${item.cases} cases (individual)`;
+                        return (
+                          <div key={item.id} className={`flex items-center justify-between gap-3 flex-wrap rounded-xl px-3 py-2 border ${item.is_priced ? "bg-muted/40 border-border" : "bg-amber-50 border-amber-200"}`}>
+                            <div className="flex items-center gap-2">
+                              {item.flavorset_id && fsMap[item.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: fsMap[item.flavorset_id].color }} />}
+                              <span className="text-sm">{label}</span>
+                              {item.is_priced && <span className="text-xs text-green-600 font-medium">✓ ${item.case_sell_price?.toFixed(2)}/case</span>}
+                            </div>
+                            {!item.is_priced && (
+                              pricingItemId === item.id ? (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                    <Input type="number" min="0" step="0.01" placeholder="0.00" value={priceInput}
+                                      onChange={(e) => setPriceInput(e.target.value)} className="pl-7 w-28" autoFocus
+                                      onKeyDown={(e) => e.key === "Enter" && handlePriceItem(item)} />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">per case</span>
+                                  {priceInput && <span className="text-xs font-medium text-primary">= ${(parseFloat(priceInput) * (item.cases || 0)).toFixed(2)}</span>}
+                                  <Button size="sm" onClick={() => handlePriceItem(item)} className="gap-1"><Check className="w-3 h-3" /> Save</Button>
+                                  <Button size="sm" variant="ghost" onClick={() => { setPricingItemId(null); setPriceInput(""); }}><X className="w-3 h-3" /></Button>
+                                </div>
+                              ) : (
+                                <Button size="sm" variant="outline" className="gap-1 text-xs" onClick={() => { setPricingItemId(item.id); setPriceInput(""); }}>
+                                  <DollarSign className="w-3 h-3" /> Set Price
+                                </Button>
+                              )
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
-                    {pricingId === o.id ? (
-                      <div className="flex items-center gap-2">
-                        <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="0.00"
-                            value={priceInput}
-                            onChange={(e) => setPriceInput(e.target.value)}
-                            className="pl-7 w-32"
-                            autoFocus
-                            onKeyDown={(e) => e.key === "Enter" && handlePriceOrder(o)}
-                          />
-                        </div>
-                        <span className="text-xs text-muted-foreground">per case</span>
-                        {priceInput && <span className="text-xs font-medium text-primary">= ${(parseFloat(priceInput) * Math.round(o.cases || 0)).toFixed(2)} total</span>}
-                        <Button size="sm" onClick={() => handlePriceOrder(o)} className="gap-1"><Check className="w-3 h-3" /> Save</Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setPricingId(null); setPriceInput(""); }}><X className="w-3 h-3" /></Button>
-                      </div>
-                    ) : (
-                      <Button size="sm" className="gap-2" onClick={() => { setPricingId(o.id); setPriceInput(""); }}>
-                        <DollarSign className="w-4 h-4" /> Set Price
-                      </Button>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </TabsContent>
@@ -625,28 +663,47 @@ export default function Financials() {
             </div>
           ) : (
             <div className="space-y-3">
-              {prevOrders.map((o) => (
-                <div key={o.id} className="bg-card rounded-2xl border border-border p-5">
-                  <div className="flex items-center justify-between gap-4 flex-wrap">
-                    <div>
-                      <p className="font-heading font-semibold">{o.vendor_name}</p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1">
-                        {fsMap[o.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[o.flavorset_id].color }} />}
-                        {fsMap[o.flavorset_id]?.name || "?"} · {o.pallets} pallets · {Math.round(o.cases)} cases · {o.pickup_date}
-                      </p>
-                      {o.notes && <p className="text-xs text-muted-foreground mt-0.5">{o.notes}</p>}
+              {prevOrders.map((o) => {
+                const items = itemsByOrder[o.id] || [];
+                const orderRevenue = items.reduce((sum, i) => sum + (i.case_sell_price || 0) * (i.cases || 0), 0);
+                const totalCases = items.reduce((sum, i) => sum + (i.cases || 0), 0);
+                return (
+                  <div key={o.id} className="bg-card rounded-2xl border border-border p-5">
+                    <div className="flex items-start justify-between gap-4 flex-wrap mb-2">
+                      <div>
+                        <p className="font-heading font-semibold">{o.vendor_name}</p>
+                        <p className="text-xs text-muted-foreground">{o.pickup_date} · {items.length} item{items.length !== 1 ? "s" : ""} · {totalCases} cases{o.notes ? ` · ${o.notes}` : ""}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-heading font-bold text-primary text-lg">{fmt$(orderRevenue)}</p>
+                        <p className="text-xs text-muted-foreground">total revenue</p>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-sm text-muted-foreground">{fmt$(o.case_sell_price)}/case</p>
-                      <p className="font-heading font-bold text-primary text-lg">{fmt$(o.case_sell_price * Math.round(o.cases))}</p>
-                      <p className="text-xs text-muted-foreground">{Math.round(o.cases)} cases</p>
+                    <div className="space-y-1">
+                      {items.map((item) => {
+                        const label = item.flavorset_id
+                          ? `${fsMap[item.flavorset_id]?.name || "?"} · ${item.pallets > 0 ? `${item.pallets} pal / ` : ""}${item.cases} cases`
+                          : `${flMap[item.flavor_id]?.name || "?"} · ${item.cases} cases (individual)`;
+                        return (
+                          <div key={item.id} className="flex items-center justify-between text-xs text-muted-foreground">
+                            <span className="flex items-center gap-1.5">
+                              {item.flavorset_id && fsMap[item.flavorset_id]?.color && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: fsMap[item.flavorset_id].color }} />}
+                              {label}
+                            </span>
+                            <span className="font-medium text-foreground">{fmt$(item.case_sell_price)}/case = {fmt$((item.case_sell_price || 0) * (item.cases || 0))}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               <div className="bg-muted rounded-2xl p-4 flex justify-between items-center">
                 <p className="font-medium">Total Revenue (all time)</p>
-                <p className="font-heading font-bold text-xl text-primary">{fmt$(prevOrders.reduce((sum, o) => sum + (o.case_sell_price || 0) * Math.round(o.cases || 0), 0))}</p>
+                <p className="font-heading font-bold text-xl text-primary">{fmt$(prevOrders.reduce((sum, o) => {
+                  const items = itemsByOrder[o.id] || [];
+                  return sum + items.reduce((s, i) => s + (i.case_sell_price || 0) * (i.cases || 0), 0);
+                }, 0))}</p>
               </div>
             </div>
           )}
@@ -740,10 +797,10 @@ export default function Financials() {
                 const totalCost = laborCost + supplyCost;
                 const cases = isBaseMix ? null : getTotalCases(shift);
 
-                // Predicted revenue: avg case sell price * cases produced
-                const pricedOrders = orders.filter((o) => o.is_priced && o.case_sell_price > 0);
-                const avgCasePrice = pricedOrders.length > 0
-                  ? pricedOrders.reduce((sum, o) => sum + o.case_sell_price, 0) / pricedOrders.length
+                // Predicted revenue: avg case sell price across all priced items
+                const allPricedItems = orderItems.filter((i) => i.is_priced && i.case_sell_price > 0);
+                const avgCasePrice = allPricedItems.length > 0
+                  ? allPricedItems.reduce((sum, i) => sum + i.case_sell_price, 0) / allPricedItems.length
                   : null;
                 const predictedRevenue = (!isBaseMix && cases > 0 && avgCasePrice) ? avgCasePrice * cases : null;
                 const profitRatio = (predictedRevenue && totalCost > 0) ? predictedRevenue / totalCost : null;
@@ -1021,10 +1078,14 @@ export default function Financials() {
             const last8Orders = [...filteredOrders]
               .sort((a, b) => a.pickup_date.localeCompare(b.pickup_date))
               .slice(-8)
-              .map((o) => ({
-                label: `${o.vendor_name?.slice(0, 10)}… ${o.pickup_date?.slice(5)}`,
-                revenue: parseFloat(((o.case_sell_price || 0) * Math.round(o.cases || 0)).toFixed(2)),
-              }));
+              .map((o) => {
+                const items = itemsByOrder[o.id] || [];
+                const revenue = items.reduce((s, i) => s + (i.case_sell_price || 0) * (i.cases || 0), 0);
+                return {
+                  label: `${o.vendor_name?.slice(0, 10)} ${o.pickup_date?.slice(5)}`,
+                  revenue: parseFloat(revenue.toFixed(2)),
+                };
+              });
 
             return (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

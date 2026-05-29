@@ -1,29 +1,42 @@
 {
-  "name": "OrderPickup",
+  "name": "OrderPickupItem",
   "type": "object",
   "properties": {
-    "vendor_name": {
+    "order_id": {
       "type": "string",
-      "title": "Vendor Name"
+      "title": "Order ID"
     },
-    "pickup_date": {
+    "flavorset_id": {
       "type": "string",
-      "format": "date",
-      "title": "Pickup Date"
+      "title": "Flavorset (for pallet/case sets)"
     },
-    "notes": {
+    "flavor_id": {
       "type": "string",
-      "title": "Notes"
+      "title": "Flavor (for individual cases)"
+    },
+    "pallets": {
+      "type": "number",
+      "title": "Pallets",
+      "default": 0
+    },
+    "cases": {
+      "type": "number",
+      "title": "Cases",
+      "default": 0
+    },
+    "case_sell_price": {
+      "type": "number",
+      "title": "Case Sell Price ($)",
+      "default": 0
     },
     "is_priced": {
       "type": "boolean",
-      "title": "All Items Priced",
+      "title": "Has Been Priced",
       "default": false
     }
   },
   "required": [
-    "vendor_name",
-    "pickup_date"
+    "order_id"
   ],
   "rls": {
     "create": {
