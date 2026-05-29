@@ -15,7 +15,7 @@ import Shifts from './pages/Shifts';
 import ShiftForm from './pages/ShiftForm';
 import Employees from './pages/Employees';
 import Flavors from './pages/Flavors';
-import Inventory from './pages/Inventory';
+import Inventory from './pages/Inventory.jsx';
 import BaseMixingShiftForm from './pages/BaseMixingShiftForm';
 import Availability from './pages/Availability';
 import Schedule from './pages/Schedule';
