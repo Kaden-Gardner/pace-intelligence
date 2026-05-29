@@ -22,8 +22,7 @@ export default function Inventory() {
   const [flavorSets, setFlavorSets] = useState([]);
   const [flavors, setFlavors] = useState([]);
   const [inventory, setInventory] = useState([]);
-  const [pickups, setPickups] = useState([]); // each has _items array
-  const [pickupItemsMap, setPickupItemsMap] = useState({}); // orderId -> items[]
+  const [pickups, setPickups] = useState([]);
   const [scheduledShifts, setScheduledShifts] = useState([]);
   const [baseInventory, setBaseInventory] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,9 +38,7 @@ export default function Inventory() {
 
   // Pickup form
   const [showPickupForm, setShowPickupForm] = useState(false);
-  const [pickupForm, setPickupForm] = useState({ vendor_name: "", pickup_date: new Date().toISOString().split("T")[0], notes: "" });
-  const [pickupItems, setPickupItems] = useState([]); // [{type:"flavorset"|"individual", flavorset_id, flavor_id, pallets, cases}]
-  const [newItem, setNewItem] = useState({ type: "flavorset", flavorset_id: "", flavor_id: "", pallets: "", cases: "" });
+  const [pickupForm, setPickupForm] = useState({ vendor_name: "", flavorset_id: "", pallets: 1, pickup_date: new Date().toISOString().split("T")[0], notes: "" });
 
   // Password gate for pickup CRUD
   const [crudPw, setCrudPw] = useState(null); // { action, data }
@@ -74,25 +71,17 @@ export default function Inventory() {
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [fs, fl, inv, pk, bi, ss, allItems] = await Promise.all([
+    const [fs, fl, inv, pk, bi, ss] = await Promise.all([
       base44.entities.FlavorSet.list("name").catch(() => []),
       base44.entities.Flavor.list("name").catch(() => []),
       base44.entities.Inventory.list().catch(() => []),
       base44.entities.OrderPickup.list("-pickup_date", 100).catch(() => []),
       base44.entities.BaseInventory.list().catch(() => []),
       base44.entities.ScheduledShift.list("-shift_date", 200).catch(() => []),
-      base44.entities.OrderPickupItem.list().catch(() => []),
     ]);
     setFlavorSets(fs);
     setFlavors(fl);
     setInventory(inv);
-    // Build items map
-    const imap = {};
-    allItems.forEach((item) => {
-      if (!imap[item.order_id]) imap[item.order_id] = [];
-      imap[item.order_id].push(item);
-    });
-    setPickupItemsMap(imap);
     setPickups(pk);
     setBaseInventory(bi);
     setScheduledShifts(ss);
@@ -153,85 +142,34 @@ export default function Inventory() {
   }
 
   // ---- PICKUP HELPERS ----
-  function addPickupItem() {
-    const item = { ...newItem };
-    if (item.type === "flavorset") {
-      if (!item.flavorset_id) return;
-      const pallets = parseFloat(item.pallets) || 0;
-      const cases = pallets > 0 ? Math.round(pallets * CASES_PER_PALLET) : parseFloat(item.cases) || 0;
-      setPickupItems((prev) => [...prev, { type: "flavorset", flavorset_id: item.flavorset_id, flavor_id: null, pallets, cases }]);
-    } else {
-      if (!item.flavor_id) return;
-      const cases = parseFloat(item.cases) || 0;
-      setPickupItems((prev) => [...prev, { type: "individual", flavorset_id: null, flavor_id: item.flavor_id, pallets: 0, cases }]);
-    }
-    setNewItem({ type: newItem.type, flavorset_id: "", flavor_id: "", pallets: "", cases: "" });
-  }
-
   async function savePickup(e) {
     e.preventDefault();
-    if (pickupItems.length === 0) return;
     setSaving(true);
-    const created = await base44.entities.OrderPickup.create({ ...pickupForm });
-    // Create each item and deduct inventory
-    const itemRecords = await Promise.all(pickupItems.map((item) =>
-      base44.entities.OrderPickupItem.create({ order_id: created.id, ...item })
-    ));
-    setPickups((prev) => [{ ...created, _items: itemRecords }, ...prev]);
-
-    // Deduct inventory for each item
-    let updatedInv = [...inventory];
-    for (const item of pickupItems) {
-      if (item.type === "flavorset" && item.flavorset_id) {
-        const idx = updatedInv.findIndex((i) => i.flavorset_id === item.flavorset_id && !i.flavor_id);
-        if (idx >= 0) {
-          const newCases = Math.max(0, (updatedInv[idx].cases || 0) - item.cases);
-          await base44.entities.Inventory.update(updatedInv[idx].id, { cases: newCases });
-          updatedInv[idx] = { ...updatedInv[idx], cases: newCases };
-        }
-      } else if (item.type === "individual" && item.flavor_id) {
-        const idx = updatedInv.findIndex((i) => i.flavor_id === item.flavor_id && !i.flavorset_id);
-        if (idx >= 0) {
-          const newCases = Math.max(0, (updatedInv[idx].cases || 0) - item.cases);
-          await base44.entities.Inventory.update(updatedInv[idx].id, { cases: newCases });
-          updatedInv[idx] = { ...updatedInv[idx], cases: newCases };
-        }
-      }
+    const pickupCases = Math.round(pickupForm.pallets * CASES_PER_PALLET);
+    const created = await base44.entities.OrderPickup.create({ ...pickupForm, pallets: Number(pickupForm.pallets), cases: pickupCases });
+    setPickups((prev) => [created, ...prev]);
+    // Deduct from inventory
+    const invRecord = inventory.find((i) => i.flavorset_id === pickupForm.flavorset_id && !i.flavor_id);
+    if (invRecord) {
+      const newCases = Math.max(0, (invRecord.cases || 0) - pickupCases);
+      await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
+      setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
     }
-    setInventory(updatedInv);
-    setPickupForm({ vendor_name: "", pickup_date: new Date().toISOString().split("T")[0], notes: "" });
-    setPickupItems([]);
-    setNewItem({ type: "flavorset", flavorset_id: "", flavor_id: "", pallets: "", cases: "" });
+    setPickupForm({ vendor_name: "", flavorset_id: "", pallets: 1, pickup_date: new Date().toISOString().split("T")[0], notes: "" });
     setShowPickupForm(false);
     setSaving(false);
   }
 
   async function deletePickup(pickup) {
-    // Get items to restore inventory
-    const items = await base44.entities.OrderPickupItem.filter({ order_id: pickup.id });
     await base44.entities.OrderPickup.delete(pickup.id);
-    await Promise.all(items.map((item) => base44.entities.OrderPickupItem.delete(item.id)));
     setPickups((prev) => prev.filter((p) => p.id !== pickup.id));
-    // Restore inventory
-    let updatedInv = [...inventory];
-    for (const item of items) {
-      if (item.flavorset_id) {
-        const idx = updatedInv.findIndex((i) => i.flavorset_id === item.flavorset_id && !i.flavor_id);
-        if (idx >= 0) {
-          const newCases = (updatedInv[idx].cases || 0) + (item.cases || 0);
-          await base44.entities.Inventory.update(updatedInv[idx].id, { cases: newCases });
-          updatedInv[idx] = { ...updatedInv[idx], cases: newCases };
-        }
-      } else if (item.flavor_id) {
-        const idx = updatedInv.findIndex((i) => i.flavor_id === item.flavor_id && !i.flavorset_id);
-        if (idx >= 0) {
-          const newCases = (updatedInv[idx].cases || 0) + (item.cases || 0);
-          await base44.entities.Inventory.update(updatedInv[idx].id, { cases: newCases });
-          updatedInv[idx] = { ...updatedInv[idx], cases: newCases };
-        }
-      }
+    // Restore cases to inventory
+    const invRecord = inventory.find((i) => i.flavorset_id === pickup.flavorset_id && !i.flavor_id);
+    if (invRecord) {
+      const newCases = (invRecord.cases || 0) + (pickup.cases || 0);
+      await base44.entities.Inventory.update(invRecord.id, { cases: newCases });
+      setInventory((prev) => prev.map((i) => (i.id === invRecord.id ? { ...i, cases: newCases } : i)));
     }
-    setInventory(updatedInv);
   }
 
   if (loading) {
@@ -545,94 +483,34 @@ export default function Inventory() {
           {showPickupForm && (
             <div className="bg-card rounded-2xl border border-border p-6 mb-6">
               <h3 className="font-heading font-semibold mb-4">Record Order Pickup</h3>
-              <form onSubmit={savePickup}>
-                {/* Order header */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Vendor Name</label>
-                    <Input value={pickupForm.vendor_name} onChange={(e) => setPickupForm({ ...pickupForm, vendor_name: e.target.value })} placeholder="Vendor Co." required />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Pickup Date</label>
-                    <Input type="date" value={pickupForm.pickup_date} onChange={(e) => setPickupForm({ ...pickupForm, pickup_date: e.target.value })} required />
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes (optional)</label>
-                    <Textarea value={pickupForm.notes} onChange={(e) => setPickupForm({ ...pickupForm, notes: e.target.value })} rows={2} />
-                  </div>
+              <form onSubmit={savePickup} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Vendor Name</label>
+                  <Input value={pickupForm.vendor_name} onChange={(e) => setPickupForm({ ...pickupForm, vendor_name: e.target.value })} placeholder="Vendor Co." required />
                 </div>
-
-                {/* Items */}
-                <div className="mb-4">
-                  <p className="text-sm font-medium mb-2">Order Items</p>
-                  {pickupItems.length > 0 && (
-                    <div className="space-y-2 mb-3">
-                      {pickupItems.map((item, idx) => {
-                        const label = item.type === "flavorset"
-                          ? `${fsMap[item.flavorset_id]?.name || "?"} — ${item.pallets > 0 ? `${item.pallets} pal / ` : ""}${item.cases} cases`
-                          : `${flMap[item.flavor_id]?.name || "?"} — ${item.cases} cases (individual)`;
-                        return (
-                          <div key={idx} className="flex items-center justify-between bg-muted rounded-xl px-3 py-2 text-sm">
-                            <span>{label}</span>
-                            <button type="button" onClick={() => setPickupItems((prev) => prev.filter((_, i) => i !== idx))} className="text-destructive hover:opacity-70 ml-2"><X className="w-3.5 h-3.5" /></button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Add item row */}
-                  <div className="bg-muted/50 rounded-xl border border-border p-3">
-                    <p className="text-xs font-medium text-muted-foreground mb-2">Add Item</p>
-                    <div className="flex gap-2 mb-2">
-                      <button type="button" onClick={() => setNewItem({ ...newItem, type: "flavorset", flavor_id: "" })} className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${newItem.type === "flavorset" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>Flavorset</button>
-                      <button type="button" onClick={() => setNewItem({ ...newItem, type: "individual", flavorset_id: "" })} className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${newItem.type === "individual" ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>Individual Flavor</button>
-                    </div>
-                    <div className="flex flex-wrap gap-2 items-end">
-                      {newItem.type === "flavorset" ? (
-                        <>
-                          <div className="flex-1 min-w-[140px]">
-                            <label className="text-xs text-muted-foreground mb-1 block">Flavorset</label>
-                            <Select value={newItem.flavorset_id} onValueChange={(v) => setNewItem({ ...newItem, flavorset_id: v })}>
-                              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
-                              <SelectContent>{flavorSets.map((fs) => <SelectItem key={fs.id} value={fs.id}>{fs.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                          </div>
-                          <div className="w-24">
-                            <label className="text-xs text-muted-foreground mb-1 block">Pallets</label>
-                            <Input type="number" min="0" step="any" value={newItem.pallets} onChange={(e) => setNewItem({ ...newItem, pallets: e.target.value })} className="h-8 text-xs" placeholder="0" />
-                          </div>
-                          <div className="w-24">
-                            <label className="text-xs text-muted-foreground mb-1 block">Cases</label>
-                            <Input type="number" min="0" value={newItem.cases} onChange={(e) => setNewItem({ ...newItem, cases: e.target.value })} className="h-8 text-xs" placeholder="auto" />
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex-1 min-w-[140px]">
-                            <label className="text-xs text-muted-foreground mb-1 block">Flavor</label>
-                            <Select value={newItem.flavor_id} onValueChange={(v) => setNewItem({ ...newItem, flavor_id: v })}>
-                              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select..." /></SelectTrigger>
-                              <SelectContent>{flavors.map((f) => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
-                            </Select>
-                          </div>
-                          <div className="w-24">
-                            <label className="text-xs text-muted-foreground mb-1 block">Cases</label>
-                            <Input type="number" min="0" value={newItem.cases} onChange={(e) => setNewItem({ ...newItem, cases: e.target.value })} className="h-8 text-xs" placeholder="0" />
-                          </div>
-                        </>
-                      )}
-                      <Button type="button" size="sm" variant="outline" className="h-8 gap-1" onClick={addPickupItem}><Plus className="w-3 h-3" /> Add</Button>
-                    </div>
-                    {newItem.type === "flavorset" && parseFloat(newItem.pallets) > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">= {Math.round(parseFloat(newItem.pallets) * CASES_PER_PALLET)} cases auto-calculated</p>
-                    )}
-                  </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Pickup Date</label>
+                  <Input type="date" value={pickupForm.pickup_date} onChange={(e) => setPickupForm({ ...pickupForm, pickup_date: e.target.value })} required />
                 </div>
-
-                <div className="flex gap-2">
-                  <Button type="submit" disabled={saving || pickupItems.length === 0} className="gap-2"><Check className="w-4 h-4" /> Save Order ({pickupItems.length} item{pickupItems.length !== 1 ? "s" : ""})</Button>
-                  <Button type="button" variant="ghost" onClick={() => { setShowPickupForm(false); setPickupItems([]); }}><X className="w-4 h-4" /></Button>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Flavorset</label>
+                  <Select value={pickupForm.flavorset_id} onValueChange={(v) => setPickupForm({ ...pickupForm, flavorset_id: v })}>
+                    <SelectTrigger><SelectValue placeholder="Select flavorset" /></SelectTrigger>
+                    <SelectContent>{flavorSets.map((fs) => <SelectItem key={fs.id} value={fs.id}>{fs.name}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Pallets ({CASES_PER_PALLET} cases each)</label>
+                  <Input type="number" min="0" step="any" value={pickupForm.pallets} onChange={(e) => setPickupForm({ ...pickupForm, pallets: parseFloat(e.target.value) || 0 })} required />
+                  {pickupForm.pallets > 0 && <p className="text-xs text-muted-foreground mt-1">= {Math.round(pickupForm.pallets * CASES_PER_PALLET)} cases</p>}
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes (optional)</label>
+                  <Textarea value={pickupForm.notes} onChange={(e) => setPickupForm({ ...pickupForm, notes: e.target.value })} rows={2} />
+                </div>
+                <div className="sm:col-span-2 flex gap-2">
+                  <Button type="submit" disabled={saving} className="gap-2"><Check className="w-4 h-4" /> Save Pickup</Button>
+                  <Button type="button" variant="ghost" onClick={() => setShowPickupForm(false)}><X className="w-4 h-4" /></Button>
                 </div>
               </form>
             </div>
@@ -644,42 +522,26 @@ export default function Inventory() {
             <div className="space-y-3">
               {pickups.map((p) => {
                 const isSpecial = specialOrderNames.has((p.vendor_name || "").trim().toLowerCase());
-                const items = pickupItemsMap[p.id] || [];
-                const totalCases = items.reduce((sum, i) => sum + (i.cases || 0), 0);
                 return (
-                  <div key={p.id} className="bg-card rounded-2xl border border-border p-5">
-                    <div className="flex items-center justify-between gap-4 mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center flex-shrink-0">
-                          <Truck className="w-4 h-4 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-medium flex items-center gap-2">
-                            {isSpecial && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 bg-green-500" />}
-                            {p.vendor_name}
-                            {isSpecial && <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Special Order</span>}
-                          </p>
-                          <p className="text-xs text-muted-foreground">{p.pickup_date} · {items.length} item{items.length !== 1 ? "s" : ""} · {totalCases} total cases</p>
-                        </div>
+                  <div key={p.id} className="bg-card rounded-2xl border border-border p-5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
+                        <Truck className="w-5 h-5 text-muted-foreground" />
                       </div>
-                      <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive flex-shrink-0" onClick={() => openCrudPw("delete-pickup", p)}><Trash2 className="w-4 h-4" /></Button>
+                      <div>
+                        <p className="font-medium flex items-center gap-2">
+                          {isSpecial && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0 bg-green-500" />}
+                          {p.vendor_name}
+                          {isSpecial && <span className="text-xs px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full font-medium">Special Order</span>}
+                        </p>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1">
+                          {fsMap[p.flavorset_id]?.color && <span className="w-2.5 h-2.5 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: fsMap[p.flavorset_id].color }} />}
+                          {fsMap[p.flavorset_id]?.name || "Unknown"} · {p.pallets} pallet{p.pallets !== 1 ? "s" : ""} ({Math.round(p.cases)} cases) · {p.pickup_date}
+                        </p>
+                        {p.notes && <p className="text-xs text-muted-foreground mt-0.5">{p.notes}</p>}
+                      </div>
                     </div>
-                    {items.length > 0 && (
-                      <div className="ml-12 space-y-1">
-                        {items.map((item) => {
-                          const label = item.flavorset_id
-                            ? `${fsMap[item.flavorset_id]?.name || "?"} · ${item.pallets > 0 ? `${item.pallets} pal / ` : ""}${item.cases} cases`
-                            : `${flMap[item.flavor_id]?.name || "?"} · ${item.cases} cases (individual)`;
-                          return (
-                            <p key={item.id} className="text-xs text-muted-foreground flex items-center gap-1.5">
-                              {item.flavorset_id && fsMap[item.flavorset_id]?.color && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: fsMap[item.flavorset_id].color }} />}
-                              {label}
-                            </p>
-                          );
-                        })}
-                      </div>
-                    )}
-                    {p.notes && <p className="text-xs text-muted-foreground mt-1 ml-12">{p.notes}</p>}
+                    <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive flex-shrink-0" onClick={() => openCrudPw("delete-pickup", p)}><Trash2 className="w-4 h-4" /></Button>
                   </div>
                 );
               })}

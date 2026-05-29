@@ -6,6 +6,18 @@
       "type": "string",
       "title": "Vendor Name"
     },
+    "flavorset_id": {
+      "type": "string",
+      "title": "Flavorset"
+    },
+    "pallets": {
+      "type": "number",
+      "title": "Pallets Picked Up"
+    },
+    "cases": {
+      "type": "number",
+      "title": "Cases Picked Up"
+    },
     "pickup_date": {
       "type": "string",
       "format": "date",
@@ -15,14 +27,20 @@
       "type": "string",
       "title": "Notes"
     },
+    "case_sell_price": {
+      "type": "number",
+      "title": "Case Sell Price ($)"
+    },
     "is_priced": {
       "type": "boolean",
-      "title": "All Items Priced",
+      "title": "Has Been Priced",
       "default": false
     }
   },
   "required": [
     "vendor_name",
+    "flavorset_id",
+    "pallets",
     "pickup_date"
   ],
   "rls": {
