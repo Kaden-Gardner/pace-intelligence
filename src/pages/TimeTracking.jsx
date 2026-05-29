@@ -60,7 +60,7 @@ export default function TimeTracking() {
   const [saving, setSaving] = useState(false);
   const [geoError, setGeoError] = useState(null);
   const [checkingGeo, setCheckingGeo] = useState(false);
-  const [adminView, setAdminView] = useState("my");
+  const [adminView, setAdminView] = useState("my"); // "my" | "all" | "terminal"
 
   const GEOFENCE = { lat: 40.856180, lng: -111.927465, radiusMeters: 27.4 }; // 30 yards
 
@@ -325,35 +325,36 @@ export default function TimeTracking() {
       {/* Admin tabs */}
       {isAdmin && (
         <div className="flex gap-2 mb-6">
-          {["my", "all"].map((v) => (
-            <button key={v} onClick={() => setAdminView(v)}
-              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminView === v ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
-              {v === "my" ? "My Hours" : "All Employees"}
+          {[{ key: "my", label: "My Hours" }, { key: "all", label: "All Employees" }, { key: "terminal", label: "Clock-In Terminal" }].map((v) => (
+            <button key={v.key} onClick={() => setAdminView(v.key)}
+              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${adminView === v.key ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+              {v.label}
             </button>
           ))}
         </div>
       )}
 
-      {/* Admin clock-in terminal */}
-      {isAdmin && (
-        <div className="bg-card rounded-2xl border border-border p-6 mb-6">
-          <h2 className="font-heading font-semibold mb-1">Clock-In Terminal</h2>
-          <p className="text-xs text-muted-foreground mb-4">Enter an employee number to clock them in or out.</p>
+      {/* Admin clock-in terminal tab */}
+      {isAdmin && adminView === "terminal" && (
+        <div className="bg-card rounded-2xl border border-border p-8 max-w-md">
+          <h2 className="font-heading font-semibold text-xl mb-1">Clock-In Terminal</h2>
+          <p className="text-sm text-muted-foreground mb-6">Enter an employee number to clock them in or out.</p>
           <div className="flex gap-2">
             <Input
               placeholder="Employee #"
               value={terminalEmpNum}
               onChange={(e) => { setTerminalEmpNum(e.target.value); setTerminalStatus(null); }}
               onKeyDown={(e) => e.key === "Enter" && handleTerminalClockIn()}
-              className="max-w-[180px] font-mono"
+              className="font-mono text-lg h-11"
               disabled={terminalSaving}
+              autoFocus
             />
-            <Button onClick={handleTerminalClockIn} disabled={terminalSaving || !terminalEmpNum.trim()} className="gap-2">
+            <Button onClick={handleTerminalClockIn} disabled={terminalSaving || !terminalEmpNum.trim()} className="gap-2 h-11 px-5">
               <Clock className="w-4 h-4" /> {terminalSaving ? "Processing..." : "Submit"}
             </Button>
           </div>
           {terminalStatus && (
-            <p className={`text-sm mt-3 font-medium ${terminalStatus.type === "success" ? "text-green-600" : "text-destructive"}`}>
+            <p className={`text-sm mt-4 font-medium ${terminalStatus.type === "success" ? "text-green-600" : "text-destructive"}`}>
               {terminalStatus.message}
             </p>
           )}
@@ -386,7 +387,7 @@ export default function TimeTracking() {
       )}
 
       {/* My/All entries */}
-      <div className="bg-card rounded-2xl border border-border p-6">
+      {adminView === "terminal" ? null : <div className="bg-card rounded-2xl border border-border p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-heading font-semibold">{displayLabel}</h2>
           {adminView === "my" && (
@@ -455,7 +456,7 @@ export default function TimeTracking() {
             ))}
           </div>
         )}
-      </div>
+      </div>}
       {/* Delete confirmation dialog */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
