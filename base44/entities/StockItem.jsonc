@@ -49,6 +49,12 @@
       "title": "Unit of Usage (calculation)",
       "description": "e.g. cups, oz, g \u2014 used in recipes and calculations"
     },
+    "conversion_factor": {
+      "type": "number",
+      "title": "Conversion Factor",
+      "description": "How many usage units are in one storage unit (e.g. 16 if storage=lb and usage=oz). Only needed when units differ.",
+      "default": 1
+    },
     "material_form": {
       "type": "string",
       "title": "Material Form",

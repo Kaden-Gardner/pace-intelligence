@@ -3,10 +3,44 @@ import { base44 } from "@/api/base44Client";
 import { Plus, Pencil, Trash2, Check, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
+const UNIT_OPTIONS = [
+  { value: "gal", label: "Gallons (gal)" },
+  { value: "qt", label: "Quarts (qt)" },
+  { value: "pt", label: "Pints (pt)" },
+  { value: "cup", label: "Cups" },
+  { value: "fl oz", label: "Fluid Ounces (fl oz)" },
+  { value: "tbsp", label: "Tablespoons (tbsp)" },
+  { value: "tsp", label: "Teaspoons (tsp)" },
+  { value: "lb", label: "Pounds (lb)" },
+  { value: "oz", label: "Ounces (oz)" },
+  { value: "g", label: "Grams (g)" },
+  { value: "kg", label: "Kilograms (kg)" },
+  { value: "ea", label: "Each (ea)" },
+  { value: "bag", label: "Bag" },
+  { value: "bucket", label: "Bucket" },
+  { value: "jug", label: "Jug" },
+];
+
+function UnitSelect({ value, onChange, placeholder }) {
+  return (
+    <Select value={value || ""} onValueChange={onChange}>
+      <SelectTrigger>
+        <SelectValue placeholder={placeholder || "Select unit"} />
+      </SelectTrigger>
+      <SelectContent>
+        {UNIT_OPTIONS.map((u) => (
+          <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
 
 const BLANK = {
   name: "",
@@ -16,6 +50,7 @@ const BLANK = {
   unit_of_measure: "",
   units_per_container: 1,
   unit_of_usage: "",
+  conversion_factor: 1,
   material_form: "container",
   items_per_container: 1,
   roll_unit: "",
@@ -103,6 +138,7 @@ export default function StockItemsSubtab({ items, setItems }) {
     if (payload.item_type !== "ingredient") { delete payload.state; }
     if (!["ingredient", "finished_product"].includes(payload.item_type)) { delete payload.source; delete payload.unit_of_measure; delete payload.units_per_container; delete payload.unit_of_usage; delete payload.recipe; }
     if (payload.source !== "produced") { payload.recipe = []; }
+    if (payload.unit_of_usage === payload.unit_of_measure || !payload.unit_of_usage || !payload.unit_of_measure) { payload.conversion_factor = 1; }
     if (payload.item_type !== "material") { delete payload.material_form; delete payload.items_per_container; delete payload.roll_unit; delete payload.roll_size; }
     if (payload.item_type === "material" && payload.material_form !== "container") { delete payload.items_per_container; }
     if (payload.item_type === "material" && payload.material_form !== "roll") { delete payload.roll_unit; delete payload.roll_size; }
@@ -217,16 +253,28 @@ export default function StockItemsSubtab({ items, setItems }) {
                 </Field>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Field label="Unit of Measure (storage, e.g. gal, lb)">
-                  <Input value={form.unit_of_measure} onChange={(e) => set("unit_of_measure", e.target.value)} placeholder="gal" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field label="Unit of Measure (storage — what's in one container)">
+                  <UnitSelect value={form.unit_of_measure} onChange={(v) => set("unit_of_measure", v)} placeholder="e.g. lb" />
                 </Field>
                 <Field label="Units per Container">
                   <Input type="number" min="0" step="any" value={form.units_per_container} onChange={(e) => set("units_per_container", parseFloat(e.target.value) || 0)} />
                 </Field>
-                <Field label="Unit of Usage (calculation, e.g. cups, oz)">
-                  <Input value={form.unit_of_usage} onChange={(e) => set("unit_of_usage", e.target.value)} placeholder="cups" />
+                <Field label="Unit of Usage (for recipes & calculations)">
+                  <UnitSelect value={form.unit_of_usage} onChange={(v) => set("unit_of_usage", v)} placeholder="e.g. oz" />
                 </Field>
+                {form.unit_of_usage && form.unit_of_measure && form.unit_of_usage !== form.unit_of_measure && (
+                  <Field label={`Conversion: how many ${form.unit_of_usage} per 1 ${form.unit_of_measure}?`}>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={form.conversion_factor}
+                      onChange={(e) => set("conversion_factor", parseFloat(e.target.value) || 1)}
+                      placeholder="e.g. 16 if storage=lb and usage=oz"
+                    />
+                  </Field>
+                )}
               </div>
 
               {/* Recipe section */}
