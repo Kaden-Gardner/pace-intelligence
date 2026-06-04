@@ -18,5 +18,10 @@
       "type": "string",
       "title": "Favorite Popsicle Flavor"
     }
-  }
+  },
+  "required": [
+    "role",
+    "employee_number",
+    "favorite_flavor"
+  ]
 }

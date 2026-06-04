@@ -8,6 +8,7 @@ import WeeklyChart from "../components/dashboard/WeeklyChart";
 import DreamTeamCard from "../components/dashboard/DreamTeamCard";
 import TopEmployeesCard from "../components/dashboard/TopEmployeesCard";
 import BestPairingsCard from "../components/dashboard/BestPairingsCard";
+import ShiftLeadCompetitionCard from "../components/dashboard/ShiftLeadCompetitionCard";
 import FlavorBreakdownCard from "../components/dashboard/FlavorBreakdownCard";
 import EmptyState from "../components/EmptyState";
 import {
@@ -239,6 +240,9 @@ export default function Dashboard() {
           <BestPairingsCard shifts={shifts} employees={employees} />
         </div>
       </div>
+
+      {/* Supervisor Friendly Competition */}
+      <ShiftLeadCompetitionCard shifts={shifts} employees={employees} />
     </div>
   );
 }
