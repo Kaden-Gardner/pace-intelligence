@@ -5,6 +5,8 @@ import IngredientsTab from "../components/inventory/IngredientsTab";
 import MaterialsTab from "../components/inventory/MaterialsTab";
 import ProductBreakdownTab from "../components/inventory/ProductBreakdownTab";
 import OrderPickupForm from "../components/inventory/OrderPickupForm";
+import StockItemsSubtab from "../components/inventory/StockItemsSubtab";
+import StockInventorySubtab from "../components/inventory/StockInventorySubtab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -69,10 +71,15 @@ export default function Inventory() {
 
   const [saving, setSaving] = useState(false);
 
+  // Stock items/inventory state
+  const [stockItems, setStockItems] = useState([]);
+  const [stockInventory, setStockInventory] = useState([]);
+  const [stockSubtab, setStockSubtab] = useState("inventory");
+
   useEffect(() => { load(); }, []);
 
   async function load() {
-    const [fs, fl, inv, pk, pi, bi, ss] = await Promise.all([
+    const [fs, fl, inv, pk, pi, bi, ss, si, sinv] = await Promise.all([
       base44.entities.FlavorSet.list("name").catch(() => []),
       base44.entities.Flavor.list("name").catch(() => []),
       base44.entities.Inventory.list().catch(() => []),
@@ -80,6 +87,8 @@ export default function Inventory() {
       base44.entities.OrderPickupItem.list().catch(() => []),
       base44.entities.BaseInventory.list().catch(() => []),
       base44.entities.ScheduledShift.list("-shift_date", 200).catch(() => []),
+      base44.entities.StockItem.list("name").catch(() => []),
+      base44.entities.StockInventory.list().catch(() => []),
     ]);
     // Migrate legacy orders: create items for any order with a flavorset_id but no items yet
     const legacyOrders = pk.filter((o) => o.flavorset_id && !pi.some((i) => i.order_id === o.id));
@@ -100,6 +109,8 @@ export default function Inventory() {
     setPickupItems([...pi, ...migratedItems.filter(Boolean)]);
     setBaseInventory(bi);
     setScheduledShifts(ss);
+    setStockItems(si);
+    setStockInventory(sinv);
     setLoading(false);
   }
 
@@ -232,6 +243,7 @@ export default function Inventory() {
           <TabsTrigger value="ingredients">Ingredients</TabsTrigger>
           <TabsTrigger value="materials">Materials</TabsTrigger>
           <TabsTrigger value="breakdown">Breakdown</TabsTrigger>
+          <TabsTrigger value="stock">Ingredients/Materials</TabsTrigger>
           <TabsTrigger value="pickups">Order Pickups</TabsTrigger>
         </TabsList>
 
@@ -504,6 +516,38 @@ export default function Inventory() {
                 );
               })}
             </div>
+          )}
+        </TabsContent>
+
+        {/* ====== INGREDIENTS/MATERIALS TAB ====== */}
+        <TabsContent value="stock">
+          {/* Subtab selector */}
+          <div className="flex gap-1 mb-6 bg-muted p-1 rounded-lg w-fit">
+            <button
+              onClick={() => setStockSubtab("inventory")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${stockSubtab === "inventory" ? "bg-background shadow text-foreground" : "text-muted-foreground"}`}
+            >
+              Inventory
+            </button>
+            <button
+              onClick={() => setStockSubtab("items")}
+              className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${stockSubtab === "items" ? "bg-background shadow text-foreground" : "text-muted-foreground"}`}
+            >
+              Items
+            </button>
+          </div>
+
+          {stockSubtab === "inventory" ? (
+            <StockInventorySubtab
+              items={stockItems}
+              stockInventory={stockInventory}
+              setStockInventory={setStockInventory}
+            />
+          ) : (
+            <StockItemsSubtab
+              items={stockItems}
+              setItems={setStockItems}
+            />
           )}
         </TabsContent>
 

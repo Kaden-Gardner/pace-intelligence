@@ -1,0 +1,41 @@
+{
+  "name": "StockInventory",
+  "type": "object",
+  "properties": {
+    "item_id": {
+      "type": "string",
+      "title": "Stock Item ID"
+    },
+    "quantity": {
+      "type": "number",
+      "title": "Quantity on Hand",
+      "description": "Stored in the item's unit_of_measure for ingredients/finished_products, or containers for container materials, or roll_unit for roll materials",
+      "default": 0
+    }
+  },
+  "required": [
+    "item_id"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

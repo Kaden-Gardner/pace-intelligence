@@ -1,0 +1,121 @@
+{
+  "name": "StockItem",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Item Name"
+    },
+    "item_type": {
+      "type": "string",
+      "title": "Item Type",
+      "enum": [
+        "ingredient",
+        "finished_product",
+        "material"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "title": "Source",
+      "enum": [
+        "purchased",
+        "produced"
+      ],
+      "description": "For ingredients and finished products only"
+    },
+    "state": {
+      "type": "string",
+      "title": "State",
+      "enum": [
+        "solid",
+        "liquid"
+      ],
+      "description": "For ingredients only"
+    },
+    "unit_of_measure": {
+      "type": "string",
+      "title": "Unit of Measure (storage)",
+      "description": "e.g. gal, lb, oz \u2014 the unit one container holds"
+    },
+    "units_per_container": {
+      "type": "number",
+      "title": "Units per Container",
+      "description": "How many of the storage unit come in one container",
+      "default": 1
+    },
+    "unit_of_usage": {
+      "type": "string",
+      "title": "Unit of Usage (calculation)",
+      "description": "e.g. cups, oz, g \u2014 used in recipes and calculations"
+    },
+    "material_form": {
+      "type": "string",
+      "title": "Material Form",
+      "enum": [
+        "container",
+        "roll"
+      ],
+      "description": "For materials only"
+    },
+    "items_per_container": {
+      "type": "number",
+      "title": "Items per Container",
+      "description": "For container materials: how many individual items in one container",
+      "default": 1
+    },
+    "roll_unit": {
+      "type": "string",
+      "title": "Roll Unit",
+      "description": "For roll materials: unit of usage (e.g. feet, inches)"
+    },
+    "roll_size": {
+      "type": "number",
+      "title": "Roll Size",
+      "description": "For roll materials: total size of one roll in roll_unit",
+      "default": 0
+    },
+    "recipe": {
+      "type": "array",
+      "title": "Recipe (for produced items)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "item_id": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          }
+        }
+      },
+      "default": []
+    }
+  },
+  "required": [
+    "name",
+    "item_type"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
