@@ -19,16 +19,17 @@ function computeShiftLeadStats(shifts, employees) {
   return Object.entries(stats)
     .map(([empId, s]) => {
       const emp = employees.find((e) => e.id === empId);
+      if (!emp || emp.terminated || emp.active === false) return null;
       return {
-        name: emp?.name || "Unknown",
-        employee_number: emp?.employee_number || "",
+        name: emp.name,
+        employee_number: emp.employee_number || "",
         totalCases: s.totalCases,
         totalWaste: s.totalWaste,
         avgCph: s.totalHours > 0 ? s.totalCases / s.totalHours : 0,
         shiftCount: s.shiftCount,
       };
     })
-    .filter((s) => s.shiftCount > 0)
+    .filter(Boolean)
     .sort((a, b) => b.avgCph - a.avgCph);
 }
 
