@@ -132,9 +132,10 @@ export default function Dashboard() {
     });
   });
 
-  // Team performance always uses all shifts
-  const empStats = computeEmployeeStats(shifts, employees);
-  const dreamTeam = findDreamTeam(shifts, employees);
+  // Team performance always uses all shifts — only active, non-terminated employees
+  const activeEmployees = employees.filter((e) => e.active !== false && !e.terminated);
+  const empStats = computeEmployeeStats(shifts, activeEmployees);
+  const dreamTeam = findDreamTeam(shifts, activeEmployees);
   const empEntries = Object.values(empStats).filter((s) => s.totalHours > 0);
   empEntries.sort((a, b) => (b.totalCases / b.totalHours) - (a.totalCases / a.totalHours));
 
@@ -242,7 +243,7 @@ export default function Dashboard() {
       </div>
 
       {/* Supervisor Friendly Competition */}
-      <ShiftLeadCompetitionCard shifts={shifts} employees={employees} />
+      <ShiftLeadCompetitionCard shifts={shifts} employees={activeEmployees} />
     </div>
   );
 }

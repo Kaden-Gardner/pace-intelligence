@@ -64,7 +64,7 @@ export default function ShiftForm() {
         base44.entities.Shift.list("shift_date", 500),
         base44.entities.ScheduledShift.list("shift_date", 500),
       ]);
-      setEmployees(e.filter((emp) => emp.active !== false));
+      setEmployees(e.filter((emp) => emp.active !== false && !emp.terminated));
       setFlavors(f);
       setFlavorSets(fs);
       setCaseSizes(cs);

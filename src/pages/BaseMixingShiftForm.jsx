@@ -40,7 +40,7 @@ export default function BaseMixingShiftForm() {
         base44.entities.FlavorSet.list("name"),
         base44.entities.ScheduledBaseMixShift.list("-shift_date", 200),
       ]);
-      setEmployees(e.filter((emp) => emp.active !== false));
+      setEmployees(e.filter((emp) => emp.active !== false && !emp.terminated));
       setFlavorSets(fs);
       setScheduledBaseMix(sbm);
 

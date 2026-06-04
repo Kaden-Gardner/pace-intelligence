@@ -170,15 +170,18 @@ export default function Employees() {
           title="No employees yet"
           description="Add employees to assign them to shifts."
         />
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {employees.map((emp) => {
-            const bestPos = getBestPosition(shifts, emp.id);
-            return (
-              <div
-                key={emp.id}
-                className="bg-card rounded-2xl border border-border p-5 hover:shadow-md transition-shadow"
-              >
+      ) : (() => {
+        const activeEmps = employees.filter((e) => e.active !== false && !e.terminated);
+        const inactiveEmps = isAdmin ? employees.filter((e) => e.active === false && !e.terminated) : [];
+        const terminatedEmps = isAdmin ? employees.filter((e) => e.terminated) : [];
+
+        const renderCard = (emp) => {
+          const bestPos = getBestPosition(shifts, emp.id);
+          return (
+            <div
+              key={emp.id}
+              className="bg-card rounded-2xl border border-border p-5 hover:shadow-md transition-shadow"
+            >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary">
@@ -312,11 +315,39 @@ export default function Employees() {
                 )}
               </div>
             );
-          })}
-        </div>
-      )}
+        };
 
+        return (
+          <div className="space-y-8">
+            {/* Active employees */}
+            {activeEmps.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activeEmps.map(renderCard)}
+              </div>
+            )}
 
+            {/* Inactive employees — admin only */}
+            {isAdmin && inactiveEmps.length > 0 && (
+              <div>
+                <h2 className="font-heading font-semibold text-lg mb-3 text-muted-foreground">Inactive Employees</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 opacity-70">
+                  {inactiveEmps.map(renderCard)}
+                </div>
+              </div>
+            )}
+
+            {/* Terminated employees — admin only */}
+            {isAdmin && terminatedEmps.length > 0 && (
+              <div>
+                <h2 className="font-heading font-semibold text-lg mb-3 text-destructive">Terminated Employees</h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 opacity-60">
+                  {terminatedEmps.map(renderCard)}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

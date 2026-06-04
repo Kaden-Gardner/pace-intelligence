@@ -92,6 +92,15 @@ export const AuthProvider = ({ children }) => {
       // Now check if the user is authenticated
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
+      // Block terminated employees from using the app
+      if (currentUser?.role === "terminated") {
+        setAuthError({
+          type: 'user_terminated',
+          message: 'Your account has been terminated.'
+        });
+        setIsLoadingAuth(false);
+        return;
+      }
       setUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);

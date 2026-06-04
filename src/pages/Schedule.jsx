@@ -78,7 +78,7 @@ export default function Schedule() {
   flavorSets.forEach((fs) => { fsMap[fs.id] = fs; });
   const empMap = {};
   employees.forEach((e) => { empMap[e.id] = e; });
-  const adminEmployees = employees.filter((e) => e.app_role === "admin" || e.terminated !== true);
+  const activeEmployees = employees.filter((e) => e.active !== false && !e.terminated);
 
   function getScheduledForDate(date) {
     const ds = format(date, "yyyy-MM-dd");
@@ -430,10 +430,10 @@ export default function Schedule() {
                   <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— None —</SelectItem>
-                    {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {form.mixer_employee && (
+                    {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                    </SelectContent>
+                    </Select>
+                    {form.mixer_employee && (
                   <p className="text-xs text-muted-foreground mt-1">Mixer arrives at <span className="font-medium text-foreground">{getMixerArrivalTime(form.shift_time)}</span> (1.5 hrs before shift)</p>
                 )}
               </div>
@@ -449,7 +449,7 @@ export default function Schedule() {
                   )}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {employees.map((emp) => {
+                  {activeEmployees.map((emp) => {
                     const isWorking = (form.assigned_employees || []).includes(emp.id);
                     const isOnCall = (form.on_call_employees || []).includes(emp.id);
                     const avail = availOnSelected.find((a) =>
@@ -559,7 +559,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -569,7 +569,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -579,7 +579,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -589,7 +589,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select shift lead..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {employees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
