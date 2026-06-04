@@ -137,7 +137,17 @@ export default function AvailabilityPlannerTab({ employees, availabilities }) {
           {activeEmployees.length === 0 ? (
             <div className="py-12 text-center text-sm text-muted-foreground">No active employees found.</div>
           ) : (
-            activeEmployees.map((emp) => {
+            [...activeEmployees].sort((a, b) => {
+              const aAvail = availabilities.find(
+                (av) => av.date === ds && ((av.employee_id && av.employee_id === a.id) || (av.employee_number && av.employee_number === a.employee_number))
+              );
+              const bAvail = availabilities.find(
+                (av) => av.date === ds && ((av.employee_id && av.employee_id === b.id) || (av.employee_number && av.employee_number === b.employee_number))
+              );
+              const aUp = aAvail?.is_available === true ? 0 : 1;
+              const bUp = bAvail?.is_available === true ? 0 : 1;
+              return aUp - bUp;
+            }).map((emp) => {
               const avail = getAvail(emp);
               const isAvailable = avail?.is_available === true;
               const fromMins = timeStrToMins(avail?.available_from);
