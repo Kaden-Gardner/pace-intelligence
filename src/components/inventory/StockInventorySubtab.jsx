@@ -13,12 +13,24 @@ export default function StockInventorySubtab({ items, stockInventory, setStockIn
     return stockInventory.find((s) => s.item_id === itemId);
   }
 
-  function qtyLabel(item) {
+  // For ingredients/finished_products: quantity stored = containers
+  // For materials: quantity stored = containers (container form) or roll_unit (roll form)
+  function containerLabel(item) {
     if (item.item_type === "material") {
       if (item.material_form === "roll") return item.roll_unit || "units";
       return "containers";
     }
+    return "containers";
+  }
+
+  function totalUnitsLabel(item) {
     return item.unit_of_measure || "units";
+  }
+
+  function totalUnits(item, containers) {
+    if (item.item_type === "material") return null; // not applicable the same way
+    const perContainer = item.units_per_container ?? 1;
+    return containers * perContainer;
   }
 
   async function startEdit(item) {
@@ -79,9 +91,11 @@ export default function StockInventorySubtab({ items, stockInventory, setStockIn
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {groupItems.map((item) => {
                 const record = getRecord(item.id);
-                const qty = record?.quantity ?? 0;
+                const containers = record?.quantity ?? 0;
                 const isEditing = editingId === item.id;
-                const unit = qtyLabel(item);
+                const cLabel = containerLabel(item);
+                const derived = totalUnits(item, containers);
+                const uLabel = totalUnitsLabel(item);
 
                 return (
                   <div key={item.id} className="bg-card rounded-2xl border border-border p-5">
@@ -99,7 +113,7 @@ export default function StockInventorySubtab({ items, stockInventory, setStockIn
 
                     {isEditing ? (
                       <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground block">Quantity ({unit})</label>
+                        <label className="text-xs text-muted-foreground block">Containers on hand</label>
                         <Input
                           type="number"
                           min="0"
@@ -108,6 +122,11 @@ export default function StockInventorySubtab({ items, stockInventory, setStockIn
                           onChange={(e) => setEditQty(parseFloat(e.target.value) || 0)}
                           autoFocus
                         />
+                        {item.units_per_container > 1 && (
+                          <p className="text-xs text-muted-foreground">
+                            = {((parseFloat(editQty) || 0) * item.units_per_container).toFixed(2)} {uLabel} total
+                          </p>
+                        )}
                         <div className="flex gap-2">
                           <Button size="sm" className="gap-1" onClick={() => saveEdit(item)} disabled={saving}>
                             <Check className="w-3 h-3" /> Save
@@ -119,8 +138,13 @@ export default function StockInventorySubtab({ items, stockInventory, setStockIn
                       </div>
                     ) : (
                       <div className="bg-muted rounded-xl px-4 py-3 text-center">
-                        <p className="text-2xl font-heading font-bold">{qty % 1 === 0 ? qty : qty.toFixed(2)}</p>
-                        <p className="text-xs text-muted-foreground mt-1">{unit} on hand</p>
+                        <p className="text-2xl font-heading font-bold">{containers % 1 === 0 ? containers : containers.toFixed(2)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{cLabel} on hand</p>
+                        {derived !== null && item.units_per_container > 1 && (
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            ({derived % 1 === 0 ? derived : derived.toFixed(2)} {uLabel} total)
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
