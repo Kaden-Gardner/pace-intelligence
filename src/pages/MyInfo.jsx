@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake, BarChart2, Loader2 } from "lucide-react";
+import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake, BarChart2, Loader2, BookOpen, ExternalLink } from "lucide-react";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -443,6 +443,24 @@ export default function MyInfo() {
               </div>
             </>
           )}
+        </div>
+
+        {/* Employee Handbook */}
+        <div className="bg-card rounded-2xl border border-border p-6">
+          <div className="flex items-center gap-2 mb-2">
+            <BookOpen className="w-4 h-4 text-primary" />
+            <h2 className="font-heading font-semibold text-base">Employee Handbook & SOPs</h2>
+          </div>
+          <p className="text-sm text-muted-foreground mb-4">View company policies, procedures, and standard operating guidelines.</p>
+          <a
+            href="https://docs.google.com/document/d/1fDkayH3FdRnYc42431HV9SNQqq-zDMsomHMjGus4Pf4/edit?usp=sharing"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button variant="outline" size="sm" className="gap-2">
+              <ExternalLink className="w-4 h-4" /> Open Handbook
+            </Button>
+          </a>
         </div>
 
         {/* Log Out */}
