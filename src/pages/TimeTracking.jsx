@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, LogIn, LogOut, Pencil, Check, X, Trash2, MapPin } from "lucide-react";
+import { Clock, LogIn, LogOut, Pencil, Check, X, Trash2, MapPin, CalendarRange } from "lucide-react";
 import { format, parseISO, differenceInMinutes, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 const PERIODS = [
@@ -12,6 +12,7 @@ const PERIODS = [
   { label: "This Month", key: "month" },
   { label: "Last Month", key: "lastmonth" },
   { label: "All Time", key: "all" },
+  { label: "Custom Range", key: "custom" },
 ];
 
 function getPeriodRange(key) {
@@ -61,6 +62,8 @@ export default function TimeTracking() {
   const [geoError, setGeoError] = useState(null);
   const [checkingGeo, setCheckingGeo] = useState(false);
   const [adminView, setAdminView] = useState("my"); // "my" | "all" | "terminal"
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
   const GEOFENCE = { lat: 40.856180, lng: -111.927465, radiusMeters: 27.4 }; // 30 yards
 
@@ -247,6 +250,16 @@ export default function TimeTracking() {
   }
 
   function filterByPeriod(list) {
+    if (period === "custom") {
+      if (!customStart && !customEnd) return list;
+      return list.filter((e) => {
+        if (!e.clock_in) return false;
+        const d = parseISO(e.clock_in);
+        if (customStart && d < new Date(customStart + "T00:00:00")) return false;
+        if (customEnd && d > new Date(customEnd + "T23:59:59")) return false;
+        return true;
+      });
+    }
     const [start, end] = getPeriodRange(period);
     if (!start) return list;
     return list.filter((e) => {
@@ -321,7 +334,7 @@ export default function TimeTracking() {
       </div>
 
       {/* Period filter */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-3">
         {PERIODS.map((p) => (
           <button key={p.key} onClick={() => setPeriod(p.key)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${period === p.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
@@ -329,6 +342,23 @@ export default function TimeTracking() {
           </button>
         ))}
       </div>
+      {period === "custom" && (
+        <div className="flex flex-wrap items-center gap-3 mb-6 p-4 bg-muted/50 rounded-xl border border-border">
+          <CalendarRange className="w-4 h-4 text-muted-foreground shrink-0" />
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground font-medium">From</label>
+            <Input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} className="w-36 h-8 text-sm" />
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-muted-foreground font-medium">To</label>
+            <Input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} className="w-36 h-8 text-sm" />
+          </div>
+          {(customStart || customEnd) && (
+            <button onClick={() => { setCustomStart(""); setCustomEnd(""); }} className="text-xs text-muted-foreground hover:text-foreground underline">Clear</button>
+          )}
+        </div>
+      )}
+      {period !== "custom" && <div className="mb-6" />}
 
       {/* Admin tabs */}
       {isAdmin && (
