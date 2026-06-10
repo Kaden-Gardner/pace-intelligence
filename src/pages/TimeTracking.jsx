@@ -288,8 +288,12 @@ export default function TimeTracking() {
     }
     empSummary[key].totalHours += e.total_hours || 0;
     empSummary[key].shifts += 1;
+    if (!empSummary[key].days) empSummary[key].days = [];
+    empSummary[key].days.push(e);
   });
   const summaryList = Object.values(empSummary).sort((a, b) => b.totalHours - a.totalHours);
+
+  const [expandedEmp, setExpandedEmp] = useState(null);
 
   if (loading) return (
     <div className="flex items-center justify-center py-24">
@@ -473,19 +477,48 @@ export default function TimeTracking() {
           {summaryList.length === 0 ? (
             <p className="text-muted-foreground text-sm">No entries in this period.</p>
           ) : (
-            <div className="space-y-2">
-              {summaryList.map((emp, i) => (
-                <div key={i} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div>
-                    <p className="font-medium text-sm">{emp.employee_name || "Unknown"}</p>
-                    {emp.employee_number && <p className="text-xs text-muted-foreground">#{emp.employee_number}</p>}
+            <div className="space-y-1">
+              {summaryList.map((emp, i) => {
+                const key = emp.employee_name + emp.employee_number;
+                const isExpanded = expandedEmp === key;
+                const sortedDays = [...(emp.days || [])].sort((a, b) => new Date(b.clock_in) - new Date(a.clock_in));
+                return (
+                  <div key={i} className="border border-border rounded-xl overflow-hidden">
+                    <button
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/40 transition-colors"
+                      onClick={() => setExpandedEmp(isExpanded ? null : key)}
+                    >
+                      <div className="text-left">
+                        <p className="font-medium text-sm">{emp.employee_name || "Unknown"}</p>
+                        {emp.employee_number && <p className="text-xs text-muted-foreground">#{emp.employee_number}</p>}
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="font-heading font-bold text-primary">{fmtHours(emp.totalHours)}</p>
+                          <p className="text-xs text-muted-foreground">{emp.shifts} {emp.shifts === 1 ? "entry" : "entries"}</p>
+                        </div>
+                        <span className="text-muted-foreground text-xs">{isExpanded ? "▲" : "▼"}</span>
+                      </div>
+                    </button>
+                    {isExpanded && (
+                      <div className="border-t border-border bg-muted/20 divide-y divide-border">
+                        {sortedDays.map((entry, j) => (
+                          <div key={j} className="flex items-center justify-between px-4 py-2.5 text-sm">
+                            <div>
+                              <p className="font-medium text-xs">{entry.clock_in ? format(parseISO(entry.clock_in), "EEE, MMM d, yyyy") : "—"}</p>
+                              <p className="text-xs text-muted-foreground">
+                                In: {entry.clock_in ? format(parseISO(entry.clock_in), "h:mm a") : "—"}
+                                {entry.clock_out ? ` · Out: ${format(parseISO(entry.clock_out), "h:mm a")}` : " · Active"}
+                              </p>
+                            </div>
+                            <p className="text-xs font-medium text-primary">{entry.total_hours != null ? fmtHours(entry.total_hours) : "—"}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="text-right">
-                    <p className="font-heading font-bold text-primary">{fmtHours(emp.totalHours)}</p>
-                    <p className="text-xs text-muted-foreground">{emp.shifts} {emp.shifts === 1 ? "entry" : "entries"}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
