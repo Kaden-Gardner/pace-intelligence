@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake, Bell, BellOff } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake } from "lucide-react";
 import { getBestPosition, getEmployeePosition, getTotalCases, getCasesPerHour } from "../lib/analyticsHelpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,7 +29,7 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", notify_schedule_changes_only: false, notifications_disabled: false, notify_shift_posts: false, opt_out_post_notifications: false });
+  const [form, setForm] = useState({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user" });
   const [flavors, setFlavors] = useState([]);
 
   const [selectedPosition, setSelectedPosition] = useState({}); // empId -> position string
@@ -76,17 +76,14 @@ export default function Employees() {
       favorite_flavor: emp.favorite_flavor || "",
       active: emp.active !== false,
       app_role: emp.app_role || "user",
-      notify_schedule_changes_only: emp.notify_schedule_changes_only || false,
-      notifications_disabled: emp.notifications_disabled || false,
-      notify_shift_posts: emp.notify_shift_posts || false,
-      opt_out_post_notifications: emp.opt_out_post_notifications || false,
+
     });
     setEditingId(emp.id);
     setShowForm(true);
   }
 
   function resetForm() {
-    setForm({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", notify_schedule_changes_only: false, notifications_disabled: false, notify_shift_posts: false, opt_out_post_notifications: false });
+    setForm({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user" });
     setEditingId(null);
     setShowForm(false);
   }
@@ -173,39 +170,7 @@ export default function Employees() {
               <span className="text-sm">Active</span>
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-border">
-            <p className="text-xs font-medium text-muted-foreground mb-3 flex items-center gap-1"><Bell className="w-3 h-3" /> Notification Preferences</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm">Opt out of post emails</p>
-                  <p className="text-xs text-muted-foreground">Don't receive new post notifications</p>
-                </div>
-                <Switch checked={form.opt_out_post_notifications} onCheckedChange={(v) => setForm({ ...form, opt_out_post_notifications: v })} />
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm">Schedule changes only</p>
-                  <p className="text-xs text-muted-foreground">Skip 4hr/1hr reminders</p>
-                </div>
-                <Switch checked={form.notify_schedule_changes_only} disabled={form.notifications_disabled} onCheckedChange={(v) => setForm({ ...form, notify_schedule_changes_only: v })} />
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm flex items-center gap-1"><BellOff className="w-3.5 h-3.5 text-muted-foreground" /> Disable all notifications</p>
-                  <p className="text-xs text-muted-foreground">Turn off all shift reminders</p>
-                </div>
-                <Switch checked={form.notifications_disabled} onCheckedChange={(v) => setForm({ ...form, notifications_disabled: v })} />
-              </div>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm">Shift post summaries (Admin)</p>
-                  <p className="text-xs text-muted-foreground">Email when a new shift is posted</p>
-                </div>
-                <Switch checked={form.notify_shift_posts} disabled={form.notifications_disabled} onCheckedChange={(v) => setForm({ ...form, notify_shift_posts: v })} />
-              </div>
-            </div>
-          </div>
+
           <div className="flex gap-2 mt-4">
             <Button onClick={handleSave} className="gap-2">
               <Check className="w-4 h-4" /> {editingId ? "Update" : "Create"}
