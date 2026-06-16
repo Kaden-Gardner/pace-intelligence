@@ -12,10 +12,14 @@ Deno.serve(async (req) => {
 
     if (action === 'clock_in') {
       const now = new Date().toISOString();
+      // Look up the user by employee_number so the entry is visible in their personal view
+      const users = await base44.asServiceRole.entities.User.filter({ employee_number }, '', 1);
+      const userId = users.length > 0 ? users[0].id : null;
       const created = await base44.asServiceRole.entities.TimeEntry.create({
         employee_id,
         employee_name,
         employee_number,
+        user_id: userId,
         clock_in: now,
       });
       return Response.json({ entry: created, time: now });
