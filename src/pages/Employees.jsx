@@ -54,10 +54,11 @@ export default function Employees() {
     if (editingId) {
       await base44.entities.Employee.update(editingId, form);
       setEmployees((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...form } : e)));
-      // Sync role to User entity if linked
+      // Sync role to User entity if linked — always use app_role regardless of active status
+      // (inactive admins, e.g. owners, retain their admin privileges)
       const users = await base44.entities.User.list();
       const linked = users.find((u) => u.employee_number === form.employee_number);
-      if (linked) {
+      if (linked && linked.role !== "terminated") {
         await base44.entities.User.update(linked.id, { role: form.app_role });
       }
     } else {
@@ -95,8 +96,12 @@ export default function Employees() {
 
   async function handleTerminateReinstate(emp, action) {
     const isTerminating = action === "terminate";
-    await base44.entities.Employee.update(emp.id, { terminated: isTerminating, active: !isTerminating });
-    setEmployees((prev) => prev.map((e) => e.id === emp.id ? { ...e, terminated: isTerminating, active: !isTerminating } : e));
+    // On reinstate, restore to their previous active state; on terminate, mark inactive+terminated
+    const updates = isTerminating
+      ? { terminated: true, active: false }
+      : { terminated: false }; // keep active as-is when reinstating
+    await base44.entities.Employee.update(emp.id, updates);
+    setEmployees((prev) => prev.map((e) => e.id === emp.id ? { ...e, ...updates } : e));
     const users = await base44.entities.User.list();
     const linked = users.find((u) => u.employee_number === emp.employee_number);
     if (linked) {
