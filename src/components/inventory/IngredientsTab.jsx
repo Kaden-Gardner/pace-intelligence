@@ -9,7 +9,7 @@ export const INGREDIENTS = [
   { key: "xanthan_gum", label: "Xanthan Gum",  unit: "lbs" },
   { key: "sugar",       label: "Sugar",         unit: "50 lb bags" },
   { key: "dextrose",    label: "Dextrose",       unit: "50 lb bags" },
-  { key: "citric_acid", label: "Citric Acid",   unit: "cups (from 50 lb bag)" },
+  { key: "citric_acid", label: "Citric Acid",   unit: "50 lb bags" },
   { key: "pear_juice",  label: "Pear Juice",    unit: "5-gal buckets" },
 ];
 

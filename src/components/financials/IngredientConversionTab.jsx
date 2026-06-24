@@ -13,7 +13,7 @@ const ING_HINTS = {
   xanthan_gum:  { unit_label: "1 lb bag",         grams_per_unit: 453.6 },
   sugar:        { unit_label: "50 lb bag",         grams_per_unit: 22680 },
   dextrose:     { unit_label: "50 lb bag",         grams_per_unit: 22680 },
-  citric_acid:  { unit_label: "cup",               grams_per_unit: 240   },  // ~240g per cup
+  citric_acid:  { unit_label: "50 lb bag",         grams_per_unit: 22680 },  // 50 lb = 22680g
   pear_juice:   { unit_label: "5-gal bucket",      grams_per_unit: 18927 },  // 5 gal * 3785g/gal
 };
 
@@ -72,7 +72,7 @@ export default function IngredientConversionTab() {
           Define the unit size and price for each ingredient. This allows the app to calculate a precise cost-per-gram and cost-per-batch.
         </p>
         <p className="text-xs text-muted-foreground">
-          Example: Citric Acid is measured in cups in recipes, but purchased by the lb. Enter "grams per cup" (≈240g) so the app can convert correctly.
+          Example: Citric Acid is purchased and measured in 50 lb bags. Enter "grams per bag" (≈22680g) so the app can convert correctly.
         </p>
       </div>
 
