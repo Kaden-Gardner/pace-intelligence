@@ -139,7 +139,7 @@ export default function BaseMixingShiftForm() {
         base44.entities.BaseMixDefaults.list(),
         base44.entities.IngredientInventory.list(),
       ]);
-      const fallbackAmounts = { xanthan_gum: 2, sugar: 3, dextrose: 2, citric_acid: 1, pear_juice: 0 };
+      const fallbackAmounts = { xanthan_gum: 2, sugar: 3, dextrose: 2, citric_acid: 0.01, pear_juice: 0 };
       const ingredients = ["xanthan_gum", "sugar", "dextrose", "citric_acid", "pear_juice"];
       await Promise.all(ingredients.map(async (key) => {
         // Use flavorset-specific override if available, else global, else hardcoded fallback
