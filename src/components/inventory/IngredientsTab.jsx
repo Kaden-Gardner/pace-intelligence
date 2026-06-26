@@ -207,7 +207,7 @@ export default function IngredientsTab({ flavors, flavorSets }) {
                   </div>
                 ) : (
                   <>
-                    <p className="text-3xl font-heading font-bold">{qty}</p>
+                    <p className="text-3xl font-heading font-bold">{Math.floor(qty)}</p>
                     <p className="text-xs text-muted-foreground mt-1">{ing.unit}</p>
                     <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">{globalDefault} {ing.unit}/batch (global)</p>
                   </>

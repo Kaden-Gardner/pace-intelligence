@@ -238,7 +238,7 @@ export default function MaterialsTab({ flavorSets }) {
                   </div>
                 ) : (
                   <>
-                    <p className="text-3xl font-heading font-bold">{qty}</p>
+                    <p className="text-3xl font-heading font-bold">{Math.floor(qty)}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">{mat.unit}</p>
                     {mat.key === "box_stacks" && matDefaults[mat.key] && qty > 0 && (
                       <p className="text-xs text-muted-foreground mt-1">≈ {qty * (matDefaults[mat.key].qty_per_shift || STACKS_PER_PALLET)} cases capacity</p>
