@@ -131,8 +131,8 @@ export default function BaseMixingShiftForm() {
       }
     }
 
-    // Deduct ingredients based on batch size and defaults (only for new shifts)
-    if (!editId) {
+    // Deduct ingredients based on batch size and defaults (handles create and edit)
+    {
       const batchCount = Number(form.batch_size) || 1;
       const fsId = form.flavorset_id || null;
       const [ingDefaults, ingInv] = await Promise.all([
@@ -141,16 +141,30 @@ export default function BaseMixingShiftForm() {
       ]);
       const fallbackAmounts = { xanthan_gum: 2, sugar: 3, dextrose: 2, citric_acid: 0.01, pear_juice: 0 };
       const ingredients = ["xanthan_gum", "sugar", "dextrose", "citric_acid", "pear_juice"];
+
+      function computeIngredientUsage(shiftData) {
+        if (!shiftData) return {};
+        const bc = Number(shiftData.batch_size) || 1;
+        const fId = shiftData.flavorset_id || null;
+        const usage = {};
+        ingredients.forEach((key) => {
+          const fsSpecific = fId ? ingDefaults.find((d) => d.ingredient === key && d.flavorset_id === fId) : null;
+          const globalDef = ingDefaults.find((d) => d.ingredient === key && !d.flavorset_id);
+          const amountPerBatch = fsSpecific ? fsSpecific.amount_per_batch : (globalDef ? globalDef.amount_per_batch : (fallbackAmounts[key] ?? 0));
+          usage[key] = amountPerBatch * bc;
+        });
+        return usage;
+      }
+
+      const newUsage = computeIngredientUsage({ batch_size: batchCount, flavorset_id: fsId });
+      const oldUsage = (editId && previousBatchSize > 0) ? computeIngredientUsage({ batch_size: previousBatchSize, flavorset_id: previousFlavorsetId }) : {};
+
       await Promise.all(ingredients.map(async (key) => {
-        // Use flavorset-specific override if available, else global, else hardcoded fallback
-        const fsSpecific = fsId ? ingDefaults.find((d) => d.ingredient === key && d.flavorset_id === fsId) : null;
-        const globalDef = ingDefaults.find((d) => d.ingredient === key && !d.flavorset_id);
-        const amountPerBatch = fsSpecific ? fsSpecific.amount_per_batch : (globalDef ? globalDef.amount_per_batch : (fallbackAmounts[key] ?? 0));
-        const totalUsed = amountPerBatch * batchCount;
-        if (totalUsed <= 0) return;
+        const netAddBack = (oldUsage[key] || 0) - (newUsage[key] || 0);
+        if (Math.abs(netAddBack) < 0.0001) return;
         const rec = ingInv.find((i) => i.ingredient === key);
         if (rec) {
-          await base44.entities.IngredientInventory.update(rec.id, { quantity: Math.max(0, (rec.quantity || 0) - totalUsed) });
+          await base44.entities.IngredientInventory.update(rec.id, { quantity: Math.max(0, (rec.quantity || 0) + netAddBack) });
         }
       }));
     }

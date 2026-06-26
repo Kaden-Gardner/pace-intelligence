@@ -13,7 +13,7 @@ export const INGREDIENTS = [
   { key: "pear_juice",  label: "Pear Juice",    unit: "5-gal buckets" },
 ];
 
-const GLOBAL_DEFAULTS = { xanthan_gum: 2, sugar: 3, dextrose: 2, citric_acid: 1, pear_juice: 0 };
+const GLOBAL_DEFAULTS = { xanthan_gum: 2, sugar: 3, dextrose: 2, citric_acid: 0.01, pear_juice: 0 };
 
 export default function IngredientsTab({ flavors, flavorSets }) {
   const [ingInv, setIngInv] = useState([]);

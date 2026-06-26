@@ -175,10 +175,6 @@ export default function ShiftForm() {
     if (payload.flavorset_id) {
       const allInv = await base44.entities.Inventory.filter({ flavorset_id: payload.flavorset_id });
       const newCases = payload.flavorset_cases || 0;
-      // Delta = cases produced this shift (not the running total)
-      const deltaCases = editId && previousFlavorsetId === payload.flavorset_id
-        ? newCases - previousFlavorsetCases
-        : newCases;
       if (allInv.length > 0) {
         let base = allInv[0].cases || 0;
         const finalCases = Math.max(0, editId && previousFlavorsetId === payload.flavorset_id
@@ -229,60 +225,78 @@ export default function ShiftForm() {
       }
     }
 
-    // Deduct flavor jug usage based on gallons of each flavor used × oz-per-gallon default
-    if (!editId) {
-      const fs = flavorSets.find(f => f.id === payload.flavorset_id);
-      const flavorGallonPairs = [
-        { flavorId: fs?.flavor_1 || null, gallons: payload.starting_gallons_flavor_1 || 0 },
-        { flavorId: fs?.flavor_2 || null, gallons: payload.starting_gallons_flavor_2 || 0 },
-        { flavorId: fs?.flavor_3 || null, gallons: payload.starting_gallons_flavor_3 || 0 },
-        { flavorId: fs?.flavor_4 || null, gallons: payload.starting_gallons_flavor_4 || 0 },
-      ].filter((p) => p.flavorId && p.gallons > 0);
+    // Deduct flavor jug usage — handles create and edit (reverses old, applies new)
+    {
+      const [jugDefs, jugInvRows] = await Promise.all([
+        base44.entities.FlavorJugDefaults.list(),
+        base44.entities.FlavorJugInventory.list(),
+      ]);
+      const containerOzMap = { liquid_1gal: 128, liquid_5gal: 640, powder_5gal: 640 };
 
-      if (flavorGallonPairs.length > 0) {
-        const [jugDefs, jugInvRows] = await Promise.all([
-          base44.entities.FlavorJugDefaults.list(),
-          base44.entities.FlavorJugInventory.list(),
-        ]);
-
-        // Container size in oz by container_type (default: 1-gallon jug = 128 oz)
-        const containerOzMap = { liquid_1gal: 128, liquid_5gal: 640, powder_5gal: 640 };
-
-        await Promise.all(flavorGallonPairs.map(async ({ flavorId, gallons }) => {
-          const def = jugDefs.find((d) => d.flavor_id === flavorId);
+      function computeJugUsage(shiftData) {
+        if (!shiftData || !shiftData.flavorset_id) return {};
+        const fs = flavorSets.find(f => f.id === shiftData.flavorset_id);
+        const pairs = [
+          { flavorId: fs?.flavor_1 || null, gallons: shiftData.starting_gallons_flavor_1 || 0 },
+          { flavorId: fs?.flavor_2 || null, gallons: shiftData.starting_gallons_flavor_2 || 0 },
+          { flavorId: fs?.flavor_3 || null, gallons: shiftData.starting_gallons_flavor_3 || 0 },
+          { flavorId: fs?.flavor_4 || null, gallons: shiftData.starting_gallons_flavor_4 || 0 },
+        ].filter(p => p.flavorId && p.gallons > 0);
+        const usage = {};
+        pairs.forEach(({ flavorId, gallons }) => {
+          const def = jugDefs.find(d => d.flavor_id === flavorId);
           if (!def || !def.oz_per_gallon_base) return;
-          const fl = flavors.find((f) => f.id === flavorId);
-          const containerOz = containerOzMap[fl?.container_type] ?? 128; // default 1-gal jug
-          const totalOzUsed = def.oz_per_gallon_base * gallons;
-          // Convert oz used → containers (using actual container size)
-          const containersUsed = totalOzUsed / containerOz;
-          const jugRec = jugInvRows.find((j) => j.flavor_id === flavorId);
-          if (jugRec) {
-            await base44.entities.FlavorJugInventory.update(jugRec.id, { gallons: Math.max(0, (jugRec.gallons || 0) - containersUsed) });
-          }
-        }));
+          const fl = flavors.find(f => f.id === flavorId);
+          const containerOz = containerOzMap[fl?.container_type] ?? 128;
+          usage[flavorId] = (def.oz_per_gallon_base * gallons) / containerOz;
+        });
+        return usage;
       }
+
+      const newUsage = computeJugUsage(payload);
+      const oldUsage = editId && previousShiftData ? computeJugUsage(previousShiftData) : {};
+      const allJugFlavorIds = new Set([...Object.keys(newUsage), ...Object.keys(oldUsage)]);
+
+      await Promise.all([...allJugFlavorIds].map(async (flavorId) => {
+        const netAddBack = (oldUsage[flavorId] || 0) - (newUsage[flavorId] || 0);
+        if (Math.abs(netAddBack) < 0.0001) return;
+        const jugRec = jugInvRows.find(j => j.flavor_id === flavorId);
+        if (jugRec) {
+          await base44.entities.FlavorJugInventory.update(jugRec.id, {
+            gallons: Math.max(0, (jugRec.gallons || 0) + netAddBack)
+          });
+        }
+      }));
     }
 
-    // Deduct materials for new production shifts only
-    if (!editId) {
-      const popsPerCase = payload.popsicles_per_case || 144;
-      const ppg = payload.popsicles_per_gallon || 24;
+    // Deduct materials — handles create and edit (reverses old, applies new)
+    {
+      const computeMaterialUsage = (shiftData) => {
+        if (!shiftData) return null;
+        const popsPerCase = shiftData.popsicles_per_case || 144;
+        const flavorsetCases = shiftData.flavorset_cases || 0;
+        const indCasesTotal = [
+          shiftData.individual_flavor_1_cases || 0,
+          shiftData.individual_flavor_2_cases || 0,
+          shiftData.individual_flavor_3_cases || 0,
+          shiftData.individual_flavor_4_cases || 0,
+        ].reduce((s, c) => s + c, 0);
+        const totalPopsFlavorset = flavorsetCases * popsPerCase;
+        const totalPopsIndividual = indCasesTotal * popsPerCase;
+        return {
+          totalPops: totalPopsFlavorset + totalPopsIndividual,
+          totalPopsFlavorset,
+          totalPopsIndividual,
+          totalCases: flavorsetCases + indCasesTotal,
+          flavorsetCases,
+          flavorsetId: shiftData.flavorset_id,
+        };
+      };
 
-      // Total popsicles produced
-      const flavorsetCases = payload.flavorset_cases || 0;
-      const indCasesTotal = [
-        payload.individual_flavor_1_cases || 0,
-        payload.individual_flavor_2_cases || 0,
-        payload.individual_flavor_3_cases || 0,
-        payload.individual_flavor_4_cases || 0,
-      ].reduce((s, c) => s + c, 0);
-      const totalPopsFlavorset = flavorsetCases * popsPerCase;
-      const totalPopsIndividual = indCasesTotal * popsPerCase;
-      const totalPops = totalPopsFlavorset + totalPopsIndividual;
-      const totalCases = flavorsetCases + indCasesTotal;
+      const newUsage = computeMaterialUsage(payload);
+      const oldUsage = editId ? computeMaterialUsage(previousShiftData) : null;
 
-      if (totalPops > 0 || totalCases > 0) {
+      if ((newUsage && (newUsage.totalPops > 0 || newUsage.totalCases > 0)) || (oldUsage && (oldUsage.totalPops > 0 || oldUsage.totalCases > 0))) {
         const [matDefaults, matInv, bagInv] = await Promise.all([
           base44.entities.MaterialDefaults.list(),
           base44.entities.MaterialInventory.list(),
@@ -293,91 +307,116 @@ export default function ShiftForm() {
         const matInvMap = {};
         matInv.forEach((m) => { matInvMap[m.material] = m; });
 
-        async function deductMaterial(key, amount) {
-          if (amount <= 0) return;
+        async function adjustMaterial(key, deltaAmount) {
+          if (Math.abs(deltaAmount) < 0.0001) return;
           const rec = matInvMap[key];
           if (rec) {
-            await base44.entities.MaterialInventory.update(rec.id, { quantity: Math.max(0, (rec.quantity || 0) - amount) });
+            await base44.entities.MaterialInventory.update(rec.id, { quantity: Math.max(0, (rec.quantity || 0) + deltaAmount) });
           }
         }
 
         // Popsicle sticks: 1 stick per popsicle, sticks per box from defaults
-        const sticksPerBox = matMap["popsicle_sticks"]?.qty_per_shift || null;
-        if (sticksPerBox && totalPops > 0) {
-          const boxesUsed = totalPops / sticksPerBox;
-          await deductMaterial("popsicle_sticks", boxesUsed);
+        const sticksPerBox = matMap["popsicle_sticks"]?.qty_per_shift;
+        if (sticksPerBox) {
+          const oldAmt = oldUsage ? oldUsage.totalPops / sticksPerBox : 0;
+          const newAmt = newUsage.totalPops / sticksPerBox;
+          await adjustMaterial("popsicle_sticks", oldAmt - newAmt);
         }
 
-        // Clear wrap (flavorset popsicles): feet per popsicle → total feet → rolls
+        // Clear wrap (flavorset popsicles)
         const clearFpr = matMap["clear_wrap"]?.feet_per_roll;
         const clearFpp = matMap["clear_wrap"]?.feet_per_popsicle;
-        if (clearFpr && clearFpp && totalPopsFlavorset > 0) {
-          const rollsUsed = (totalPopsFlavorset * clearFpp) / clearFpr;
-          await deductMaterial("clear_wrap", rollsUsed);
+        if (clearFpr && clearFpp) {
+          const oldAmt = oldUsage ? (oldUsage.totalPopsFlavorset * clearFpp) / clearFpr : 0;
+          const newAmt = (newUsage.totalPopsFlavorset * clearFpp) / clearFpr;
+          await adjustMaterial("clear_wrap", oldAmt - newAmt);
         }
 
-        // Individual wrap (individual-case popsicles): feet per popsicle → total feet → rolls
+        // Individual wrap (individual-case popsicles)
         const indivFpr = matMap["individual_wrap"]?.feet_per_roll;
         const indivFpp = matMap["individual_wrap"]?.feet_per_popsicle;
-        if (indivFpr && indivFpp && totalPopsIndividual > 0) {
-          const rollsUsed = (totalPopsIndividual * indivFpp) / indivFpr;
-          await deductMaterial("individual_wrap", rollsUsed);
+        if (indivFpr && indivFpp) {
+          const oldAmt = oldUsage ? (oldUsage.totalPopsIndividual * indivFpp) / indivFpr : 0;
+          const newAmt = (newUsage.totalPopsIndividual * indivFpp) / indivFpr;
+          await adjustMaterial("individual_wrap", oldAmt - newAmt);
         }
 
         // Box stacks: cases ÷ cases_per_stack
-        const casesPerStack = matMap["box_stacks"]?.qty_per_shift || null;
-        if (casesPerStack && totalCases > 0) {
-          const stacksUsed = totalCases / casesPerStack;
-          await deductMaterial("box_stacks", stacksUsed);
+        const casesPerStack = matMap["box_stacks"]?.qty_per_shift;
+        if (casesPerStack) {
+          const oldAmt = oldUsage ? oldUsage.totalCases / casesPerStack : 0;
+          const newAmt = newUsage.totalCases / casesPerStack;
+          await adjustMaterial("box_stacks", oldAmt - newAmt);
         }
 
-        // Bags: deduct from BagInventory (flavorset bags only — individual cases use pre-bagged product)
-        if (flavorsetCases > 0 && payload.flavorset_id) {
-          const popsPerBag = matMap["popsicles_per_bag"]?.qty_per_shift || null;
-          const bagsPerCase = matMap["bags_per_case"]?.qty_per_shift || null;
-          const bagsUsed = bagsPerCase ? flavorsetCases * bagsPerCase : (popsPerBag ? totalPopsFlavorset / popsPerBag : null);
-          if (bagsUsed != null) {
-            const bagRec = bagInv.find((b) => b.flavorset_id === payload.flavorset_id);
-            if (bagRec) {
-              const bpc = bagRec.bags_per_case || 100;
-              let loose = (bagRec.loose_bags || 0) - bagsUsed;
-              let cases = bagRec.cases || 0;
+        // Bags: flavorset bags only — reverse old flavorset, apply new
+        const popsPerBag = matMap["popsicles_per_bag"]?.qty_per_shift || null;
+        const bagsPerCase = matMap["bags_per_case"]?.qty_per_shift || null;
+        const computeBagsUsed = (usage) => {
+          if (!usage || !usage.flavorsetId || usage.flavorsetCases <= 0) return 0;
+          if (bagsPerCase) return usage.flavorsetCases * bagsPerCase;
+          if (popsPerBag) return usage.totalPopsFlavorset / popsPerBag;
+          return 0;
+        };
+        const oldBags = computeBagsUsed(oldUsage);
+        const newBags = computeBagsUsed(newUsage);
+        if (Math.abs(oldBags - newBags) > 0.0001) {
+          // Add back old flavorset bags
+          if (oldBags > 0 && oldUsage.flavorsetId) {
+            const oldBagRec = bagInv.find((b) => b.flavorset_id === oldUsage.flavorsetId);
+            if (oldBagRec) {
+              await base44.entities.BagInventory.update(oldBagRec.id, {
+                cases: oldBagRec.cases || 0,
+                loose_bags: Math.max(0, (oldBagRec.loose_bags || 0) + oldBags),
+              });
+            }
+          }
+          // Subtract new flavorset bags
+          if (newBags > 0 && newUsage.flavorsetId) {
+            const newBagRec = bagInv.find((b) => b.flavorset_id === newUsage.flavorsetId);
+            if (newBagRec) {
+              const bpc = newBagRec.bags_per_case || 100;
+              let loose = (newBagRec.loose_bags || 0) - newBags;
+              let cases = newBagRec.cases || 0;
               while (loose < 0 && cases > 0) { cases -= 1; loose += bpc; }
               loose = Math.max(0, loose);
-              await base44.entities.BagInventory.update(bagRec.id, { cases, loose_bags: loose });
+              await base44.entities.BagInventory.update(newBagRec.id, { cases, loose_bags: loose });
             }
           }
         }
       }
     }
 
-    // Update inventory for individual flavor cases
-    const indFlavors = [
-      { id: payload.individual_flavor_1, cases: payload.individual_flavor_1_cases || 0 },
-      { id: payload.individual_flavor_2, cases: payload.individual_flavor_2_cases || 0 },
-      { id: payload.individual_flavor_3, cases: payload.individual_flavor_3_cases || 0 },
-      { id: payload.individual_flavor_4, cases: payload.individual_flavor_4_cases || 0 },
-    ].filter((f) => f.id);
-
-    for (const { id: flavorId, cases: newCases } of indFlavors) {
-      const existing = await base44.entities.Inventory.filter({ flavor_id: flavorId });
-      if (existing.length > 0) {
-        let base = existing[0].cases || 0;
-        if (editId && previousShiftData) {
-          // Use cached pre-update old data — NOT a new fetch (shift is already updated above)
-          const oldCases = [
-            [previousShiftData.individual_flavor_1, previousShiftData.individual_flavor_1_cases],
-            [previousShiftData.individual_flavor_2, previousShiftData.individual_flavor_2_cases],
-            [previousShiftData.individual_flavor_3, previousShiftData.individual_flavor_3_cases],
-            [previousShiftData.individual_flavor_4, previousShiftData.individual_flavor_4_cases],
-          ].find(([id]) => id === flavorId)?.[1] || 0;
-          base = base - oldCases + newCases;
-        } else {
-          base = base + newCases;
+    // Update inventory for individual flavor cases (handles add, remove, and change on edit)
+    {
+      const oldIndFlavors = {};
+      if (editId && previousShiftData) {
+        for (let i = 1; i <= 4; i++) {
+          const fid = previousShiftData[`individual_flavor_${i}`];
+          const cases = previousShiftData[`individual_flavor_${i}_cases`] || 0;
+          if (fid && cases > 0) oldIndFlavors[fid] = (oldIndFlavors[fid] || 0) + cases;
         }
-        await base44.entities.Inventory.update(existing[0].id, { cases: Math.max(0, base) });
-      } else {
-        await base44.entities.Inventory.create({ flavor_id: flavorId, cases: newCases });
+      }
+      const newIndFlavors = {};
+      for (let i = 1; i <= 4; i++) {
+        const fid = payload[`individual_flavor_${i}`];
+        const cases = payload[`individual_flavor_${i}_cases`] || 0;
+        if (fid && cases > 0) newIndFlavors[fid] = (newIndFlavors[fid] || 0) + cases;
+      }
+
+      const allIndFlavorIds = new Set([...Object.keys(oldIndFlavors), ...Object.keys(newIndFlavors)]);
+      for (const flavorId of allIndFlavorIds) {
+        const oldCases = oldIndFlavors[flavorId] || 0;
+        const newCases = newIndFlavors[flavorId] || 0;
+        const delta = newCases - oldCases;
+        if (delta === 0) continue;
+        const existing = await base44.entities.Inventory.filter({ flavor_id: flavorId });
+        if (existing.length > 0) {
+          const base = existing[0].cases || 0;
+          await base44.entities.Inventory.update(existing[0].id, { cases: Math.max(0, base + delta) });
+        } else if (delta > 0) {
+          await base44.entities.Inventory.create({ flavor_id: flavorId, cases: delta });
+        }
       }
     }
 
