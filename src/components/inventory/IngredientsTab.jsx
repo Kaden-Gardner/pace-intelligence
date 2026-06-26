@@ -319,7 +319,7 @@ export default function IngredientsTab({ flavors, flavorSets }) {
                     <div>
                       <div className="flex items-end justify-between">
                         <div>
-                          <p className="text-2xl font-heading font-bold">{jug.gallons ?? 0}</p>
+                          <p className="text-2xl font-heading font-bold">{Math.floor(jug.gallons ?? 0)}</p>
                           <p className="text-xs text-muted-foreground">containers</p>
                         </div>
                         <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditJugId(jug.id); setEditJugVal(jug.gallons ?? 0); }}>
