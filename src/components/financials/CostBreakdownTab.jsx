@@ -115,10 +115,6 @@ export default function CostBreakdownTab() {
 
   // ── Bag cost per popsicle ──
   const bagCasePriceRec = supplyPrices.find((p) => p.item_key === "bag_case" && p.item_type === "bags");
-  // bag_case price is per case of bags; popsPerCase popsicles use bagsPerCase bags
-  const bagCostPerPop = (bagCasePriceRec && bagsPerCase && popsPerCase)
-    ? (bagCasePriceRec.price_per_unit / 100) / (popsPerCase / bagsPerCase) // per bag / pops per bag
-    : null;
 
   // price per case of empty bags ÷ bags_per_bag_case = price per bag; price per bag ÷ pops_per_bag = cost per pop
   const bagCostPerPopCalc = (() => {

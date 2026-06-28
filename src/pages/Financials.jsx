@@ -93,7 +93,6 @@ export default function Financials() {
   const [baseMixDefaults, setBaseMixDefaults] = useState([]);
   const [matDefaults, setMatDefaults] = useState([]);
   const [jugDefaults, setJugDefaults] = useState([]);
-  const [bagInventory, setBagInventory] = useState([]);
   const [flavorPrices, setFlavorPrices] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -121,7 +120,7 @@ export default function Financials() {
 
   async function loadData() {
     setLoading(true);
-    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, baginv, fp] = await Promise.all([
+    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.OrderPickupItem.list().catch(() => []),
       base44.entities.Employee.list("name"),
@@ -134,7 +133,6 @@ export default function Financials() {
       base44.entities.BaseMixDefaults.list(),
       base44.entities.MaterialDefaults.list(),
       base44.entities.FlavorJugDefaults.list(),
-      base44.entities.BagInventory.list(),
       base44.entities.FlavorPrice.list(),
     ]);
     // Migrate legacy orders: create items for any order that has a flavorset_id but no items
@@ -162,7 +160,6 @@ export default function Financials() {
     setBaseMixDefaults(bmd);
     setMatDefaults(mdef);
     setJugDefaults(jdef);
-    setBagInventory(baginv);
     setFlavorPrices(fp);
     setLoading(false);
   }
@@ -419,14 +416,13 @@ export default function Financials() {
       }
     });
 
-    // ── Bags: 12 bags per case of popsicles produced ──
+    // ── Bags: bags_per_case (popsicle case) bags per case produced, ÷ bags_per_bag_case (empty bag case) = cases of bags purchased ──
     const bagCasePriceRec = supplyPrices.find((p) => p.item_key === "bag_case" && p.item_type === "bags");
     if (bagCasePriceRec && totalCases > 0) {
-      // Find bags_per_case from BagInventory for this flavorset
-      const bagInvRec = bagInventory.find((b) => b.flavorset_id === shift.flavorset_id);
-      const bagsPerCase = bagInvRec?.bags_per_case || 100;
-      const bagsUsed = totalCases * 12; // 12 bags per case of popsicles
-      const bagCasesUsed = bagsUsed / bagsPerCase;
+      const bagsPerPopCase = matDefaults.find((d) => d.material_key === "bags_per_case")?.qty_per_shift || 12;
+      const bagsPerBagCase = matDefaults.find((d) => d.material_key === "bags_per_bag_case")?.qty_per_shift || 1000;
+      const bagsUsed = totalCases * bagsPerPopCase;
+      const bagCasesUsed = bagsUsed / bagsPerBagCase;
       total += bagCasesUsed * bagCasePriceRec.price_per_unit;
     }
 
