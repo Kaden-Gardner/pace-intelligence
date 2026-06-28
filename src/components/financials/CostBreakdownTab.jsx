@@ -119,11 +119,10 @@ export default function CostBreakdownTab() {
     ? (bagCasePriceRec.price_per_unit / 100) / (popsPerCase / bagsPerCase) // per bag / pops per bag
     : null;
 
-  // Actually: price per case of bags ÷ bags_per_case = price per bag; price per bag ÷ pops_per_bag = cost per pop
+  // price per case of bags ÷ bags_per_case = price per bag; price per bag ÷ pops_per_bag = cost per pop
   const bagCostPerPopCalc = (() => {
-    if (!bagCasePriceRec || !popsPerBag) return null;
-    const bagsInCase = 100; // standard bag case
-    const pricePerBag = bagCasePriceRec.price_per_unit / bagsInCase;
+    if (!bagCasePriceRec || !popsPerBag || !bagsPerCase) return null;
+    const pricePerBag = bagCasePriceRec.price_per_unit / bagsPerCase;
     return pricePerBag / popsPerBag;
   })();
 
