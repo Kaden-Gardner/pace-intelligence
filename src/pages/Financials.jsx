@@ -576,7 +576,8 @@ export default function Financials() {
   const totalShiftCount = allShiftCosts.length + allBaseMixCosts.length;
   const avgShiftCost = totalShiftCount > 0 ? totalShiftCost / totalShiftCount : 0;
   const totalCasesProduced = analyticsShifts.reduce((sum, s) => sum + getTotalCases(s), 0);
-  const avgCostPerCase = totalCasesProduced > 0 ? totalShiftCost / totalCasesProduced : 0;
+  const avgLaborPerCase = totalCasesProduced > 0 ? totalShiftCost / totalCasesProduced : 0;
+  const avgTotalCostPerCase = totalCasesProduced > 0 ? (totalShiftCost + totalSupplyCost) / totalCasesProduced : 0;
   const totalRevenue = filteredOrders.reduce((sum, o) => sum + orderRevenue(o), 0);
   const totalCasesSold = filteredOrders.reduce((sum, o) => sum + orderTotalCases(o), 0);
 
@@ -1062,7 +1063,8 @@ export default function Financials() {
               { label: "Total Supply Cost", value: fmt$(totalSupplyCost), sub: "production + base mix materials" },
               { label: "Total Combined Cost", value: fmt$(totalShiftCost + totalSupplyCost), sub: "labor + all supplies" },
               { label: "Avg Labor Cost Per Shift", value: fmt$(avgShiftCost), sub: shiftTypeFilter === "all" ? "production + base mix" : shiftTypeFilter === "production" ? "production only" : "base mix only" },
-              { label: "Avg Cost Per Case", value: shiftTypeFilter === "basemix" ? "—" : fmt$(avgCostPerCase), sub: `${totalCasesProduced} cases produced` },
+              { label: "Avg Labor Per Case", value: shiftTypeFilter === "basemix" ? "—" : fmt$(avgLaborPerCase), sub: `${totalCasesProduced} cases produced` },
+              { label: "Avg Total Cost Per Case", value: shiftTypeFilter === "basemix" ? "—" : fmt$(avgTotalCostPerCase), sub: "labor + supplies" },
               { label: "Total Sales Revenue", value: fmt$(totalRevenue), sub: `${totalCasesSold} cases sold` },
             ].map((stat) => (
               <div key={stat.label} className="bg-card rounded-2xl border border-border p-5">
