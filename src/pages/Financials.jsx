@@ -12,6 +12,8 @@ import SuppliesPricingTab from "@/components/financials/SuppliesPricingTab";
 import CostBreakdownTab from "@/components/financials/CostBreakdownTab";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
+const GALLONS_PER_BATCH = 240;
+
 const PERIODS = [
   { label: "Last Shift", key: "lastshift" },
   { label: "This Week", key: "week" },
@@ -352,21 +354,10 @@ export default function Financials() {
     return totalCost;
   }
 
-  // Supply cost for a base mix shift: ingredients consumed × price per unit
+  // Base mix ingredient costs are now counted in production shifts (calcProductionSupplyCost)
+  // to avoid double-counting. Base mix shifts show labor cost only.
   function calcBaseMixSupplyCost(shift) {
-    const batchCount = shift.batch_size || 1;
-    const fsId = shift.flavorset_id || null;
-    let total = 0;
-    INGREDIENTS.forEach((ing) => {
-      const priceRec = supplyPrices.find((p) => p.item_key === ing.key && p.item_type === "ingredient");
-      if (!priceRec || !priceRec.price_per_unit) return;
-      // Use flavorset-specific default if available, else global
-      const fsDefault = fsId ? baseMixDefaults.find((d) => d.ingredient === ing.key && d.flavorset_id === fsId) : null;
-      const globalDefault = baseMixDefaults.find((d) => d.ingredient === ing.key && !d.flavorset_id);
-      const amountPerBatch = fsDefault ? fsDefault.amount_per_batch : (globalDefault ? globalDefault.amount_per_batch : 0);
-      total += amountPerBatch * batchCount * priceRec.price_per_unit;
-    });
-    return total;
+    return 0;
   }
 
   // Helper: get per-oz price for a specific flavor (uses FlavorPrice if available, else falls back to global flavor_case)
@@ -386,11 +377,29 @@ export default function Financials() {
     return null;
   }
 
-  // Supply cost for a production shift: flavoring, bags, box stacks, popsicle sticks, wrap
+  // Supply cost for a production shift: base mix ingredients, flavoring, bags, box stacks, popsicle sticks, wrap
   function calcProductionSupplyCost(shift) {
     const totalCases = getTotalCases(shift);
     const ppCase = shift.popsicles_per_case || 144;
     let total = 0;
+
+    // ── Base mix ingredients: gallons consumed × cost per gallon ──
+    // Gallons consumed = popsicles produced ÷ popsicles per gallon
+    const ppgShift = shift.popsicles_per_gallon || matDefaults.find((d) => d.material_key === "popsicles_per_gallon")?.qty_per_shift || 24;
+    const gallonsConsumed = ppgShift > 0 ? (totalCases * ppCase) / ppgShift : 0;
+    if (gallonsConsumed > 0) {
+      let ingBatchCost = 0;
+      let hasIngPrices = false;
+      INGREDIENTS.forEach((ing) => {
+        const ingPriceRec = supplyPrices.find((p) => p.item_key === ing.key && p.item_type === "ingredient");
+        if (!ingPriceRec || !ingPriceRec.price_per_unit) return;
+        const fsDefault = shift.flavorset_id ? baseMixDefaults.find((d) => d.ingredient === ing.key && d.flavorset_id === shift.flavorset_id) : null;
+        const globalDefault = baseMixDefaults.find((d) => d.ingredient === ing.key && !d.flavorset_id);
+        const amtPerBatch = fsDefault ? fsDefault.amount_per_batch : (globalDefault ? globalDefault.amount_per_batch : 0);
+        if (amtPerBatch > 0) { ingBatchCost += amtPerBatch * ingPriceRec.price_per_unit; hasIngPrices = true; }
+      });
+      if (hasIngPrices) total += gallonsConsumed * (ingBatchCost / GALLONS_PER_BATCH);
+    }
 
     // ── Flavoring: starting gallons per flavor × oz/gal × per-flavor price/oz ──
     const flavorGallonFields = [
