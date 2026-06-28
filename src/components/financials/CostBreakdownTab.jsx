@@ -81,6 +81,7 @@ export default function CostBreakdownTab() {
   const ppg = matDefaults["popsicles_per_gallon"]?.qty_per_shift || 24;
   const popsPerBag = matDefaults["popsicles_per_bag"]?.qty_per_shift || null;
   const bagsPerCase = matDefaults["bags_per_case"]?.qty_per_shift || null;
+  const bagsPerBagCase = matDefaults["bags_per_bag_case"]?.qty_per_shift || 1000;
   const popsPerCase = matDefaults["popsicles_per_case"]?.qty_per_shift || (popsPerBag && bagsPerCase ? popsPerBag * bagsPerCase : null);
   const sticksPerBox = matDefaults["popsicle_sticks"]?.qty_per_shift || null;
   const casesPerStack = matDefaults["box_stacks"]?.qty_per_shift || null;
@@ -119,10 +120,10 @@ export default function CostBreakdownTab() {
     ? (bagCasePriceRec.price_per_unit / 100) / (popsPerCase / bagsPerCase) // per bag / pops per bag
     : null;
 
-  // price per case of bags ÷ bags_per_case = price per bag; price per bag ÷ pops_per_bag = cost per pop
+  // price per case of empty bags ÷ bags_per_bag_case = price per bag; price per bag ÷ pops_per_bag = cost per pop
   const bagCostPerPopCalc = (() => {
-    if (!bagCasePriceRec || !popsPerBag || !bagsPerCase) return null;
-    const pricePerBag = bagCasePriceRec.price_per_unit / bagsPerCase;
+    if (!bagCasePriceRec || !popsPerBag) return null;
+    const pricePerBag = bagCasePriceRec.price_per_unit / bagsPerBagCase;
     return pricePerBag / popsPerBag;
   })();
 

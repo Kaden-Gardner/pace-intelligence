@@ -155,7 +155,7 @@ export default function SuppliesPricingTab() {
 
       <div>
         <h3 className="font-heading font-semibold text-lg mb-3">Bags</h3>
-        <p className="text-xs text-muted-foreground mb-3">Price per case of bags (bags_per_case set in inventory).</p>
+        <p className="text-xs text-muted-foreground mb-3">Price per case of empty bags. Bags per case is set in the Breakdown tab.</p>
         <PriceRow item={BAG_CASE_ITEM} type="bags" />
       </div>
     </div>
