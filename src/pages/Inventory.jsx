@@ -510,7 +510,7 @@ export default function Inventory() {
         {/* ====== ORDER PICKUPS TAB ====== */}
         <TabsContent value="pickups">
           <div className="flex justify-end mb-4">
-            <Button className="gap-2" onClick={() => openCrudPw("add-pickup")}>
+            <Button className="gap-2" onClick={() => { setShowOrderForm(true); setEditingOrder(null); }}>
               <Plus className="w-4 h-4" /> Record Order
             </Button>
           </div>
