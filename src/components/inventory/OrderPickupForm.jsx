@@ -42,6 +42,7 @@ export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel
   });
 
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   function updateItem(idx, field, value) {
     setItems((prev) => prev.map((it, i) => i === idx ? { ...it, [field]: value } : it));
@@ -75,6 +76,44 @@ export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel
       if (it.item_type === "individual" && !it.flavor_id) return;
     }
     setSaving(true);
+    setError("");
+
+    // Validate inventory availability before saving
+    const checks = items.map((it) => {
+      const cases = computeCases(it);
+      const label = it.item_type === "flavorset"
+        ? (flavorSets.find((fs) => fs.id === it.flavorset_id)?.name || "Unknown flavorset")
+        : (flavors.find((f) => f.id === it.flavor_id)?.name || "Unknown flavor");
+      if (it.item_type === "flavorset" && it.flavorset_id) {
+        return { type: "flavorset", id: it.flavorset_id, cases, label };
+      }
+      if (it.item_type === "individual" && it.flavor_id) {
+        return { type: "individual", id: it.flavor_id, cases, label };
+      }
+      return null;
+    }).filter(Boolean);
+
+    // Fetch inventory once per item and verify enough stock
+    const shortageMsgs = [];
+    for (const c of checks) {
+      if (c.type === "flavorset") {
+        const invRows = await base44.entities.Inventory.filter({ flavorset_id: c.id });
+        const invRow = invRows.find((r) => !r.flavor_id);
+        const avail = invRow?.cases || 0;
+        if (avail < c.cases) shortageMsgs.push(`${c.label} (need ${c.cases}, have ${avail})`);
+      } else {
+        const invRows = await base44.entities.Inventory.filter({ flavor_id: c.id });
+        const invRow = invRows.find((r) => !r.flavorset_id);
+        const avail = invRow?.cases || 0;
+        if (avail < c.cases) shortageMsgs.push(`${c.label} (need ${c.cases}, have ${avail})`);
+      }
+    }
+
+    if (shortageMsgs.length > 0) {
+      setError("Insufficient inventory: " + shortageMsgs.join("; "));
+      setSaving(false);
+      return;
+    }
 
     let order;
     if (existingOrder) {
@@ -109,20 +148,20 @@ export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel
       return base44.entities.OrderPickupItem.create(payload);
     }));
 
-    // Deduct from inventory
+    // Deduct from inventory — only items actually in the order
     for (const it of createdItems) {
       if (it.item_type === "flavorset" && it.flavorset_id) {
         const invRows = await base44.entities.Inventory.filter({ flavorset_id: it.flavorset_id });
         const invRow = invRows.find((r) => !r.flavor_id);
         if (invRow) {
-          const newCases = Math.max(0, (invRow.cases || 0) - (it.cases || 0));
+          const newCases = (invRow.cases || 0) - (it.cases || 0);
           await base44.entities.Inventory.update(invRow.id, { cases: newCases });
         }
       } else if (it.item_type === "individual" && it.flavor_id) {
         const invRows = await base44.entities.Inventory.filter({ flavor_id: it.flavor_id });
         const invRow = invRows.find((r) => !r.flavorset_id);
         if (invRow) {
-          const newCases = Math.max(0, (invRow.cases || 0) - (it.cases || 0));
+          const newCases = (invRow.cases || 0) - (it.cases || 0);
           await base44.entities.Inventory.update(invRow.id, { cases: newCases });
         }
       }
@@ -240,6 +279,10 @@ export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel
           ))}
         </div>
       </div>
+
+      {error && (
+        <p className="text-sm text-destructive mb-3">{error}</p>
+      )}
 
       <div className="flex gap-2 mt-4">
         <Button onClick={handleSave} disabled={saving} className="gap-2">
