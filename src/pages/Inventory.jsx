@@ -40,26 +40,6 @@ export default function Inventory() {
   const [addInvType, setAddInvType] = useState("flavorset");
   const [addInvForm, setAddInvForm] = useState({ flavorset_id: "", flavor_id: "", cases: 0 });
 
-  // Password gate for pickup CRUD
-  const [crudPw, setCrudPw] = useState(null);
-  const [crudPwInput, setCrudPwInput] = useState("");
-  const [crudPwError, setCrudPwError] = useState("");
-
-  function openCrudPw(action, data = null) {
-    setCrudPw({ action, data });
-    setCrudPwInput("");
-    setCrudPwError("");
-  }
-
-  function confirmCrudPw() {
-    if (crudPwInput !== "ecap") { setCrudPwError("Incorrect password."); return; }
-    const { action, data } = crudPw;
-    setCrudPw(null);
-    if (action === "add-pickup") { setShowOrderForm(true); setEditingOrder(null); }
-    else if (action === "edit-pickup") { setEditingOrder(data); setShowOrderForm(true); }
-    else if (action === "delete-pickup") { deletePickup(data); }
-  }
-
   // Flavorset display toggle: "pallets" | "cases"
   const [flavorsetDisplayMode, setFlavorsetDisplayMode] = useState("pallets");
 
@@ -578,10 +558,10 @@ export default function Inventory() {
                         </div>
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openCrudPw("edit-pickup", p)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditingOrder(p); setShowOrderForm(true); }}>
                           <Pencil className="w-3.5 h-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => openCrudPw("delete-pickup", p)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => deletePickup(p)}>
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       </div>
@@ -593,36 +573,6 @@ export default function Inventory() {
           )}
         </TabsContent>
       </Tabs>
-
-      {/* Password gate modal */}
-      {crudPw && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-card rounded-2xl border border-border p-6 w-full max-w-sm mx-4 shadow-xl">
-            <h3 className="font-heading font-semibold text-lg mb-1">
-              {crudPw.action === "add-pickup" ? "Record Order" :
-               crudPw.action === "edit-pickup" ? `Edit Order — ${crudPw.data?.vendor_name}` :
-               `Delete Order — ${crudPw.data?.vendor_name}`}
-            </h3>
-            <p className="text-sm text-muted-foreground mb-4">Enter the admin password to continue.</p>
-            <input
-              type="password"
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring mb-2"
-              placeholder="Admin password"
-              value={crudPwInput}
-              onChange={(e) => { setCrudPwInput(e.target.value); setCrudPwError(""); }}
-              onKeyDown={(e) => e.key === "Enter" && confirmCrudPw()}
-              autoFocus
-            />
-            {crudPwError && <p className="text-xs text-destructive mb-2">{crudPwError}</p>}
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" size="sm" onClick={() => setCrudPw(null)}>Cancel</Button>
-              <Button size="sm" className={crudPw.action === "delete-pickup" ? "bg-red-600 hover:bg-red-700 text-white" : ""} onClick={confirmCrudPw}>
-                {crudPw.action === "delete-pickup" ? "Delete" : "Confirm"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
