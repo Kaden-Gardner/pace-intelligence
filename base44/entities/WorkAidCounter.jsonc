@@ -4,18 +4,11 @@
   "properties": {
     "position": {
       "type": "string",
-      "title": "Position",
-      "enum": [
-        "boxing",
-        "filling",
-        "bagging",
-        "pulling",
-        "sorting"
-      ]
+      "title": "Position Key"
     },
     "cases": {
       "type": "number",
-      "title": "Cases Count",
+      "title": "Count",
       "default": 0
     }
   },
