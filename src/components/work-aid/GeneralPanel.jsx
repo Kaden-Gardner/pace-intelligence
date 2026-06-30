@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowDown, ArrowUp, Trash2, Play, Square } from "lucide-react";
+import { ArrowDown, ArrowUp, Trash2, Play, Square, Clock, AlertTriangle } from "lucide-react";
 
 function toLocalInput(iso) {
   if (!iso) return "";
@@ -19,12 +19,27 @@ function formatTime(iso) {
   return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
+function formatDuration(ms) {
+  if (ms <= 0) return "0m";
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
 export default function GeneralPanel() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [shiftStartInput, setShiftStartInput] = useState("");
   const [shiftEndInput, setShiftEndInput] = useState("");
   const [saving, setSaving] = useState(null);
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     let unsub;
@@ -62,6 +77,26 @@ export default function GeneralPanel() {
   const machineEvents = logs
     .filter((l) => l.entry_type === "machine_down" || l.entry_type === "machine_up")
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+
+  // Total shift time: shift start → shift end (if set), otherwise → now
+  const shiftElapsed = shiftStart
+    ? (shiftEnd ? new Date(shiftEnd.timestamp).getTime() : now) - new Date(shiftStart.timestamp).getTime()
+    : 0;
+
+  // Total downtime: sum of all down→up intervals; open down counts until now
+  let totalDowntime = 0;
+  let openDownStart = null;
+  for (const ev of machineEvents) {
+    if (ev.entry_type === "machine_down") {
+      openDownStart = new Date(ev.timestamp).getTime();
+    } else if (ev.entry_type === "machine_up" && openDownStart !== null) {
+      totalDowntime += new Date(ev.timestamp).getTime() - openDownStart;
+      openDownStart = null;
+    }
+  }
+  if (openDownStart !== null) {
+    totalDowntime += now - openDownStart;
+  }
 
   async function saveShiftStart() {
     if (!shiftStartInput || saving) return;
@@ -123,6 +158,20 @@ export default function GeneralPanel() {
 
   return (
     <div className="space-y-6 max-w-md mx-auto">
+      {/* Summary */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-card rounded-2xl border border-border p-4 text-center">
+          <Clock className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
+          <p className="text-2xl font-heading font-bold">{formatDuration(shiftElapsed)}</p>
+          <p className="text-xs text-muted-foreground mt-1">Total Shift Time</p>
+        </div>
+        <div className="bg-card rounded-2xl border border-border p-4 text-center">
+          <AlertTriangle className="w-5 h-5 mx-auto mb-2 text-destructive" />
+          <p className="text-2xl font-heading font-bold text-destructive">{formatDuration(totalDowntime)}</p>
+          <p className="text-xs text-muted-foreground mt-1">Total Downtime</p>
+        </div>
+      </div>
+
       {/* Shift Start */}
       <div className="bg-card rounded-2xl border border-border p-5">
         <h3 className="font-heading font-semibold text-sm mb-3 flex items-center gap-2">
