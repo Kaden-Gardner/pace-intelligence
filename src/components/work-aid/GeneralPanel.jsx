@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowDown, ArrowUp, Trash2, Play, Square, Clock, AlertTriangle } from "lucide-react";
+import { ArrowDown, ArrowUp, Trash2, Play, Square, Clock, AlertTriangle, RotateCcw } from "lucide-react";
 
 function toLocalInput(iso) {
   if (!iso) return "";
@@ -135,6 +135,20 @@ export default function GeneralPanel() {
     }
   }
 
+  async function resetAll() {
+    if (saving || logs.length === 0) return;
+    setSaving("reset_all");
+    try {
+      await base44.entities.MachineLog.deleteMany({});
+      setShiftStartInput("");
+      setShiftEndInput("");
+    } catch (err) {
+      console.error("Failed to reset:", err);
+    } finally {
+      setSaving(null);
+    }
+  }
+
   if (loading) {
     return <div className="flex justify-center py-12"><div className="w-6 h-6 border-4 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
   }
@@ -219,6 +233,11 @@ export default function GeneralPanel() {
           <p className="text-xs text-muted-foreground mt-2">Ended at {formatTime(shiftEnd.timestamp)}</p>
         )}
       </div>
+
+      {/* Reset */}
+      <Button variant="outline" className="w-full gap-2" onClick={resetAll} disabled={logs.length === 0 || saving === "reset_all"}>
+        <RotateCcw className="w-4 h-4" /> Reset All
+      </Button>
     </div>
   );
 }

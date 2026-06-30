@@ -4,6 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CounterPanel from "@/components/work-aid/CounterPanel";
 import FillingPanel from "@/components/work-aid/FillingPanel";
 import GeneralPanel from "@/components/work-aid/GeneralPanel";
+import SpeedBar from "@/components/work-aid/SpeedBar";
 
 const FILLING_KEYS = ["filling_flavor_1", "filling_flavor_2", "filling_flavor_3", "filling_flavor_4"];
 
@@ -18,8 +19,10 @@ const TABS = [
 
 export default function WorkAid() {
   const [counters, setCounters] = useState({});
+  const [machineLogs, setMachineLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyKeys, setBusyKeys] = useState(new Set());
+  const [now, setNow] = useState(Date.now());
   const countersRef = useRef(counters);
   countersRef.current = counters;
   const busyRef = useRef(new Set());
@@ -48,6 +51,32 @@ export default function WorkAid() {
             next[event.data.position] = event.data;
           }
           return next;
+        });
+      });
+    })();
+    return () => { if (unsub) unsub(); };
+  }, []);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    let unsub;
+    (async () => {
+      try {
+        const list = await base44.entities.MachineLog.list();
+        setMachineLogs(list);
+      } catch (err) {
+        console.error("Failed to load machine logs:", err);
+      }
+      unsub = base44.entities.MachineLog.subscribe((event) => {
+        setMachineLogs((prev) => {
+          if (event.type === "delete") return prev.filter((l) => l.id !== event.id);
+          if (event.type === "create") return [...prev, event.data];
+          if (event.type === "update") return prev.map((l) => (l.id === event.data.id ? event.data : l));
+          return prev;
         });
       });
     })();
@@ -141,6 +170,14 @@ export default function WorkAid() {
     return <div className="flex justify-center py-12"><div className="w-6 h-6 border-4 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
   }
 
+  const shiftStartLog = machineLogs.find((l) => l.entry_type === "shift_start");
+  const shiftEndLog = machineLogs.find((l) => l.entry_type === "shift_end");
+  const shiftElapsedMs = shiftStartLog
+    ? (shiftEndLog ? new Date(shiftEndLog.timestamp).getTime() : now) - new Date(shiftStartLog.timestamp).getTime()
+    : 0;
+  const boxingCases = counters["boxing"]?.cases || 0;
+  const baggingBags = counters["bagging"]?.cases || 0;
+
   return (
     <div>
       <h1 className="font-heading text-2xl font-bold mb-6">Work Aid</h1>
@@ -152,6 +189,7 @@ export default function WorkAid() {
         </TabsList>
         {TABS.map((t) => (
           <TabsContent key={t.key} value={t.key}>
+            <SpeedBar shiftElapsedMs={shiftElapsedMs} cases={boxingCases} bags={baggingBags} />
             {t.isGeneral ? (
               <GeneralPanel />
             ) : t.isMulti ? (
