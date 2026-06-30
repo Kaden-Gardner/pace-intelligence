@@ -8,6 +8,7 @@ const POSITIONS = [
   { key: "filling", label: "Filling" },
   { key: "bagging", label: "Bagging" },
   { key: "pulling", label: "Pulling" },
+  { key: "sorting", label: "Sorting" },
 ];
 
 export default function WorkAid() {
