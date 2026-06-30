@@ -98,35 +98,18 @@ export default function GeneralPanel() {
     totalDowntime += now - openDownStart;
   }
 
-  async function saveShiftStart() {
-    if (!shiftStartInput || saving) return;
-    setSaving("shift_start");
-    const iso = fromLocalInput(shiftStartInput);
+  async function saveShiftTime(type, inputValue, existing) {
+    if (!inputValue || saving) return;
+    setSaving(type);
     try {
-      if (shiftStart) {
-        await base44.entities.MachineLog.update(shiftStart.id, { timestamp: iso });
+      const iso = fromLocalInput(inputValue);
+      if (existing) {
+        await base44.entities.MachineLog.update(existing.id, { timestamp: iso });
       } else {
-        await base44.entities.MachineLog.create({ entry_type: "shift_start", timestamp: iso });
+        await base44.entities.MachineLog.create({ entry_type: type, timestamp: iso });
       }
     } catch (err) {
-      console.error("Failed to save shift start:", err);
-    } finally {
-      setSaving(null);
-    }
-  }
-
-  async function saveShiftEnd() {
-    if (!shiftEndInput || saving) return;
-    setSaving("shift_end");
-    const iso = fromLocalInput(shiftEndInput);
-    try {
-      if (shiftEnd) {
-        await base44.entities.MachineLog.update(shiftEnd.id, { timestamp: iso });
-      } else {
-        await base44.entities.MachineLog.create({ entry_type: "shift_end", timestamp: iso });
-      }
-    } catch (err) {
-      console.error("Failed to save shift end:", err);
+      console.error("Failed to save:", err);
     } finally {
       setSaving(null);
     }
@@ -179,7 +162,7 @@ export default function GeneralPanel() {
         </h3>
         <div className="flex gap-2">
           <Input type="datetime-local" value={shiftStartInput} onChange={(e) => setShiftStartInput(e.target.value)} />
-          <Button size="sm" onClick={saveShiftStart} disabled={!shiftStartInput || saving === "shift_start"}>
+          <Button size="sm" onClick={() => saveShiftTime("shift_start", shiftStartInput, shiftStart)} disabled={!shiftStartInput || saving === "shift_start"}>
             {shiftStart ? "Update" : "Set"}
           </Button>
         </div>
@@ -228,7 +211,7 @@ export default function GeneralPanel() {
         </h3>
         <div className="flex gap-2">
           <Input type="datetime-local" value={shiftEndInput} onChange={(e) => setShiftEndInput(e.target.value)} />
-          <Button size="sm" onClick={saveShiftEnd} disabled={!shiftEndInput || saving === "shift_end"}>
+          <Button size="sm" onClick={() => saveShiftTime("shift_end", shiftEndInput, shiftEnd)} disabled={!shiftEndInput || saving === "shift_end"}>
             {shiftEnd ? "Update" : "Set"}
           </Button>
         </div>
