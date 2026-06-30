@@ -6,12 +6,12 @@ import FillingPanel from "@/components/work-aid/FillingPanel";
 
 const FILLING_KEYS = ["filling_flavor_1", "filling_flavor_2", "filling_flavor_3", "filling_flavor_4"];
 
-const POSITIONS = [
-  { key: "boxing", label: "Boxing" },
-  { key: "filling", label: "Filling" },
-  { key: "bagging", label: "Bagging" },
-  { key: "pulling", label: "Pulling" },
-  { key: "sorting", label: "Sorting" },
+const TABS = [
+  { key: "boxing", label: "Boxing", panelLabel: "Boxing Cases", unit: "cases" },
+  { key: "filling", label: "Filling", isMulti: true },
+  { key: "bagging", label: "Bagging", panelLabel: "Bags Bagged", unit: "bags" },
+  { key: "pulling", label: "Pulling", panelLabel: "Pulling Waste", unit: "popsicles", secondaryLabel: "Gallons of Punch", conversionDivisor: 48 },
+  { key: "sorting", label: "Sorting", panelLabel: "Sorting Waste", unit: "popsicles", secondaryLabel: "Gallons of Punch", conversionDivisor: 48 },
 ];
 
 export default function WorkAid() {
@@ -20,6 +20,7 @@ export default function WorkAid() {
   const [busyKeys, setBusyKeys] = useState(new Set());
   const countersRef = useRef(counters);
   countersRef.current = counters;
+  const busyRef = useRef(new Set());
 
   useEffect(() => {
     let unsub;
@@ -52,15 +53,14 @@ export default function WorkAid() {
   }, []);
 
   function markBusy(key, isBusy) {
-    setBusyKeys((prev) => {
-      const next = new Set(prev);
-      if (isBusy) next.add(key); else next.delete(key);
-      return next;
-    });
+    const next = new Set(busyRef.current);
+    if (isBusy) next.add(key); else next.delete(key);
+    busyRef.current = next;
+    setBusyKeys(next);
   }
 
   async function adjustCounter(key, delta) {
-    if (busyKeys.has(key)) return;
+    if (busyRef.current.has(key)) return;
     const rec = countersRef.current[key];
     const currentVal = rec?.cases || 0;
     const newVal = Math.max(0, currentVal + delta);
@@ -90,7 +90,7 @@ export default function WorkAid() {
   }
 
   async function reset(key) {
-    if (busyKeys.has(key)) return;
+    if (busyRef.current.has(key)) return;
     const rec = countersRef.current[key];
     if (!rec || (rec.cases || 0) === 0) return;
 
@@ -114,7 +114,7 @@ export default function WorkAid() {
     });
     if (active.length === 0) return;
 
-    keys.forEach((k) => markBusy(k, true));
+    active.forEach((k) => markBusy(k, true));
 
     setCounters((prev) => {
       const next = { ...prev };
@@ -132,7 +132,7 @@ export default function WorkAid() {
       }
     }));
 
-    keys.forEach((k) => markBusy(k, false));
+    active.forEach((k) => markBusy(k, false));
   }
 
   if (loading) {
@@ -144,67 +144,35 @@ export default function WorkAid() {
       <h1 className="font-heading text-2xl font-bold mb-6">Work Aid</h1>
       <Tabs defaultValue="boxing">
         <TabsList className="w-full justify-start overflow-x-auto mb-6">
-          {POSITIONS.map((p) => (
-            <TabsTrigger key={p.key} value={p.key}>{p.label}</TabsTrigger>
+          {TABS.map((t) => (
+            <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
           ))}
         </TabsList>
-        <TabsContent value="boxing">
-          <CounterPanel
-            label="Boxing Cases"
-            counter={counters["boxing"]}
-            unit="cases"
-            onIncrement={() => adjustCounter("boxing", +1)}
-            onDecrement={() => adjustCounter("boxing", -1)}
-            onReset={() => reset("boxing")}
-            disabled={busyKeys.has("boxing")}
-          />
-        </TabsContent>
-        <TabsContent value="filling">
-          <FillingPanel
-            counters={counters}
-            onIncrement={(key) => adjustCounter(key, +1)}
-            onDecrement={(key) => adjustCounter(key, -1)}
-            onResetAll={() => resetAll(FILLING_KEYS)}
-            busyKeys={busyKeys}
-          />
-        </TabsContent>
-        <TabsContent value="bagging">
-          <CounterPanel
-            label="Bags Bagged"
-            counter={counters["bagging"]}
-            unit="bags"
-            onIncrement={() => adjustCounter("bagging", +1)}
-            onDecrement={() => adjustCounter("bagging", -1)}
-            onReset={() => reset("bagging")}
-            disabled={busyKeys.has("bagging")}
-          />
-        </TabsContent>
-        <TabsContent value="pulling">
-          <CounterPanel
-            label="Pulling Waste"
-            counter={counters["pulling"]}
-            unit="popsicles"
-            secondaryLabel="Gallons of Punch"
-            conversionDivisor={48}
-            onIncrement={() => adjustCounter("pulling", +1)}
-            onDecrement={() => adjustCounter("pulling", -1)}
-            onReset={() => reset("pulling")}
-            disabled={busyKeys.has("pulling")}
-          />
-        </TabsContent>
-        <TabsContent value="sorting">
-          <CounterPanel
-            label="Sorting Waste"
-            counter={counters["sorting"]}
-            unit="popsicles"
-            secondaryLabel="Gallons of Punch"
-            conversionDivisor={48}
-            onIncrement={() => adjustCounter("sorting", +1)}
-            onDecrement={() => adjustCounter("sorting", -1)}
-            onReset={() => reset("sorting")}
-            disabled={busyKeys.has("sorting")}
-          />
-        </TabsContent>
+        {TABS.map((t) => (
+          <TabsContent key={t.key} value={t.key}>
+            {t.isMulti ? (
+              <FillingPanel
+                counters={counters}
+                onIncrement={(key) => adjustCounter(key, +1)}
+                onDecrement={(key) => adjustCounter(key, -1)}
+                onResetAll={() => resetAll(FILLING_KEYS)}
+                busyKeys={busyKeys}
+              />
+            ) : (
+              <CounterPanel
+                label={t.panelLabel}
+                counter={counters[t.key]}
+                unit={t.unit}
+                secondaryLabel={t.secondaryLabel}
+                conversionDivisor={t.conversionDivisor}
+                onIncrement={() => adjustCounter(t.key, +1)}
+                onDecrement={() => adjustCounter(t.key, -1)}
+                onReset={() => reset(t.key)}
+                disabled={busyKeys.has(t.key)}
+              />
+            )}
+          </TabsContent>
+        ))}
       </Tabs>
     </div>
   );
