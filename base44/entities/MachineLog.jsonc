@@ -1,0 +1,30 @@
+{
+  "name": "MachineLog",
+  "type": "object",
+  "properties": {
+    "entry_type": {
+      "type": "string",
+      "title": "Entry Type",
+      "enum": [
+        "shift_start",
+        "shift_end",
+        "machine_down",
+        "machine_up"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "title": "Timestamp (ISO datetime)"
+    }
+  },
+  "required": [
+    "entry_type",
+    "timestamp"
+  ],
+  "rls": {
+    "create": {},
+    "read": {},
+    "update": {},
+    "delete": {}
+  }
+}

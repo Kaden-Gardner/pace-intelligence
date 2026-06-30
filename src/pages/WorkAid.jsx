@@ -3,10 +3,12 @@ import { base44 } from "@/api/base44Client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CounterPanel from "@/components/work-aid/CounterPanel";
 import FillingPanel from "@/components/work-aid/FillingPanel";
+import GeneralPanel from "@/components/work-aid/GeneralPanel";
 
 const FILLING_KEYS = ["filling_flavor_1", "filling_flavor_2", "filling_flavor_3", "filling_flavor_4"];
 
 const TABS = [
+  { key: "general", label: "General", isGeneral: true },
   { key: "boxing", label: "Boxing", panelLabel: "Boxing Cases", unit: "cases" },
   { key: "filling", label: "Filling", isMulti: true },
   { key: "bagging", label: "Bagging", panelLabel: "Bags Bagged", unit: "bags" },
@@ -142,7 +144,7 @@ export default function WorkAid() {
   return (
     <div>
       <h1 className="font-heading text-2xl font-bold mb-6">Work Aid</h1>
-      <Tabs defaultValue="boxing">
+      <Tabs defaultValue="general">
         <TabsList className="w-full justify-start overflow-x-auto mb-6">
           {TABS.map((t) => (
             <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
@@ -150,7 +152,9 @@ export default function WorkAid() {
         </TabsList>
         {TABS.map((t) => (
           <TabsContent key={t.key} value={t.key}>
-            {t.isMulti ? (
+            {t.isGeneral ? (
+              <GeneralPanel />
+            ) : t.isMulti ? (
               <FillingPanel
                 counters={counters}
                 onIncrement={(key) => adjustCounter(key, +1)}
