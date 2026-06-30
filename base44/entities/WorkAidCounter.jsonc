@@ -1,0 +1,30 @@
+{
+  "name": "WorkAidCounter",
+  "type": "object",
+  "properties": {
+    "position": {
+      "type": "string",
+      "title": "Position",
+      "enum": [
+        "boxing",
+        "filling",
+        "bagging",
+        "pulling"
+      ]
+    },
+    "cases": {
+      "type": "number",
+      "title": "Cases Count",
+      "default": 0
+    }
+  },
+  "required": [
+    "position"
+  ],
+  "rls": {
+    "create": {},
+    "read": {},
+    "update": {},
+    "delete": {}
+  }
+}

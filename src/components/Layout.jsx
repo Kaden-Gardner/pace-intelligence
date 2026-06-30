@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, CalendarClock, Clock, UserCircle, DollarSign, LogOut, MessageSquare } from "lucide-react";
+import { BarChart3, Users, Calendar, IceCreamCone, Package, CalendarDays, CalendarClock, Clock, UserCircle, DollarSign, LogOut, MessageSquare, Wrench } from "lucide-react";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/AuthContext";
 import EmployeeNumberSetup from "./EmployeeNumberSetup";
@@ -19,6 +19,7 @@ const adminNavItems = [
   { path: "/employees", label: "Employees", icon: Users },
   { path: "/flavors", label: "Flavors", icon: IceCreamCone },
   { path: "/financials", label: "Financials", icon: DollarSign },
+  { path: "/work-aid", label: "Work Aid", icon: Wrench },
 ];
 
 const userNavItems = [
@@ -28,6 +29,7 @@ const userNavItems = [
   { path: "/availability", label: "Availability", icon: CalendarDays },
   { path: "/time-tracking", label: "Time Tracking", icon: Clock },
   { path: "/employees", label: "Employees", icon: Users },
+  { path: "/work-aid", label: "Work Aid", icon: Wrench },
 ];
 
 export default function Layout() {

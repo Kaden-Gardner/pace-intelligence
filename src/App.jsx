@@ -22,6 +22,7 @@ import Schedule from './pages/Schedule';
 import TimeTracking from './pages/TimeTracking';
 import MyInfo from './pages/MyInfo';
 import Financials from './pages/Financials';
+import WorkAid from './pages/WorkAid';
 
 const AnimatedRoutes = () => {
   const location = useLocation();
@@ -45,6 +46,7 @@ const AnimatedRoutes = () => {
           <Route path="/time-tracking" element={<PageTransition><TimeTracking /></PageTransition>} />
           <Route path="/my-info" element={<PageTransition><MyInfo /></PageTransition>} />
           <Route path="/financials" element={<PageTransition><Financials /></PageTransition>} />
+          <Route path="/work-aid" element={<PageTransition><WorkAid /></PageTransition>} />
           <Route path="*" element={<PageTransition><PageNotFound /></PageTransition>} />
         </Route>
       </Routes>
