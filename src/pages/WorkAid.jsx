@@ -23,6 +23,7 @@ export default function WorkAid() {
   const [loading, setLoading] = useState(true);
   const [busyKeys, setBusyKeys] = useState(new Set());
   const [now, setNow] = useState(Date.now());
+  const [activeTab, setActiveTab] = useState("general");
   const countersRef = useRef(counters);
   countersRef.current = counters;
   const busyRef = useRef(new Set());
@@ -178,10 +179,27 @@ export default function WorkAid() {
   const boxingCases = counters["boxing"]?.cases || 0;
   const baggingBags = counters["bagging"]?.cases || 0;
 
+  const machineEvents = machineLogs
+    .filter((l) => l.entry_type === "machine_down" || l.entry_type === "machine_up")
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+  let totalDowntimeMs = 0;
+  let openDownStart = null;
+  for (const ev of machineEvents) {
+    if (ev.entry_type === "machine_down") {
+      openDownStart = new Date(ev.timestamp).getTime();
+    } else if (ev.entry_type === "machine_up" && openDownStart !== null) {
+      totalDowntimeMs += new Date(ev.timestamp).getTime() - openDownStart;
+      openDownStart = null;
+    }
+  }
+  if (openDownStart !== null) {
+    totalDowntimeMs += now - openDownStart;
+  }
+
   return (
     <div>
       <h1 className="font-heading text-2xl font-bold mb-6">Work Aid</h1>
-      <Tabs defaultValue="general">
+      <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start overflow-x-auto mb-6">
           {TABS.map((t) => (
             <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
@@ -189,7 +207,13 @@ export default function WorkAid() {
         </TabsList>
         {TABS.map((t) => (
           <TabsContent key={t.key} value={t.key}>
-            <SpeedBar shiftElapsedMs={shiftElapsedMs} cases={boxingCases} bags={baggingBags} />
+            <SpeedBar
+              shiftElapsedMs={shiftElapsedMs}
+              cases={boxingCases}
+              bags={baggingBags}
+              downtimeMs={totalDowntimeMs}
+              showLostProduct={t.key === "general"}
+            />
             {t.isGeneral ? (
               <GeneralPanel />
             ) : t.isMulti ? (
