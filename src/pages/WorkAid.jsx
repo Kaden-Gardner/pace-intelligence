@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CounterPanel from "@/components/work-aid/CounterPanel";
@@ -14,15 +14,25 @@ const POSITIONS = [
 export default function WorkAid() {
   const [counters, setCounters] = useState({});
   const [loading, setLoading] = useState(true);
+  const [busyPos, setBusyPos] = useState(null);
+
+  // Ref to always read the latest counters without stale closure issues
+  const countersRef = useRef(counters);
+  countersRef.current = counters;
 
   useEffect(() => {
     let unsub;
     (async () => {
-      const list = await base44.entities.WorkAidCounter.list();
-      const map = {};
-      list.forEach((c) => { if (c.position) map[c.position] = c; });
-      setCounters(map);
-      setLoading(false);
+      try {
+        const list = await base44.entities.WorkAidCounter.list();
+        const map = {};
+        list.forEach((c) => { if (c.position) map[c.position] = c; });
+        setCounters(map);
+      } catch (err) {
+        console.error("Failed to load counters:", err);
+      } finally {
+        setLoading(false);
+      }
       unsub = base44.entities.WorkAidCounter.subscribe((event) => {
         setCounters((prev) => {
           const next = { ...prev };
@@ -40,31 +50,54 @@ export default function WorkAid() {
     return () => { if (unsub) unsub(); };
   }, []);
 
-  async function increment(pos) {
-    const rec = counters[pos];
-    if (!rec) {
-      const created = await base44.entities.WorkAidCounter.create({ position: pos, cases: 1 });
-      setCounters((prev) => ({ ...prev, [pos]: created }));
-    } else {
-      const newVal = (rec.cases || 0) + 1;
-      await base44.entities.WorkAidCounter.update(rec.id, { cases: newVal });
-      setCounters((prev) => ({ ...prev, [pos]: { ...prev[pos], cases: newVal } }));
+  async function adjustCounter(pos, delta) {
+    if (busyPos === pos) return;
+    const rec = countersRef.current[pos];
+    const currentVal = rec?.cases || 0;
+    const newVal = Math.max(0, currentVal + delta);
+    if (newVal === currentVal) return;
+
+    setBusyPos(pos);
+    // Optimistic update
+    setCounters((prev) => ({
+      ...prev,
+      [pos]: prev[pos] ? { ...prev[pos], cases: newVal } : { position: pos, cases: newVal },
+    }));
+
+    try {
+      if (!rec) {
+        const created = await base44.entities.WorkAidCounter.create({ position: pos, cases: newVal });
+        setCounters((prev) => ({ ...prev, [pos]: created }));
+      } else {
+        await base44.entities.WorkAidCounter.update(rec.id, { cases: newVal });
+      }
+    } catch (err) {
+      // Rollback on failure — subscription will also correct eventually
+      setCounters((prev) => ({
+        ...prev,
+        [pos]: rec ? { ...rec } : prev[pos],
+      }));
+    } finally {
+      setBusyPos(null);
     }
   }
 
-  async function decrement(pos) {
-    const rec = counters[pos];
-    if (!rec) return;
-    const newVal = Math.max(0, (rec.cases || 0) - 1);
-    await base44.entities.WorkAidCounter.update(rec.id, { cases: newVal });
-    setCounters((prev) => ({ ...prev, [pos]: { ...prev[pos], cases: newVal } }));
-  }
-
   async function reset(pos) {
-    const rec = counters[pos];
-    if (!rec) return;
-    await base44.entities.WorkAidCounter.update(rec.id, { cases: 0 });
+    if (busyPos === pos) return;
+    const rec = countersRef.current[pos];
+    if (!rec || (rec.cases || 0) === 0) return;
+
+    setBusyPos(pos);
+    const prevVal = rec.cases || 0;
     setCounters((prev) => ({ ...prev, [pos]: { ...prev[pos], cases: 0 } }));
+
+    try {
+      await base44.entities.WorkAidCounter.update(rec.id, { cases: 0 });
+    } catch (err) {
+      setCounters((prev) => ({ ...prev, [pos]: { ...prev[pos], cases: prevVal } }));
+    } finally {
+      setBusyPos(null);
+    }
   }
 
   if (loading) {
@@ -82,19 +115,14 @@ export default function WorkAid() {
         </TabsList>
         {POSITIONS.map((p) => (
           <TabsContent key={p.key} value={p.key}>
-            {p.key === "boxing" ? (
-              <CounterPanel
-                label={p.label}
-                counter={counters[p.key]}
-                onIncrement={() => increment(p.key)}
-                onDecrement={() => decrement(p.key)}
-                onReset={() => reset(p.key)}
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
-                <p className="text-muted-foreground">Nothing here yet.</p>
-              </div>
-            )}
+            <CounterPanel
+              label={p.label}
+              counter={counters[p.key]}
+              onIncrement={() => adjustCounter(p.key, +1)}
+              onDecrement={() => adjustCounter(p.key, -1)}
+              onReset={() => reset(p.key)}
+              disabled={busyPos === p.key}
+            />
           </TabsContent>
         ))}
       </Tabs>
