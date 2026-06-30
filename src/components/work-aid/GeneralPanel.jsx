@@ -138,12 +138,16 @@ export default function GeneralPanel() {
   async function resetAll() {
     if (saving || logs.length === 0) return;
     setSaving("reset_all");
+    const prevStart = shiftStartInput;
+    const prevEnd = shiftEndInput;
+    setShiftStartInput("");
+    setShiftEndInput("");
     try {
       await base44.entities.MachineLog.deleteMany({});
-      setShiftStartInput("");
-      setShiftEndInput("");
     } catch (err) {
       console.error("Failed to reset:", err);
+      setShiftStartInput(prevStart);
+      setShiftEndInput(prevEnd);
     } finally {
       setSaving(null);
     }
