@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { CalendarDays, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, CalendarRange } from "lucide-react";
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, getDay,
          isSameMonth, isSameDay, addYears, startOfWeek, endOfWeek, addWeeks, parseISO } from "date-fns";
+import PermanentAvailabilityButton from "@/components/availability/PermanentAvailabilityButton";
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -51,6 +52,11 @@ export default function Availability() {
     }
     load();
   }, []);
+
+  async function refreshAvailabilities() {
+    const fresh = await base44.entities.Availability.list("-date", 500);
+    setAvailabilities(fresh);
+  }
 
   const myAvailabilities = availabilities.filter((a) => a.user_id === user?.id);
   const displayAvailabilities = isAdmin
@@ -362,6 +368,9 @@ export default function Availability() {
           )}
         </div>
       )}
+
+      {/* Permanent availability */}
+      <PermanentAvailabilityButton user={user} employees={employees} onUpdated={refreshAvailabilities} />
 
       {/* Calendar */}
       <div className="bg-card rounded-2xl border border-border p-6">
