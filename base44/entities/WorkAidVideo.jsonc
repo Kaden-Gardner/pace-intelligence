@@ -1,0 +1,57 @@
+{
+  "name": "WorkAidVideo",
+  "type": "object",
+  "properties": {
+    "position": {
+      "type": "string",
+      "title": "Position",
+      "enum": [
+        "boxing",
+        "filling",
+        "bagging",
+        "pulling",
+        "sorting"
+      ]
+    },
+    "video_type": {
+      "type": "string",
+      "title": "Video Type",
+      "enum": [
+        "in_action",
+        "training"
+      ]
+    },
+    "video_url": {
+      "type": "string",
+      "title": "Video URL"
+    },
+    "duration_seconds": {
+      "type": "number",
+      "title": "Duration (seconds)",
+      "default": 0
+    }
+  },
+  "required": [
+    "position",
+    "video_type",
+    "video_url"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {},
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

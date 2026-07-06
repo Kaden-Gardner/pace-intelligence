@@ -5,6 +5,7 @@ import CounterPanel from "@/components/work-aid/CounterPanel";
 import FillingPanel from "@/components/work-aid/FillingPanel";
 import GeneralPanel from "@/components/work-aid/GeneralPanel";
 import SpeedBar from "@/components/work-aid/SpeedBar";
+import VideoSections from "@/components/work-aid/VideoSections";
 
 const FILLING_KEYS = ["filling_flavor_1", "filling_flavor_2", "filling_flavor_3", "filling_flavor_4"];
 
@@ -217,25 +218,31 @@ export default function WorkAid() {
             {t.isGeneral ? (
               <GeneralPanel />
             ) : t.isMulti ? (
-              <FillingPanel
-                counters={counters}
-                onIncrement={(key) => adjustCounter(key, +1)}
-                onDecrement={(key) => adjustCounter(key, -1)}
-                onResetAll={() => resetAll(FILLING_KEYS)}
-                busyKeys={busyKeys}
-              />
+              <>
+                <FillingPanel
+                  counters={counters}
+                  onIncrement={(key) => adjustCounter(key, +1)}
+                  onDecrement={(key) => adjustCounter(key, -1)}
+                  onResetAll={() => resetAll(FILLING_KEYS)}
+                  busyKeys={busyKeys}
+                />
+                <VideoSections position={t.key} />
+              </>
             ) : (
-              <CounterPanel
-                label={t.panelLabel}
-                counter={counters[t.key]}
-                unit={t.unit}
-                secondaryLabel={t.secondaryLabel}
-                conversionDivisor={t.conversionDivisor}
-                onIncrement={() => adjustCounter(t.key, +1)}
-                onDecrement={() => adjustCounter(t.key, -1)}
-                onReset={() => reset(t.key)}
-                disabled={busyKeys.has(t.key)}
-              />
+              <>
+                <CounterPanel
+                  label={t.panelLabel}
+                  counter={counters[t.key]}
+                  unit={t.unit}
+                  secondaryLabel={t.secondaryLabel}
+                  conversionDivisor={t.conversionDivisor}
+                  onIncrement={() => adjustCounter(t.key, +1)}
+                  onDecrement={() => adjustCounter(t.key, -1)}
+                  onReset={() => reset(t.key)}
+                  disabled={busyKeys.has(t.key)}
+                />
+                <VideoSections position={t.key} />
+              </>
             )}
           </TabsContent>
         ))}
