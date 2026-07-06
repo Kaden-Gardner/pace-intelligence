@@ -1,0 +1,55 @@
+{
+  "name": "PostComment",
+  "type": "object",
+  "properties": {
+    "post_id": {
+      "type": "string",
+      "title": "Post ID"
+    },
+    "user_id": {
+      "type": "string",
+      "title": "User ID"
+    },
+    "user_name": {
+      "type": "string",
+      "title": "User Name"
+    },
+    "body": {
+      "type": "string",
+      "title": "Comment Body"
+    }
+  },
+  "required": [
+    "post_id",
+    "user_id",
+    "body"
+  ],
+  "rls": {
+    "create": {},
+    "read": {},
+    "update": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.user_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

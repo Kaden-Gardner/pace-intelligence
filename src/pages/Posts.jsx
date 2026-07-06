@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Pin, Camera, Plus, X, Check, Trash2, Image, CalendarClock } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import PullToRefresh from "@/components/PullToRefresh";
+import PostInteractions from "@/components/posts/PostInteractions";
 
 function ShiftPostCard({ post }) {
   let data;
@@ -332,6 +333,7 @@ export default function Posts() {
                     )}
                   </>
                 )}
+                <PostInteractions postId={post.id} />
               </div>
             );})}
           </div>
