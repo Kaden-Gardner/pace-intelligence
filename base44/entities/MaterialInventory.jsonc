@@ -13,7 +13,18 @@
         "gloves_medium",
         "gloves_large",
         "gloves_xlarge",
-        "box_stacks"
+        "box_stacks",
+        "wastebasket_liners",
+        "garbage_bags",
+        "salt_bags",
+        "tape_red",
+        "tape_blue",
+        "tape_clear",
+        "tape_yellow",
+        "tape_green",
+        "paper_towel_rolls",
+        "kleenex_containers",
+        "water_bottles"
       ]
     },
     "quantity": {

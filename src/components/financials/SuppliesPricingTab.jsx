@@ -14,6 +14,17 @@ const MATERIALS = [
   { key: "gloves_large",    label: "Gloves (L)",       unit: "box" },
   { key: "gloves_xlarge",   label: "Gloves (XL)",      unit: "box" },
   { key: "box_stacks",      label: "Box Stacks",       unit: "stack" },
+  { key: "wastebasket_liners", label: "Wastebasket Liners", unit: "box" },
+  { key: "garbage_bags",      label: "Garbage Bags",      unit: "box" },
+  { key: "salt_bags",         label: "Salt (50 lb bag)",  unit: "bag" },
+  { key: "tape_red",          label: "Red Tape",          unit: "roll" },
+  { key: "tape_blue",         label: "Blue Tape",         unit: "roll" },
+  { key: "tape_clear",        label: "Clear Tape",        unit: "roll" },
+  { key: "tape_yellow",       label: "Yellow Tape",       unit: "roll" },
+  { key: "tape_green",        label: "Green Tape",        unit: "roll" },
+  { key: "paper_towel_rolls", label: "Paper Towels",      unit: "roll" },
+  { key: "kleenex_containers", label: "Kleenex",          unit: "container" },
+  { key: "water_bottles",     label: "Water Bottles",     unit: "bottle" },
 ];
 
 const BAG_CASE_ITEM = { key: "bag_case", label: "Bag Case", unit: "case" };

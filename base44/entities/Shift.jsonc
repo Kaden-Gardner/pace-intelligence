@@ -134,6 +134,22 @@
       "type": "string",
       "title": "Shift Lead"
     },
+    "materials_used": {
+      "type": "array",
+      "title": "Materials Used (manual entry)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "material_key": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          }
+        }
+      },
+      "default": []
+    },
     "notes": {
       "type": "string",
       "title": "Notes"

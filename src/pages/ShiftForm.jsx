@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import ShiftPositionsSection from "../components/shift-form/ShiftPositionsSection";
 import ShiftProductionSection from "../components/shift-form/ShiftProductionSection";
+import ShiftMaterialsUsageSection from "../components/shift-form/ShiftMaterialsUsageSection";
 
 
 export default function ShiftForm() {
@@ -24,6 +25,7 @@ export default function ShiftForm() {
   const [saving, setSaving] = useState(false);
   const [scheduledShifts, setScheduledShifts] = useState([]);
   const [selectedScheduledShiftId, setSelectedScheduledShiftId] = useState("");
+  const [materialsUsed, setMaterialsUsed] = useState({});
 
   const [form, setForm] = useState({
     shift_date: new Date().toISOString().split("T")[0],
@@ -113,6 +115,9 @@ export default function ShiftForm() {
             shift_lead: s.shift_lead || "",
             notes: s.notes || "",
           });
+          const usedMap = {};
+          (s.materials_used || []).forEach((m) => { if (m.material_key) usedMap[m.material_key] = m.quantity || 0; });
+          setMaterialsUsed(usedMap);
         }
       }
       setLoading(false);
@@ -153,6 +158,9 @@ export default function ShiftForm() {
     Object.keys(payload).forEach((key) => {
       if (payload[key] === "") delete payload[key];
     });
+    payload.materials_used = Object.entries(materialsUsed)
+      .filter(([, qty]) => qty > 0)
+      .map(([key, qty]) => ({ material_key: key, quantity: qty }));
 
     let previousShiftData = null;
     let previousFlavorsetId = null;
@@ -387,6 +395,34 @@ export default function ShiftForm() {
       }
     }
 
+    // Deduct manually-tracked consumable materials (gloves, tape, etc.) — reverses old, applies new
+    {
+      const oldUsedMap = {};
+      if (editId && previousShiftData?.materials_used) {
+        previousShiftData.materials_used.forEach((m) => { if (m.material_key) oldUsedMap[m.material_key] = m.quantity || 0; });
+      }
+      const newUsedMap = {};
+      (payload.materials_used || []).forEach((m) => { if (m.material_key) newUsedMap[m.material_key] = m.quantity || 0; });
+
+      const allMatKeys = new Set([...Object.keys(oldUsedMap), ...Object.keys(newUsedMap)]);
+      if (allMatKeys.size > 0) {
+        const matInvList = await base44.entities.MaterialInventory.list();
+        const matInvMap = {};
+        matInvList.forEach((m) => { matInvMap[m.material] = m; });
+
+        await Promise.all([...allMatKeys].map(async (key) => {
+          const delta = (oldUsedMap[key] || 0) - (newUsedMap[key] || 0);
+          if (Math.abs(delta) < 0.0001) return;
+          const rec = matInvMap[key];
+          if (rec) {
+            await base44.entities.MaterialInventory.update(rec.id, { quantity: Math.max(0, (rec.quantity || 0) + delta) });
+          } else if (delta < 0) {
+            await base44.entities.MaterialInventory.create({ material: key, quantity: 0 });
+          }
+        }));
+      }
+    }
+
     // Update inventory for individual flavor cases (handles add, remove, and change on edit)
     {
       const oldIndFlavors = {};
@@ -501,6 +537,9 @@ export default function ShiftForm() {
           updateForm={updateForm}
           employees={positionEmployees}
         />
+
+        {/* Materials Used */}
+        <ShiftMaterialsUsageSection materialsUsed={materialsUsed} setMaterialsUsed={setMaterialsUsed} />
 
         {/* Notes */}
         <section className="bg-card rounded-2xl border border-border p-6">

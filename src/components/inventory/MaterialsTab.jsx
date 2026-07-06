@@ -15,6 +15,17 @@ export const MATERIALS = [
   { key: "gloves_large",    label: "Gloves (Large)",     unit: "boxes" },
   { key: "gloves_xlarge",   label: "Gloves (XL)",        unit: "boxes" },
   { key: "box_stacks",      label: "Box Stacks",         unit: "stacks" },
+  { key: "wastebasket_liners", label: "Wastebasket Liners", unit: "boxes" },
+  { key: "garbage_bags",      label: "Garbage Bags",      unit: "boxes" },
+  { key: "salt_bags",         label: "Salt (50 lb)",      unit: "bags" },
+  { key: "tape_red",          label: "Red Tape",          unit: "rolls" },
+  { key: "tape_blue",         label: "Blue Tape",         unit: "rolls" },
+  { key: "tape_clear",        label: "Clear Tape",        unit: "rolls" },
+  { key: "tape_yellow",       label: "Yellow Tape",       unit: "rolls" },
+  { key: "tape_green",        label: "Green Tape",        unit: "rolls" },
+  { key: "paper_towel_rolls", label: "Paper Towels",      unit: "rolls" },
+  { key: "kleenex_containers", label: "Kleenex",          unit: "containers" },
+  { key: "water_bottles",     label: "Water Bottles",     unit: "bottles" },
 ];
 
 const STACKS_PER_PALLET = 10;
