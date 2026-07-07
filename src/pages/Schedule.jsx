@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -74,11 +74,19 @@ export default function Schedule() {
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
   const startPad = getDay(startOfMonth(currentMonth));
 
-  const fsMap = {};
-  flavorSets.forEach((fs) => { fsMap[fs.id] = fs; });
-  const empMap = {};
-  employees.forEach((e) => { empMap[e.id] = e; });
-  const activeEmployees = employees.filter((e) => e.active !== false && !e.terminated);
+  const fsMap = useMemo(() => {
+    const m = {};
+    flavorSets.forEach((fs) => { m[fs.id] = fs; });
+    return m;
+  }, [flavorSets]);
+  const empMap = useMemo(() => {
+    const m = {};
+    employees.forEach((e) => { m[e.id] = e; });
+    return m;
+  }, [employees]);
+  const activeEmployees = useMemo(() => employees.filter((e) => e.active !== false && !e.terminated), [employees]);
+  const dreamTeam = useMemo(() => findDreamTeam(shifts, employees), [shifts, employees]);
+  const dreamTeamIds = useMemo(() => new Set(dreamTeam.map((e) => e.id)), [dreamTeam]);
 
   function getScheduledForDate(date) {
     const ds = format(date, "yyyy-MM-dd");
@@ -99,8 +107,6 @@ export default function Schedule() {
         (a.employee_number && a.employee_number === e.employee_number)
       )
     );
-    const dreamTeam = findDreamTeam(shifts, employees);
-    const dreamTeamIds = new Set(dreamTeam.map((e) => e.id));
     const sorted = [
       ...availableEmps.filter((e) => dreamTeamIds.has(e.id)),
       ...availableEmps.filter((e) => !dreamTeamIds.has(e.id)),
@@ -456,8 +462,7 @@ export default function Schedule() {
                       (a.employee_id && a.employee_id === emp.id) ||
                       (a.employee_number && a.employee_number === emp.employee_number)
                     );
-                    const dreamTeam = findDreamTeam(shifts, employees);
-                    const isDream = dreamTeam.some((e) => e.id === emp.id);
+                    const isDream = dreamTeamIds.has(emp.id);
                     return (
                       <div key={emp.id} className={`flex flex-col rounded-xl border transition-all ${isWorking ? "bg-primary/10 border-primary" : isOnCall ? "bg-yellow-50 border-yellow-300" : "border-border"}`}>
                         <div className="flex items-center gap-2 px-3 py-2">

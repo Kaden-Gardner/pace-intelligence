@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { BarChart3, Users, Package, TrendingUp, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -70,6 +70,62 @@ export default function Dashboard() {
     load();
   }, []);
 
+  // Team performance always uses all shifts — only active, non-terminated employees (not affected by period)
+  const activeEmployees = useMemo(() => employees.filter((e) => e.active !== false && !e.terminated), [employees]);
+  const empStats = useMemo(() => computeEmployeeStats(shifts, activeEmployees), [shifts, activeEmployees]);
+  const dreamTeam = useMemo(() => findDreamTeam(shifts, activeEmployees), [shifts, activeEmployees]);
+  const empEntries = useMemo(() => {
+    const entries = Object.values(empStats).filter((s) => s.totalHours > 0);
+    entries.sort((a, b) => (b.totalCases / b.totalHours) - (a.totalCases / a.totalHours));
+    return entries;
+  }, [empStats]);
+
+  // Period-filtered data (recomputes only when period or shifts change)
+  const periodShifts = useMemo(() => filterShiftsByPeriod(shifts, period), [shifts, period]);
+  const { totalCases, totalHours, avgCph, totalWaste, totalPopsicles } = useMemo(() => {
+    const totalCases = periodShifts.reduce((sum, s) => sum + getTotalCases(s), 0);
+    const totalHours = periodShifts.reduce((sum, s) => sum + (s.shift_duration || 0), 0);
+    const totalWaste = periodShifts.reduce((sum, s) => sum + (s.waste || 0), 0);
+    const totalPopsicles = periodShifts.reduce((sum, s) => {
+      const ppc = s.popsicles_per_case || 144;
+      return sum + getTotalCases(s) * ppc;
+    }, 0);
+    return { totalCases, totalHours, avgCph: totalHours > 0 ? totalCases / totalHours : 0, totalWaste, totalPopsicles };
+  }, [periodShifts]);
+
+  const weeklyData = useMemo(() => getWeeklyProductionData(periodShifts), [periodShifts]);
+  const individualColor = useMemo(() => localStorage.getItem("individualCasesColor") || "#7c3aed", []);
+
+  const { flavorMap, flavorColorMap } = useMemo(() => {
+    const fm = {};
+    const fcm = {};
+    flavors.forEach(f => { fm[f.id] = f.name; if (f.color) fcm[f.name] = f.color; });
+    return { flavorMap: fm, flavorColorMap: fcm };
+  }, [flavors]);
+
+  const flavorCases = useMemo(() => {
+    const fc = {};
+    periodShifts.forEach((s) => {
+      [
+        [s.individual_flavor_1, s.individual_flavor_1_cases],
+        [s.individual_flavor_2, s.individual_flavor_2_cases],
+        [s.individual_flavor_3, s.individual_flavor_3_cases],
+        [s.individual_flavor_4, s.individual_flavor_4_cases],
+      ].forEach(([flavorId, cases]) => {
+        if (flavorId && cases) {
+          const name = flavorMap[flavorId] || flavorId;
+          fc[name] = (fc[name] || 0) + cases;
+        }
+      });
+    });
+    return fc;
+  }, [periodShifts, flavorMap]);
+
+  const palletInventory = useMemo(
+    () => inventory.filter((inv) => inv.flavorset_id && flavorSets.some((fs) => fs.id === inv.flavorset_id)),
+    [inventory, flavorSets]
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
@@ -93,51 +149,6 @@ export default function Dashboard() {
       </div>
     );
   }
-
-  const periodShifts = filterShiftsByPeriod(shifts, period);
-
-  // Stats based on period
-  const totalCases = periodShifts.reduce((sum, s) => sum + getTotalCases(s), 0);
-  const totalHours = periodShifts.reduce((sum, s) => sum + (s.shift_duration || 0), 0);
-  const avgCph = totalHours > 0 ? totalCases / totalHours : 0;
-  const totalWaste = periodShifts.reduce((sum, s) => sum + (s.waste || 0), 0);
-
-  // Total popsicles
-  const totalPopsicles = periodShifts.reduce((sum, s) => {
-    const ppc = s.popsicles_per_case || 144;
-    return sum + getTotalCases(s) * ppc;
-  }, 0);
-
-  // Weekly chart data from period shifts
-  const weeklyData = getWeeklyProductionData(periodShifts);
-  const individualColor = localStorage.getItem("individualCasesColor") || "#7c3aed";
-
-  // Individual flavor breakdown from period shifts
-  const flavorMap = {};
-  const flavorColorMap = {};
-  flavors.forEach(f => { flavorMap[f.id] = f.name; if (f.color) flavorColorMap[f.name] = f.color; });
-
-  const flavorCases = {};
-  periodShifts.forEach((s) => {
-    [
-      [s.individual_flavor_1, s.individual_flavor_1_cases],
-      [s.individual_flavor_2, s.individual_flavor_2_cases],
-      [s.individual_flavor_3, s.individual_flavor_3_cases],
-      [s.individual_flavor_4, s.individual_flavor_4_cases],
-    ].forEach(([flavorId, cases]) => {
-      if (flavorId && cases) {
-        const name = flavorMap[flavorId] || flavorId;
-        flavorCases[name] = (flavorCases[name] || 0) + cases;
-      }
-    });
-  });
-
-  // Team performance always uses all shifts — only active, non-terminated employees
-  const activeEmployees = employees.filter((e) => e.active !== false && !e.terminated);
-  const empStats = computeEmployeeStats(shifts, activeEmployees);
-  const dreamTeam = findDreamTeam(shifts, activeEmployees);
-  const empEntries = Object.values(empStats).filter((s) => s.totalHours > 0);
-  empEntries.sort((a, b) => (b.totalCases / b.totalHours) - (a.totalCases / a.totalHours));
 
   const periodLabel = PERIODS.find(p => p.key === period)?.label || "";
 
@@ -205,12 +216,12 @@ export default function Dashboard() {
       </div>
 
       {/* Inventory Summary */}
-      {inventory.filter((inv) => inv.flavorset_id && flavorSets.some((fs) => fs.id === inv.flavorset_id)).length > 0 && (
+      {palletInventory.length > 0 && (
         <div>
           <h2 className="font-heading font-semibold text-lg mb-4">Inventory — Pallets on Hand</h2>
           <div className="bg-card rounded-2xl border border-border p-6">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {inventory.filter((inv) => inv.flavorset_id && flavorSets.some((fs) => fs.id === inv.flavorset_id)).map((inv) => {
+              {palletInventory.map((inv) => {
                 const fs = flavorSets.find((f) => f.id === inv.flavorset_id);
                 const pallets = Math.floor((inv.cases || 0) / 66);
                 const remainder = (inv.cases || 0) % 66;
