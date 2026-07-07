@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CalendarDays, ChevronLeft, ChevronRight, CheckCircle, XCircle, Clock, CalendarRange } from "lucide-react";
@@ -40,18 +41,18 @@ export default function Availability() {
   });
   const [bulkSaving, setBulkSaving] = useState(false);
 
-  useEffect(() => {
-    async function load() {
-      const [avails, emps] = await Promise.all([
-        base44.entities.Availability.list("-date", 500),
-        base44.entities.Employee.list("name"),
-      ]);
-      setAvailabilities(avails);
-      setEmployees(emps);
-      setLoading(false);
-    }
-    load();
-  }, []);
+  async function load() {
+    const [avails, emps] = await Promise.all([
+      base44.entities.Availability.list("-date", 500),
+      base44.entities.Employee.list("name"),
+    ]);
+    setAvailabilities(avails);
+    setEmployees(emps);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+  useAutoRefresh(load);
 
   async function refreshAvailabilities() {
     const fresh = await base44.entities.Availability.list("-date", 500);

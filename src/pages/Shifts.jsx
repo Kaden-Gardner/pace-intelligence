@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { base44 } from "@/api/base44Client";
 import PullToRefresh from "@/components/PullToRefresh";
 import { Link } from "react-router-dom";
@@ -45,6 +46,7 @@ export default function Shifts() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useAutoRefresh(loadData);
 
   const empMap = {};
   employees.forEach((e) => { empMap[e.id] = e.name; });

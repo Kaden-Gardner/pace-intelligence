@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Clock, LogIn, LogOut, Pencil, Check, X, Trash2, MapPin, CalendarRange } from "lucide-react";
@@ -127,18 +128,18 @@ export default function TimeTracking() {
     setTerminalSaving(false);
   }
 
-  useEffect(() => {
-    async function load() {
-      const [ents, emps] = await Promise.all([
-        base44.entities.TimeEntry.list("-clock_in", 1000),
-        base44.entities.Employee.list("name"),
-      ]);
-      setEntries(ents);
-      setEmployees(emps);
-      setLoading(false);
-    }
-    load();
-  }, []);
+  async function load() {
+    const [ents, emps] = await Promise.all([
+      base44.entities.TimeEntry.list("-clock_in", 1000),
+      base44.entities.Employee.list("name"),
+    ]);
+    setEntries(ents);
+    setEmployees(emps);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+  useAutoRefresh(load);
 
   const empMap = {};
   employees.forEach((e) => { empMap[e.id] = e; });

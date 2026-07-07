@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { useAuth } from "@/lib/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -123,8 +124,8 @@ export default function Financials() {
     loadData();
   }
 
-  async function loadData() {
-    setLoading(true);
+  async function loadData(showLoading = true) {
+    if (showLoading) setLoading(true);
     const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.OrderPickupItem.list().catch(() => []),
@@ -168,6 +169,8 @@ export default function Financials() {
     setFlavorPrices(fp);
     setLoading(false);
   }
+
+  useAutoRefresh(() => { if (unlocked) loadData(false); });
 
   if (!isAdmin) {
     return (

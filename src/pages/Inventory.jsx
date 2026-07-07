@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { Package, Truck, Plus, Pencil, Check, X, Trash2 } from "lucide-react";
 import IngredientsTab from "../components/inventory/IngredientsTab";
 import MaterialsTab from "../components/inventory/MaterialsTab";
@@ -50,6 +51,7 @@ export default function Inventory() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { load(); }, []);
+  useAutoRefresh(load);
 
   async function load() {
     const [fs, fl, inv, pk, pi, bi, ss] = await Promise.all([

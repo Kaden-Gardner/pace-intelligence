@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { base44 } from "@/api/base44Client";
 import { BarChart3, Users, Package, TrendingUp, Trash2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -51,24 +52,24 @@ export default function Dashboard() {
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      const [s, e, f, fs, inv] = await Promise.all([
-        base44.entities.Shift.list("-shift_date", 500),
-        base44.entities.Employee.list(),
-        base44.entities.Flavor.list(),
-        base44.entities.FlavorSet.list("name"),
-        base44.entities.Inventory.list(),
-      ]);
-      setShifts(s);
-      setEmployees(e);
-      setFlavors(f);
-      setFlavorSets(fs);
-      setInventory(inv);
-      setLoading(false);
-    }
-    load();
-  }, []);
+  async function load() {
+    const [s, e, f, fs, inv] = await Promise.all([
+      base44.entities.Shift.list("-shift_date", 500),
+      base44.entities.Employee.list(),
+      base44.entities.Flavor.list(),
+      base44.entities.FlavorSet.list("name"),
+      base44.entities.Inventory.list(),
+    ]);
+    setShifts(s);
+    setEmployees(e);
+    setFlavors(f);
+    setFlavorSets(fs);
+    setInventory(inv);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+  useAutoRefresh(load);
 
   // Team performance always uses all shifts — only active, non-terminated employees (not affected by period)
   const activeEmployees = useMemo(() => employees.filter((e) => e.active !== false && !e.terminated), [employees]);

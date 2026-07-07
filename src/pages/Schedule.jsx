@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import PullToRefresh from "@/components/PullToRefresh";
@@ -70,6 +71,7 @@ export default function Schedule() {
   }, []);
 
   useEffect(() => { loadData(); }, [loadData]);
+  useAutoRefresh(loadData);
 
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
   const startPad = getDay(startOfMonth(currentMonth));

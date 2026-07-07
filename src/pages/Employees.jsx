@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake } from "lucide-react";
 import { getBestPosition, getEmployeePosition, getTotalCases, getCasesPerHour } from "../lib/analyticsHelpers";
 import { Button } from "@/components/ui/button";
@@ -34,20 +35,20 @@ export default function Employees() {
 
   const [selectedPosition, setSelectedPosition] = useState({}); // empId -> position string
 
-  useEffect(() => {
-    async function load() {
-      const [data, prodShifts, flavorList] = await Promise.all([
-        base44.entities.Employee.list("name", 500),
-        base44.entities.Shift.list("-shift_date", 500),
-        base44.entities.Flavor.list("name"),
-      ]);
-      setEmployees(data);
-      setShifts(prodShifts);
-      setFlavors(flavorList);
-      setLoading(false);
-    }
-    load();
-  }, []);
+  async function load() {
+    const [data, prodShifts, flavorList] = await Promise.all([
+      base44.entities.Employee.list("name", 500),
+      base44.entities.Shift.list("-shift_date", 500),
+      base44.entities.Flavor.list("name"),
+    ]);
+    setEmployees(data);
+    setShifts(prodShifts);
+    setFlavors(flavorList);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+  useAutoRefresh(load);
 
   async function handleSave() {
     if (!form.name || !form.employee_number) return;

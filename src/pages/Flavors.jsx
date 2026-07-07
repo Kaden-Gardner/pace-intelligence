@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { IceCreamCone, Plus, Pencil, Trash2, Check, X, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,18 +32,18 @@ export default function Flavors() {
 
   const [colorUnlocked, setColorUnlocked] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      const [f, fs] = await Promise.all([
-        base44.entities.Flavor.list("name"),
-        base44.entities.FlavorSet.list("name"),
-      ]);
-      setFlavors(f);
-      setFlavorSets(fs);
-      setLoading(false);
-    }
-    load();
-  }, []);
+  async function load() {
+    const [f, fs] = await Promise.all([
+      base44.entities.Flavor.list("name"),
+      base44.entities.FlavorSet.list("name"),
+    ]);
+    setFlavors(f);
+    setFlavorSets(fs);
+    setLoading(false);
+  }
+
+  useEffect(() => { load(); }, []);
+  useAutoRefresh(load);
 
   // Flavor handlers
   async function saveFlavor() {
