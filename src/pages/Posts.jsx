@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -139,7 +139,13 @@ export default function Posts() {
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  const loadRef = useRef(load);
+  loadRef.current = load;
+  useEffect(() => {
+    load();
+    const interval = setInterval(() => loadRef.current(), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   function handlePhotoChange(e) {
     const file = e.target.files[0];
