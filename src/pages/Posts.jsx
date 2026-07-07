@@ -106,6 +106,8 @@ export default function Posts() {
   const { user } = useAuth();
   const isAdmin = user?.role === "admin";
   const [posts, setPosts] = useState([]);
+  const [likesByPost, setLikesByPost] = useState({});
+  const [commentsByPost, setCommentsByPost] = useState({});
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [body, setBody] = useState("");
@@ -116,7 +118,18 @@ export default function Posts() {
   const [uploading, setUploading] = useState(false);
 
   async function load() {
-    const all = await base44.entities.Post.list("-post_date", 100);
+    const [all, allLikes, allComments] = await Promise.all([
+      base44.entities.Post.list("-post_date", 100),
+      base44.entities.PostLike.list("-created_date", 500),
+      base44.entities.PostComment.list("created_date", 500),
+    ]);
+    // Group interactions by post id (one bulk fetch instead of N per-post requests)
+    const lMap = {};
+    allLikes.forEach((l) => { (lMap[l.post_id] ||= []).push(l); });
+    const cMap = {};
+    allComments.forEach((c) => { (cMap[c.post_id] ||= []).push(c); });
+    setLikesByPost(lMap);
+    setCommentsByPost(cMap);
     // Pinned posts first, then by date
     const sorted = [
       ...all.filter((p) => p.is_pinned),
@@ -333,7 +346,7 @@ export default function Posts() {
                     )}
                   </>
                 )}
-                <PostInteractions postId={post.id} />
+                <PostInteractions postId={post.id} initialLikes={likesByPost[post.id] || []} initialComments={commentsByPost[post.id] || []} />
               </div>
             );})}
           </div>

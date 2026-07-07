@@ -15,10 +15,10 @@ function commentTimeAgo(iso) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export default function PostInteractions({ postId }) {
+export default function PostInteractions({ postId, initialLikes = [], initialComments = [] }) {
   const { user } = useAuth();
-  const [likes, setLikes] = useState([]);
-  const [comments, setComments] = useState([]);
+  const [likes, setLikes] = useState(initialLikes);
+  const [comments, setComments] = useState(initialComments);
   const [showComments, setShowComments] = useState(false);
   const [commentBody, setCommentBody] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -26,12 +26,6 @@ export default function PostInteractions({ postId }) {
   useEffect(() => {
     let unsubLikes, unsubComments;
     (async () => {
-      try {
-        const l = await base44.entities.PostLike.filter({ post_id: postId });
-        setLikes(l);
-      } catch (e) {
-        console.error("Failed to load likes:", e);
-      }
       unsubLikes = base44.entities.PostLike.subscribe((event) => {
         setLikes((prev) => {
           if (event.type === "delete") return prev.filter((x) => x.id !== event.id);
@@ -49,12 +43,6 @@ export default function PostInteractions({ postId }) {
         });
       });
 
-      try {
-        const c = await base44.entities.PostComment.filter({ post_id: postId }, "created_date");
-        setComments(c);
-      } catch (e) {
-        console.error("Failed to load comments:", e);
-      }
       unsubComments = base44.entities.PostComment.subscribe((event) => {
         setComments((prev) => {
           if (event.type === "delete") return prev.filter((x) => x.id !== event.id);
