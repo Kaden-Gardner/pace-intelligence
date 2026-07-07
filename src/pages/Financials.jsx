@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subYears } from "date-fns";
@@ -113,6 +114,8 @@ export default function Financials() {
   const [period, setPeriod] = useState("all");
   // Shift type filter (used in both Shifts tab and Analytics tab)
   const [shiftTypeFilter, setShiftTypeFilter] = useState("all"); // "all" | "production" | "basemix"
+  // ROI display mode: false = predicted revenue / cost, true = cost / predicted revenue
+  const [reverseRoi, setReverseRoi] = useState(false);
 
   function handleUnlock() {
     if (pwInput !== "ecap") { setPwError("Incorrect password."); return; }
@@ -838,13 +841,20 @@ export default function Financials() {
           <p className="text-sm text-muted-foreground mb-4">
             Shift labor cost is calculated using time tracking overlap. If an employee has no clock-in for a shift, their cost is estimated from the shift duration.
           </p>
-          <div className="flex gap-2 mb-4">
-            {[{ key: "all", label: "All Shifts" }, { key: "production", label: "Production" }, { key: "basemix", label: "Base Mix" }].map((t) => (
-              <button key={t.key} onClick={() => setShiftTypeFilter(t.key)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${shiftTypeFilter === t.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
-                {t.label}
-              </button>
-            ))}
+          <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+            <div className="flex gap-2">
+              {[{ key: "all", label: "All Shifts" }, { key: "production", label: "Production" }, { key: "basemix", label: "Base Mix" }].map((t) => (
+                <button key={t.key} onClick={() => setShiftTypeFilter(t.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${shiftTypeFilter === t.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`text-xs whitespace-nowrap transition-colors ${!reverseRoi ? "text-foreground font-medium" : "text-muted-foreground"}`}>Rev / Cost</span>
+              <Switch checked={reverseRoi} onCheckedChange={setReverseRoi} aria-label="Toggle ROI calculation order" />
+              <span className={`text-xs whitespace-nowrap transition-colors ${reverseRoi ? "text-foreground font-medium" : "text-muted-foreground"}`}>Cost / Rev</span>
+            </div>
           </div>
           <div className="space-y-4">
             {shiftsTabList.length === 0 && (
@@ -890,12 +900,12 @@ export default function Financials() {
                 const profitColor = roiColor(profitRatio);
                 const profitDot = roiDot(profitRatio);
                 const profitLabel = roiLabel(profitRatio);
-                const profitPct = profitRatio !== null ? `${Math.round(profitRatio * 100)}%` : null;
+                const profitPct = profitRatio !== null ? `${Math.round(reverseRoi ? (1 / profitRatio) * 100 : profitRatio * 100)}%` : null;
 
                 const laborColor = roiColor(laborRatio);
                 const laborDot = roiDot(laborRatio);
                 const laborLabel = roiLabel(laborRatio);
-                const laborPct = laborRatio !== null ? `${Math.round(laborRatio * 100)}%` : null;
+                const laborPct = laborRatio !== null ? `${Math.round(reverseRoi ? (1 / laborRatio) * 100 : laborRatio * 100)}%` : null;
 
                 let empIds = [];
                 if (isBaseMix) {
