@@ -298,22 +298,11 @@ export default function Financials() {
   }
 
   // Shift cost calculation
-  // All shifts combined (used for cross-shift span detection)
-  const allShiftsForSpan = [
-    ...shifts.map((s) => ({ date: s.shift_date, time: s.shift_time || "06:00", duration: s.shift_duration || 8 })),
-    ...baseMixShifts.map((s) => ({ date: s.shift_date, time: s.shift_time || "06:00", duration: s.shift_duration || 8 })),
-  ];
-
-  // Get the actual hours to attribute to this shift for a given employee time entry.
-  // If the entry spans multiple shifts, divide its hours by the number of shifts it touches.
+  // Labor hours come from actual clock-in time — the full clocked time is used
+  // for every shift the employee is mentioned in on that day (no division across shifts).
   function getAttributedHours(te, shiftDate, shiftTime, shiftDuration) {
     if (!entryOverlapsShift(shiftDate, shiftTime, shiftDuration, te.clock_in, te.clock_out)) return 0;
-    const totalHrs = entryTotalHours(te.clock_in, te.clock_out);
-    // Count how many shifts this entry overlaps
-    const shiftCount = allShiftsForSpan.filter((s) =>
-      entryOverlapsShift(s.date, s.time, s.duration, te.clock_in, te.clock_out)
-    ).length;
-    return totalHrs / Math.max(1, shiftCount);
+    return entryTotalHours(te.clock_in, te.clock_out);
   }
 
   function calcShiftCost(shift, isBaseMix = false) {
@@ -346,7 +335,7 @@ export default function Financials() {
 
       let hours;
       if (overlapping.length > 0) {
-        // Use actual clock time, divided by number of shifts crossed
+        // Use the employee's full clocked-in time for this shift
         hours = overlapping.reduce((sum, te) => sum + getAttributedHours(te, shiftDate, shiftTime, shiftDuration), 0);
       } else {
         // No clock-in found — fall back to shift duration
