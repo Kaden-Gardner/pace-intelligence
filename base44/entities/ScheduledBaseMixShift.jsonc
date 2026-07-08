@@ -20,6 +20,22 @@
       "type": "string",
       "title": "Admin Working"
     },
+    "mixer_1": {
+      "type": "string",
+      "title": "Mixer 1"
+    },
+    "mixer_2": {
+      "type": "string",
+      "title": "Mixer 2"
+    },
+    "mixer_3": {
+      "type": "string",
+      "title": "Mixer 3"
+    },
+    "shift_lead": {
+      "type": "string",
+      "title": "Shift Lead"
+    },
     "notes": {
       "type": "string",
       "title": "Notes"
