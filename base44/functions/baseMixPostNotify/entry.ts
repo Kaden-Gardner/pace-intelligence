@@ -8,10 +8,11 @@ Deno.serve(async (req) => {
   const shift = body?.data;
   if (!shift) return Response.json({ ok: true });
 
-  const [allEmployees, allUsers, flavorSets] = await Promise.all([
+  const [allEmployees, allUsers, flavorSets, flavors] = await Promise.all([
     base44.asServiceRole.entities.Employee.list(),
     base44.asServiceRole.entities.User.list(),
     base44.asServiceRole.entities.FlavorSet.list(),
+    base44.asServiceRole.entities.Flavor.list(),
   ]);
 
   const emailByEmpNumber = {};
@@ -24,6 +25,9 @@ Deno.serve(async (req) => {
 
   const fsMap = {};
   flavorSets.forEach((fs) => { fsMap[fs.id] = fs; });
+
+  const flavorNameById = {};
+  flavors.forEach((f) => { flavorNameById[f.id] = f.name; });
 
   // Only admins who opted in to shift post notifications
   const recipients = allEmployees.filter((e) =>
@@ -38,6 +42,12 @@ Deno.serve(async (req) => {
 
   const fs = fsMap[shift.flavorset_id];
   const flavorName = fs?.name || "Unknown Flavor";
+
+  // Resolve the individual punch flavors in this flavorset
+  const punchFlavors = [fs?.flavor_1, fs?.flavor_2, fs?.flavor_3, fs?.flavor_4]
+    .filter(Boolean)
+    .map((id) => flavorNameById[id])
+    .filter(Boolean);
 
   const GALLONS_PER_BATCH = 240;
   const batches = shift.batch_size || 0;
@@ -58,6 +68,7 @@ Deno.serve(async (req) => {
   const bodyText = (shift.notes ? `📝 ${shift.notes}\n\n` : "") +
     `A new base mixing shift has been posted.\n\n` +
     `${flavorName ? `🟣 Flavor Set: ${flavorName}\n` : ""}` +
+    (punchFlavors.length > 0 ? `🥤 Punch Flavors: ${punchFlavors.join(", ")}\n` : "") +
     `📅 Date: ${dateStr}\n` +
     `⏰ Start Time: ${startTime}\n` +
     `⏱️ Duration: ${duration}h\n` +
