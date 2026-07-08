@@ -45,6 +45,20 @@ function getPeriodRange(key, shifts) {
 function fmt$(n) { return n == null ? "—" : `$${Number(n).toFixed(2)}`; }
 function fmtHours(h) { if (!h) return "0h 0m"; const hrs = Math.floor(h); const mins = Math.round((h - hrs) * 60); return `${hrs}h ${mins}m`; }
 
+// Parses a free-text downtime note into hours.
+// Recognizes "1.5 hours", "30 min", "45m", "2h"; a bare number is treated as minutes.
+function parseDowntimeHours(text) {
+  if (!text) return 0;
+  const s = String(text).toLowerCase().trim();
+  const hourMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
+  if (hourMatch) return parseFloat(hourMatch[1]);
+  const minMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)\b/);
+  if (minMatch) return parseFloat(minMatch[1]) / 60;
+  const plainMatch = s.match(/(\d+(?:\.\d+)?)/);
+  if (plainMatch) return parseFloat(plainMatch[1]) / 60;
+  return 0;
+}
+
 // Returns true if a time entry overlaps with a shift window at all
 function entryOverlapsShift(shiftDate, shiftTime, shiftDuration, clockIn, clockOut) {
   if (!clockIn) return false;
@@ -459,10 +473,24 @@ export default function Financials() {
     return total;
   }
 
-  // Waste cost estimate for a production shift
+  // Waste cost estimate for a production shift (includes downtime labor cost)
   function calcWasteInfo(shift) {
     const wasteGallons = shift.waste || 0;
-    if (!wasteGallons) return null;
+    const downtimeHours = parseDowntimeHours(shift.downtime);
+
+    // Crew hourly labor rate — used to cost downtime (paid time with no production)
+    let crewHourlyRate = 0;
+    {
+      let empIds = [];
+      [shift.filling_employee, shift.pulling_employee_1, shift.pulling_employee_2, shift.pulling_employee_3,
+       shift.sorting_employee, shift.bagging_employee, shift.boxing_employee, shift.shift_lead].forEach((id) => { if (id) empIds.push(id); });
+      if (shift.training_employees) empIds.push(...shift.training_employees);
+      empIds = [...new Set(empIds)].filter(Boolean);
+      crewHourlyRate = empIds.reduce((sum, id) => sum + getRateForEmp(id), 0);
+    }
+    const downtimeLaborCost = downtimeHours > 0 && crewHourlyRate > 0 ? downtimeHours * crewHourlyRate : null;
+
+    if (!wasteGallons && downtimeHours <= 0) return null;
 
     const ppg = shift.popsicles_per_gallon || 24; // popsicles per gallon (mold size)
     const popWasted = Math.round(wasteGallons * ppg);
@@ -530,8 +558,8 @@ export default function Financials() {
     const costPerStick = (sticksPerBox && stickPriceRec) ? stickPriceRec.price_per_unit / sticksPerBox : null;
     const stickWasteCost = costPerStick != null ? popWasted * costPerStick : null;
 
-    // ── Total ──
-    const components = [ingWasteCost, flavorWasteCost, stickWasteCost].filter((v) => v != null);
+    // ── Total (waste materials + downtime labor) ──
+    const components = [ingWasteCost, flavorWasteCost, stickWasteCost, downtimeLaborCost].filter((v) => v != null);
     const totalWasteCost = components.length > 0 ? components.reduce((a, b) => a + b, 0) : null;
 
     return {
@@ -542,6 +570,8 @@ export default function Financials() {
       ingWasteCost,
       flavorWasteCost,
       stickWasteCost,
+      downtimeHours,
+      downtimeLaborCost,
       totalWasteCost,
     };
   }
@@ -972,10 +1002,11 @@ export default function Financials() {
                         })}
                       </div>
                     )}
-                    {/* Waste estimate — production shifts only */}
+                    {/* Waste estimate — production shifts only (includes downtime labor) */}
                     {!isBaseMix && (() => {
                       const w = calcWasteInfo(shift);
                       if (!w) return null;
+                      const hasMaterialWaste = w.wasteGallons > 0;
                       return (
                         <div className="mt-3 pt-3 border-t border-border">
                           <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
@@ -989,33 +1020,50 @@ export default function Financials() {
                             )}
                           </div>
                           <div className="flex flex-wrap gap-2">
-                            <span className="text-xs px-2 py-1 bg-orange-50 text-orange-700 border border-orange-100 rounded-lg">
-                              {w.wasteGallons} gal wasted
-                            </span>
-                            <span className="text-xs px-2 py-1 bg-orange-50 text-orange-700 border border-orange-100 rounded-lg">
-                              ~{w.popWasted} popsicles lost
-                            </span>
-                            {w.sticksPerBox && (
+                            {hasMaterialWaste && (
+                              <span className="text-xs px-2 py-1 bg-orange-50 text-orange-700 border border-orange-100 rounded-lg">
+                                {w.wasteGallons} gal wasted
+                              </span>
+                            )}
+                            {hasMaterialWaste && (
+                              <span className="text-xs px-2 py-1 bg-orange-50 text-orange-700 border border-orange-100 rounded-lg">
+                                ~{w.popWasted} popsicles lost
+                              </span>
+                            )}
+                            {hasMaterialWaste && w.sticksPerBox && (
                               <span className="text-xs px-2 py-1 bg-orange-50 text-orange-700 border border-orange-100 rounded-lg">
                                 ~{w.popWasted} sticks ({w.stickBoxesWasted.toFixed(2)} boxes)
                               </span>
                             )}
-                            {w.ingWasteCost != null && (
+                            {hasMaterialWaste && w.ingWasteCost != null && (
                               <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-lg">
                                 ~{fmt$(w.ingWasteCost)} base mix
                               </span>
                             )}
-                            {w.flavorWasteCost != null && (
+                            {hasMaterialWaste && w.flavorWasteCost != null && (
                               <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-lg">
                                 ~{fmt$(w.flavorWasteCost)} flavoring
                               </span>
                             )}
-                            {w.stickWasteCost != null && (
+                            {hasMaterialWaste && w.stickWasteCost != null && (
                               <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-lg">
                                 ~{fmt$(w.stickWasteCost)} sticks
                               </span>
                             )}
+                            {w.downtimeHours > 0 && (
+                              <span className="text-xs px-2 py-1 bg-amber-50 text-amber-700 border border-amber-100 rounded-lg">
+                                {fmtHours(w.downtimeHours)} downtime
+                              </span>
+                            )}
+                            {w.downtimeLaborCost != null && (
+                              <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-lg">
+                                ~{fmt$(w.downtimeLaborCost)} downtime labor
+                              </span>
+                            )}
                           </div>
+                          {shift.downtime && (
+                            <p className="text-xs text-muted-foreground italic mt-1.5">{shift.downtime}</p>
+                          )}
                         </div>
                       );
                     })()}
