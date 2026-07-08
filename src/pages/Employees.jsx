@@ -253,6 +253,15 @@ export default function Employees() {
                           <Shield className="w-3 h-3" /> Admin
                         </div>
                       )}
+                      {(() => {
+                        const es = shifts.flatMap((s) => s.employee_scores || []).filter((s) => s.employee_id === emp.id && typeof s.score === "number" && !isNaN(s.score));
+                        const avg = es.length > 0 ? es.reduce((sum, s) => sum + s.score, 0) / es.length : null;
+                        return avg !== null ? (
+                          <div className="flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                            <Star className="w-3 h-3" /> {avg.toFixed(1)}
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   )}
                 </div>

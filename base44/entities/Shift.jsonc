@@ -150,6 +150,23 @@
       },
       "default": []
     },
+    "employee_scores": {
+      "type": "array",
+      "title": "Employee Scores",
+      "items": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "string"
+          },
+          "score": {
+            "type": "number",
+            "default": 0
+          }
+        }
+      },
+      "default": []
+    },
     "notes": {
       "type": "string",
       "title": "Notes"

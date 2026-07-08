@@ -10,6 +10,7 @@ import { ArrowLeft, Save } from "lucide-react";
 import ShiftPositionsSection from "../components/shift-form/ShiftPositionsSection";
 import ShiftProductionSection from "../components/shift-form/ShiftProductionSection";
 import ShiftMaterialsUsageSection from "../components/shift-form/ShiftMaterialsUsageSection";
+import ShiftScoresSection from "../components/shift-form/ShiftScoresSection";
 
 
 export default function ShiftForm() {
@@ -54,6 +55,7 @@ export default function ShiftForm() {
     training_employees: [],
     shift_lead: "",
     notes: "",
+    employee_scores: [],
   });
 
   useEffect(() => {
@@ -114,6 +116,7 @@ export default function ShiftForm() {
             starting_gallons_flavor_4: s.starting_gallons_flavor_4 || 0,
             shift_lead: s.shift_lead || "",
             notes: s.notes || "",
+            employee_scores: s.employee_scores || [],
           });
           const usedMap = {};
           (s.materials_used || []).forEach((m) => { if (m.material_key) usedMap[m.material_key] = m.quantity || 0; });
@@ -161,6 +164,9 @@ export default function ShiftForm() {
     payload.materials_used = Object.entries(materialsUsed)
       .filter(([, qty]) => qty > 0)
       .map(([key, qty]) => ({ material_key: key, quantity: qty }));
+    payload.employee_scores = (form.employee_scores || []).filter(
+      (s) => typeof s.score === "number" && !isNaN(s.score)
+    );
 
     let previousShiftData = null;
     let previousFlavorsetId = null;
@@ -536,6 +542,13 @@ export default function ShiftForm() {
           form={form}
           updateForm={updateForm}
           employees={positionEmployees}
+        />
+
+        {/* Employee Scores */}
+        <ShiftScoresSection
+          form={form}
+          updateForm={updateForm}
+          employees={employees}
         />
 
         {/* Materials Used */}
