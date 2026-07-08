@@ -490,6 +490,22 @@ export default function Financials() {
     }
     const downtimeLaborCost = downtimeHours > 0 && crewHourlyRate > 0 ? downtimeHours * crewHourlyRate : null;
 
+    // ── Downtime lost production: cases not made = shift speed (cases/hr) × downtime ──
+    // Value of product not made = cases lost × avg case sell price
+    let downtimeCasesLost = null;
+    let downtimeProductValue = null;
+    if (downtimeHours > 0) {
+      const shiftHours = shift.shift_duration || 8;
+      const shiftCases = getTotalCases(shift);
+      const speed = shiftHours > 0 ? shiftCases / shiftHours : 0;
+      downtimeCasesLost = speed * downtimeHours;
+      const pricedOrders = orders.filter((o) => o.is_priced && o.case_sell_price > 0);
+      if (pricedOrders.length > 0 && downtimeCasesLost > 0) {
+        const avgCasePrice = pricedOrders.reduce((sum, o) => sum + o.case_sell_price, 0) / pricedOrders.length;
+        downtimeProductValue = downtimeCasesLost * avgCasePrice;
+      }
+    }
+
     if (!wasteGallons && downtimeHours <= 0) return null;
 
     const ppg = shift.popsicles_per_gallon || 24; // popsicles per gallon (mold size)
@@ -558,8 +574,8 @@ export default function Financials() {
     const costPerStick = (sticksPerBox && stickPriceRec) ? stickPriceRec.price_per_unit / sticksPerBox : null;
     const stickWasteCost = costPerStick != null ? popWasted * costPerStick : null;
 
-    // ── Total (waste materials + downtime labor) ──
-    const components = [ingWasteCost, flavorWasteCost, stickWasteCost, downtimeLaborCost].filter((v) => v != null);
+    // ── Total (waste materials + downtime labor + lost product value) ──
+    const components = [ingWasteCost, flavorWasteCost, stickWasteCost, downtimeLaborCost, downtimeProductValue].filter((v) => v != null);
     const totalWasteCost = components.length > 0 ? components.reduce((a, b) => a + b, 0) : null;
 
     return {
@@ -572,6 +588,8 @@ export default function Financials() {
       stickWasteCost,
       downtimeHours,
       downtimeLaborCost,
+      downtimeCasesLost,
+      downtimeProductValue,
       totalWasteCost,
     };
   }
@@ -1058,6 +1076,16 @@ export default function Financials() {
                             {w.downtimeLaborCost != null && (
                               <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-lg">
                                 ~{fmt$(w.downtimeLaborCost)} downtime labor
+                              </span>
+                            )}
+                            {w.downtimeCasesLost != null && w.downtimeCasesLost > 0 && (
+                              <span className="text-xs px-2 py-1 bg-amber-50 text-amber-700 border border-amber-100 rounded-lg">
+                                ~{w.downtimeCasesLost.toFixed(1)} cases not made
+                              </span>
+                            )}
+                            {w.downtimeProductValue != null && (
+                              <span className="text-xs px-2 py-1 bg-red-50 text-red-700 border border-red-100 rounded-lg">
+                                ~{fmt$(w.downtimeProductValue)} lost product
                               </span>
                             )}
                           </div>
