@@ -256,11 +256,18 @@ export default function Employees() {
                       {(() => {
                         const es = shifts.flatMap((s) => s.employee_scores || []).filter((s) => s.employee_id === emp.id && typeof s.score === "number" && !isNaN(s.score));
                         const avg = es.length > 0 ? es.reduce((sum, s) => sum + s.score, 0) / es.length : null;
-                        return avg !== null ? (
-                          <div className="flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">
+                        if (avg === null) return null;
+                        const scoreClass =
+                          avg > 9 ? "bg-purple-100 text-purple-700" :
+                          avg > 8 ? "bg-green-100 text-green-700" :
+                          avg > 6 ? "bg-yellow-100 text-yellow-700" :
+                          avg > 4 ? "bg-orange-100 text-orange-700" :
+                          "bg-red-100 text-red-700";
+                        return (
+                          <div className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${scoreClass}`}>
                             <Star className="w-3 h-3" /> {avg.toFixed(1)}
                           </div>
-                        ) : null;
+                        );
                       })()}
                     </div>
                   )}
