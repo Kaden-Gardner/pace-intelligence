@@ -170,6 +170,10 @@
     "notes": {
       "type": "string",
       "title": "Notes"
+    },
+    "downtime": {
+      "type": "string",
+      "title": "Downtime"
     }
   },
   "required": [

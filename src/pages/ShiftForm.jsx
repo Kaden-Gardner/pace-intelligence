@@ -55,6 +55,7 @@ export default function ShiftForm() {
     training_employees: [],
     shift_lead: "",
     notes: "",
+    downtime: "",
     employee_scores: [],
   });
 
@@ -116,6 +117,7 @@ export default function ShiftForm() {
             starting_gallons_flavor_4: s.starting_gallons_flavor_4 || 0,
             shift_lead: s.shift_lead || "",
             notes: s.notes || "",
+            downtime: s.downtime || "",
             employee_scores: s.employee_scores || [],
           });
           const usedMap = {};
@@ -553,6 +555,17 @@ export default function ShiftForm() {
 
         {/* Materials Used */}
         <ShiftMaterialsUsageSection materialsUsed={materialsUsed} setMaterialsUsed={setMaterialsUsed} />
+
+        {/* Downtime */}
+        <section className="bg-card rounded-2xl border border-border p-6">
+          <h2 className="font-heading font-semibold text-lg mb-4">Downtime</h2>
+          <Textarea
+            value={form.downtime}
+            onChange={(e) => updateForm("downtime", e.target.value)}
+            placeholder="Note any downtime, delays, or stoppages during this shift..."
+            rows={3}
+          />
+        </section>
 
         {/* Notes */}
         <section className="bg-card rounded-2xl border border-border p-6">
