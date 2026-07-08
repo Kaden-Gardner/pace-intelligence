@@ -84,23 +84,90 @@ export function computeEmployeeStats(shifts, employees) {
   return stats;
 }
 
-export function findDreamTeam(shifts, employees) {
-  if (shifts.length === 0) return [];
+// ── Labor-only ROI helpers (mirror the Financials shift labor calc) ──
+function entryOverlapsShift(shiftDate, shiftTime, shiftDuration, clockIn, clockOut) {
+  if (!clockIn) return false;
+  const shiftStart = new Date(`${shiftDate}T${shiftTime || "00:00"}:00`);
+  const shiftEnd = new Date(shiftStart.getTime() + (shiftDuration || 8) * 3600000);
+  const entryStart = new Date(clockIn);
+  const entryEnd = clockOut ? new Date(clockOut) : new Date();
+  return entryStart < shiftEnd && entryEnd > shiftStart;
+}
 
-  // Score each shift by cases per hour, find top performing crew combos
-  const shiftScores = shifts.map((s) => ({
-    shift: s,
-    cph: getCasesPerHour(s),
-    crew: getShiftEmployees(s),
-  }));
+function entryTotalHours(clockIn, clockOut) {
+  if (!clockIn) return 0;
+  const entryStart = new Date(clockIn);
+  const entryEnd = clockOut ? new Date(clockOut) : new Date();
+  return Math.max(0, (entryEnd - entryStart) / 3600000);
+}
 
-  shiftScores.sort((a, b) => b.cph - a.cph);
+function getEmpAge(birthday) {
+  if (!birthday) return null;
+  const today = new Date();
+  const b = new Date(birthday);
+  let age = today.getFullYear() - b.getFullYear();
+  const m = today.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+  return age;
+}
 
-  // Find top shift
-  if (shiftScores.length === 0) return [];
+// Labor cost for a production shift: uses full clocked-in time (not divided across
+// overlapping shifts), falling back to shift duration when no clock-in exists.
+// Minors under 15 are capped at 3 hours — same rules as the Financials page.
+export function calcShiftLaborCost(shift, { empMap, rateMap, timeEntries }) {
+  const shiftDate = shift.shift_date;
+  const shiftTime = shift.shift_time || "06:00";
+  const shiftDuration = shift.shift_duration || 8;
 
-  const topShift = shiftScores[0];
-  return topShift.crew
+  let empIds = [];
+  [shift.filling_employee, shift.pulling_employee_1, shift.pulling_employee_2, shift.pulling_employee_3,
+   shift.sorting_employee, shift.bagging_employee, shift.boxing_employee, shift.shift_lead].forEach((id) => { if (id) empIds.push(id); });
+  if (shift.training_employees) empIds.push(...shift.training_employees);
+  empIds = [...new Set(empIds)].filter(Boolean);
+
+  let totalCost = 0;
+  empIds.forEach((empId) => {
+    const rate = rateMap[empId]?.hourly_rate || 0;
+    if (!rate) return;
+    const emp = empMap[empId];
+    const age = getEmpAge(emp?.birthday);
+    const isMinor = age !== null && age < 15;
+    const empEntries = timeEntries.filter((te) => te.employee_id === empId || (emp && te.employee_number === emp.employee_number));
+    const overlapping = empEntries.filter((te) => entryOverlapsShift(shiftDate, shiftTime, shiftDuration, te.clock_in, te.clock_out));
+    let hours;
+    if (overlapping.length > 0) {
+      hours = overlapping.reduce((sum, te) => sum + entryTotalHours(te.clock_in, te.clock_out), 0);
+    } else {
+      hours = shiftDuration;
+    }
+    if (isMinor) hours = Math.min(hours, 3);
+    totalCost += hours * rate;
+  });
+  return totalCost;
+}
+
+// Dream team = crew of the single shift with the greatest labor-only ROI
+// (predicted revenue ÷ labor cost). Returns [] when revenue or labor data is missing.
+export function findDreamTeam(shifts, employees, laborData) {
+  if (shifts.length === 0 || !laborData) return [];
+
+  const { empMap, rateMap, timeEntries, avgCasePrice } = laborData;
+  if (avgCasePrice == null) return []; // need priced orders to estimate revenue
+
+  const scored = shifts
+    .map((s) => {
+      const laborCost = calcShiftLaborCost(s, { empMap, rateMap, timeEntries });
+      const cases = getTotalCases(s);
+      const predictedRevenue = cases > 0 ? avgCasePrice * cases : 0;
+      const roi = laborCost > 0 ? predictedRevenue / laborCost : null;
+      return { roi, crew: getShiftEmployees(s) };
+    })
+    .filter((x) => x.roi !== null);
+
+  scored.sort((a, b) => b.roi - a.roi);
+  if (scored.length === 0) return [];
+
+  return scored[0].crew
     .map((id) => employees.find((e) => e.id === id))
     .filter(Boolean);
 }

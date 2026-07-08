@@ -50,21 +50,30 @@ export default function Dashboard() {
   const [flavors, setFlavors] = useState([]);
   const [flavorSets, setFlavorSets] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [timeEntries, setTimeEntries] = useState([]);
+  const [rates, setRates] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    const [s, e, f, fs, inv] = await Promise.all([
+    const [s, e, f, fs, inv, te, rt, ord] = await Promise.all([
       base44.entities.Shift.list("-shift_date", 500),
       base44.entities.Employee.list(),
       base44.entities.Flavor.list(),
       base44.entities.FlavorSet.list("name"),
       base44.entities.Inventory.list(),
+      base44.entities.TimeEntry.list("-clock_in", 2000),
+      base44.entities.EmployeeRate.list(),
+      base44.entities.OrderPickup.list("-pickup_date", 500),
     ]);
     setShifts(s);
     setEmployees(e);
     setFlavors(f);
     setFlavorSets(fs);
     setInventory(inv);
+    setTimeEntries(te);
+    setRates(rt);
+    setOrders(ord);
     setLoading(false);
   }
 
@@ -74,7 +83,16 @@ export default function Dashboard() {
   // Team performance always uses all shifts — only active, non-terminated employees (not affected by period)
   const activeEmployees = useMemo(() => employees.filter((e) => e.active !== false && !e.terminated), [employees]);
   const empStats = useMemo(() => computeEmployeeStats(shifts, activeEmployees), [shifts, activeEmployees]);
-  const dreamTeam = useMemo(() => findDreamTeam(shifts, activeEmployees), [shifts, activeEmployees]);
+  const empMap = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
+  const rateMap = useMemo(() => Object.fromEntries(rates.map((r) => [r.employee_id, r])), [rates]);
+  const avgCasePrice = useMemo(() => {
+    const priced = orders.filter((o) => o.is_priced && o.case_sell_price > 0);
+    return priced.length > 0 ? priced.reduce((sum, o) => sum + o.case_sell_price, 0) / priced.length : null;
+  }, [orders]);
+  const dreamTeam = useMemo(
+    () => findDreamTeam(shifts, activeEmployees, { empMap, rateMap, timeEntries, avgCasePrice }),
+    [shifts, activeEmployees, empMap, rateMap, timeEntries, avgCasePrice]
+  );
   const empEntries = useMemo(() => {
     const entries = Object.values(empStats).filter((s) => s.totalHours > 0);
     entries.sort((a, b) => (b.totalCases / b.totalHours) - (a.totalCases / a.totalHours));
