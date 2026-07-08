@@ -160,11 +160,18 @@ export function findDreamTeam(shifts, employees, laborData) {
       const cases = getTotalCases(s);
       const predictedRevenue = cases > 0 ? avgCasePrice * cases : 0;
       const roi = laborCost > 0 ? predictedRevenue / laborCost : null;
-      return { roi, crew: getShiftEmployees(s) };
+      const crew = getShiftEmployees(s);
+      return { roi, cases, speed: getCasesPerHour(s), crewSize: crew.length, crew };
     })
     .filter((x) => x.roi !== null);
 
-  scored.sort((a, b) => b.roi - a.roi);
+  // Rank by: highest ROI → most cases → fastest speed (CPH) → fewest employees
+  scored.sort((a, b) => {
+    if (b.roi !== a.roi) return b.roi - a.roi;
+    if (b.cases !== a.cases) return b.cases - a.cases;
+    if (b.speed !== a.speed) return b.speed - a.speed;
+    return a.crewSize - b.crewSize;
+  });
   if (scored.length === 0) return [];
 
   return scored[0].crew
