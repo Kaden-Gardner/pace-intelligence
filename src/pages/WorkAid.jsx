@@ -5,6 +5,7 @@ import CounterPanel from "@/components/work-aid/CounterPanel";
 import FillingPanel from "@/components/work-aid/FillingPanel";
 import GeneralPanel from "@/components/work-aid/GeneralPanel";
 import SpeedBar from "@/components/work-aid/SpeedBar";
+import BatchPredictor from "@/components/work-aid/BatchPredictor";
 import VideoSections from "@/components/work-aid/VideoSections";
 
 const FILLING_KEYS = ["filling_flavor_1", "filling_flavor_2", "filling_flavor_3", "filling_flavor_4"];
@@ -173,6 +174,7 @@ export default function WorkAid() {
   }
 
   const shiftStartLog = machineLogs.find((l) => l.entry_type === "shift_start");
+  const shiftStartMs = shiftStartLog ? new Date(shiftStartLog.timestamp).getTime() : null;
   const shiftEndLog = machineLogs.find((l) => l.entry_type === "shift_end");
   const shiftElapsedMs = shiftStartLog
     ? (shiftEndLog ? new Date(shiftEndLog.timestamp).getTime() : now) - new Date(shiftStartLog.timestamp).getTime()
@@ -215,6 +217,9 @@ export default function WorkAid() {
               downtimeMs={totalDowntimeMs}
               showLostProduct={t.key === "general"}
             />
+            {t.isGeneral && (
+              <BatchPredictor shiftElapsedMs={shiftElapsedMs} cases={boxingCases} shiftStartMs={shiftStartMs} />
+            )}
             {t.isGeneral ? (
               <GeneralPanel />
             ) : t.isMulti ? (
