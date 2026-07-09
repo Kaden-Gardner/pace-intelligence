@@ -43,7 +43,7 @@ export default function Availability() {
 
   async function load() {
     const [avails, emps] = await Promise.all([
-      base44.entities.Availability.list("-date", 500),
+      base44.entities.Availability.list("-date", 5000),
       base44.entities.Employee.list("name"),
     ]);
     setAvailabilities(avails);
@@ -55,7 +55,7 @@ export default function Availability() {
   useAutoRefresh(load);
 
   async function refreshAvailabilities() {
-    const fresh = await base44.entities.Availability.list("-date", 500);
+    const fresh = await base44.entities.Availability.list("-date", 5000);
     setAvailabilities(fresh);
   }
 
@@ -196,7 +196,7 @@ export default function Availability() {
     const results = await Promise.all(updates);
 
     // Refresh all availability from server for cleanliness
-    const fresh = await base44.entities.Availability.list("-date", 500);
+    const fresh = await base44.entities.Availability.list("-date", 5000);
     setAvailabilities(fresh);
 
     setBulkSaving(false);
