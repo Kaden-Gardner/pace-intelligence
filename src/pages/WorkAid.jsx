@@ -7,8 +7,10 @@ import GeneralPanel from "@/components/work-aid/GeneralPanel";
 import SpeedBar from "@/components/work-aid/SpeedBar";
 import BatchPredictor from "@/components/work-aid/BatchPredictor";
 import VideoSections from "@/components/work-aid/VideoSections";
+import FlavorBoxingTrackers from "@/components/work-aid/FlavorBoxingTrackers";
 
 const FILLING_KEYS = ["filling_flavor_1", "filling_flavor_2", "filling_flavor_3", "filling_flavor_4"];
+const FLAVOR_BOXING_KEYS = ["boxing_flavor_1", "boxing_flavor_2", "boxing_flavor_3", "boxing_flavor_4"];
 
 const TABS = [
   { key: "general", label: "General", isGeneral: true },
@@ -26,6 +28,13 @@ export default function WorkAid() {
   const [busyKeys, setBusyKeys] = useState(new Set());
   const [now, setNow] = useState(Date.now());
   const [activeTab, setActiveTab] = useState("general");
+  const [flavors, setFlavors] = useState([]);
+  const [flavorEnabled, setFlavorEnabled] = useState(() => {
+    try {
+      const stored = localStorage.getItem("boxingFlavorEnabled");
+      return stored ? JSON.parse(stored) : {};
+    } catch { return {}; }
+  });
   const countersRef = useRef(counters);
   countersRef.current = counters;
   const busyRef = useRef(new Set());
@@ -63,6 +72,34 @@ export default function WorkAid() {
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const today = new Date().toLocaleDateString('en-CA');
+        const shifts = await base44.entities.ScheduledShift.list("shift_date", 200);
+        const todayShift = shifts.find((s) => s.shift_date === today);
+        if (!todayShift || !todayShift.flavorset_id) { setFlavors([]); return; }
+        const [fsList, allFlavors] = await Promise.all([
+          base44.entities.FlavorSet.list(),
+          base44.entities.Flavor.list(),
+        ]);
+        const fs = fsList.find((f) => f.id === todayShift.flavorset_id);
+        if (!fs) { setFlavors([]); return; }
+        const flavorMap = {};
+        allFlavors.forEach((f) => { flavorMap[f.id] = f; });
+        const result = [];
+        for (const key of ["flavor_1", "flavor_2", "flavor_3", "flavor_4"]) {
+          if (fs[key] && flavorMap[fs[key]]) {
+            result.push({ key: `boxing_${key}`, name: flavorMap[fs[key]].name, color: flavorMap[fs[key]].color });
+          }
+        }
+        setFlavors(result);
+      } catch (err) {
+        console.error("Failed to load flavors:", err);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -169,6 +206,14 @@ export default function WorkAid() {
     active.forEach((k) => markBusy(k, false));
   }
 
+  function toggleFlavor(key) {
+    setFlavorEnabled((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem("boxingFlavorEnabled", JSON.stringify(next));
+      return next;
+    });
+  }
+
   if (loading) {
     return <div className="flex justify-center py-12"><div className="w-6 h-6 border-4 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
   }
@@ -179,7 +224,9 @@ export default function WorkAid() {
   const shiftElapsedMs = shiftStartLog
     ? (shiftEndLog ? new Date(shiftEndLog.timestamp).getTime() : now) - new Date(shiftStartLog.timestamp).getTime()
     : 0;
-  const boxingCases = counters["boxing"]?.cases || 0;
+  const boxingMain = counters["boxing"]?.cases || 0;
+  const flavorBoxingTotal = flavors.reduce((sum, f) => flavorEnabled[f.key] ? sum + (counters[f.key]?.cases || 0) : sum, 0);
+  const boxingTotal = boxingMain + flavorBoxingTotal;
   const baggingBags = counters["bagging"]?.cases || 0;
 
   const machineEvents = machineLogs
@@ -212,13 +259,13 @@ export default function WorkAid() {
           <TabsContent key={t.key} value={t.key}>
             <SpeedBar
               shiftElapsedMs={shiftElapsedMs}
-              cases={boxingCases}
+              cases={boxingTotal}
               bags={baggingBags}
               downtimeMs={totalDowntimeMs}
               showLostProduct={t.key === "general"}
             />
             {t.isGeneral && (
-              <BatchPredictor shiftElapsedMs={shiftElapsedMs} cases={boxingCases} shiftStartMs={shiftStartMs} />
+              <BatchPredictor shiftElapsedMs={shiftElapsedMs} cases={boxingTotal} shiftStartMs={shiftStartMs} />
             )}
             {t.isGeneral ? (
               <GeneralPanel />
@@ -246,6 +293,17 @@ export default function WorkAid() {
                   onReset={() => reset(t.key)}
                   disabled={busyKeys.has(t.key)}
                 />
+                {t.key === "boxing" && (
+                  <FlavorBoxingTrackers
+                    flavors={flavors}
+                    counters={counters}
+                    onIncrement={(key) => adjustCounter(key, +1)}
+                    onDecrement={(key) => adjustCounter(key, -1)}
+                    busyKeys={busyKeys}
+                    enabledStates={flavorEnabled}
+                    onToggle={toggleFlavor}
+                  />
+                )}
                 <VideoSections position={t.key} />
               </>
             )}
