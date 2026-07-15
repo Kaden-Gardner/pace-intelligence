@@ -59,9 +59,14 @@ export default function Availability() {
     setAvailabilities(fresh);
   }
 
-  const myAvailabilities = availabilities.filter((a) => a.user_id === user?.id);
+  const terminatedEmpNumbers = new Set(employees.filter((e) => e.terminated).map((e) => e.employee_number).filter(Boolean));
+  const terminatedEmpIds = new Set(employees.filter((e) => e.terminated).map((e) => e.id).filter(Boolean));
+  const activeAvailabilities = availabilities.filter((a) =>
+    !terminatedEmpIds.has(a.employee_id) && !terminatedEmpNumbers.has(a.employee_number)
+  );
+  const myAvailabilities = activeAvailabilities.filter((a) => a.user_id === user?.id);
   const displayAvailabilities = isAdmin
-    ? (selectedEmployeeFilter === "all" ? availabilities : availabilities.filter((a) => a.user_id === selectedEmployeeFilter))
+    ? (selectedEmployeeFilter === "all" ? activeAvailabilities : activeAvailabilities.filter((a) => a.user_id === selectedEmployeeFilter))
     : myAvailabilities;
 
   const days = eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) });
@@ -209,9 +214,9 @@ export default function Availability() {
     </div>
   );
 
-  const availableUserIds = [...new Set(availabilities.map((a) => a.user_id).filter(Boolean))];
+  const availableUserIds = [...new Set(activeAvailabilities.map((a) => a.user_id).filter(Boolean))];
   const availableFilters = availableUserIds.map((uid) => {
-    const sample = availabilities.find((a) => a.user_id === uid);
+    const sample = activeAvailabilities.find((a) => a.user_id === uid);
     return {
       user_id: uid,
       label: sample?.employee_name || sample?.created_by?.split("@")[0] || uid,
@@ -446,7 +451,7 @@ export default function Availability() {
       {/* Admin: day detail panel */}
       {isAdmin && adminSelectedDate && (() => {
         const ds = format(adminSelectedDate, "yyyy-MM-dd");
-        const dayAvails = availabilities.filter((a) => a.date === ds);
+        const dayAvails = activeAvailabilities.filter((a) => a.date === ds);
         return (
           <div className="mt-6 bg-card rounded-2xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">
