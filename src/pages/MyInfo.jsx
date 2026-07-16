@@ -4,9 +4,9 @@ import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake, BarChart2, Loader2, BookOpen, ExternalLink } from "lucide-react";
+import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake, BarChart2, Loader2, BookOpen, ExternalLink, Briefcase } from "lucide-react";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
-import { positionLabel } from "@/lib/positions";
+import { positionLabel, positionColor, POSITIONS } from "@/lib/positions";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -293,6 +293,42 @@ export default function MyInfo() {
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* My Positions */}
+        {employeeRecord && (
+          <div className="bg-card rounded-2xl border border-border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Briefcase className="w-4 h-4 text-primary" />
+              <h2 className="font-heading font-semibold text-base">My Positions</h2>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Hired For</p>
+                {employeeRecord.hired_for ? (
+                  <span className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium ${positionColor(employeeRecord.hired_for)}`}>
+                    {positionLabel(employeeRecord.hired_for)}
+                  </span>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">Not specified</p>
+                )}
+              </div>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-1.5">Cross Trained</p>
+                {(employeeRecord.cross_trained_positions || []).length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {employeeRecord.cross_trained_positions.map((pos) => (
+                      <span key={pos} className={`inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium ${positionColor(pos)}`}>
+                        {positionLabel(pos)}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">None yet</p>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
