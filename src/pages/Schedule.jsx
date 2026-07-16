@@ -11,6 +11,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterv
 import { findDreamTeam } from "../lib/analyticsHelpers";
 import UpcomingShiftTab from "@/components/schedule/UpcomingShiftTab";
 import AvailabilityPlannerTab from "@/components/schedule/AvailabilityPlannerTab";
+import { POSITIONS, positionLabel } from "@/lib/positions";
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -37,7 +38,7 @@ export default function Schedule() {
 
   const [form, setForm] = useState({
     shift_time: "08:00", flavorset_id: "", mixer_employee: "",
-    assigned_employees: [], on_call_employees: [], special_order: false, special_order_name: "", notes: "",
+    assigned_employees: [], position_assignments: [], on_call_employees: [], special_order: false, special_order_name: "", notes: "",
   });
   const [baseMixForm, setBaseMixForm] = useState({
     flavorset_id: "", batch_size: 1, admin_employee: "", mixer_1: "", mixer_2: "", mixer_3: "", shift_lead: "", notes: "",
@@ -126,7 +127,9 @@ export default function Schedule() {
     const suggested = getSuggestedEmployees(date);
     setForm({
       shift_time: "08:00", flavorset_id: "", mixer_employee: "",
-      assigned_employees: suggested.map((e) => e.id), on_call_employees: [], us_foods: false, notes: "",
+      assigned_employees: suggested.map((e) => e.id),
+      position_assignments: suggested.map((e) => ({ employee_id: e.id, position: e.hired_for || "" })),
+      on_call_employees: [], special_order: false, special_order_name: "", notes: "",
     });
     setBaseMixForm({ flavorset_id: "", batch_size: 1, admin_employee: "", notes: "" });
   }
@@ -142,6 +145,7 @@ export default function Schedule() {
       flavorset_id: shift.flavorset_id || "",
       mixer_employee: shift.mixer_employee || "",
       assigned_employees: shift.assigned_employees || [],
+      position_assignments: shift.position_assignments || [],
       on_call_employees: shift.on_call_employees || [],
       special_order: shift.special_order || false,
       special_order_name: shift.special_order_name || "",
@@ -174,11 +178,32 @@ export default function Schedule() {
         return { ...f, on_call_employees: current.includes(empId) ? current.filter((id) => id !== empId) : [...current, empId] };
       } else {
         const current = f.assigned_employees || [];
-        if (current.includes(empId)) return { ...f, assigned_employees: current.filter((id) => id !== empId) };
+        if (current.includes(empId)) {
+          return {
+            ...f,
+            assigned_employees: current.filter((id) => id !== empId),
+            position_assignments: (f.position_assignments || []).filter((a) => a.employee_id !== empId),
+          };
+        }
         if (current.length >= 9) return f;
-        return { ...f, assigned_employees: [...current, empId] };
+        const emp = empMap[empId];
+        const position = emp?.hired_for || "";
+        return {
+          ...f,
+          assigned_employees: [...current, empId],
+          position_assignments: [...(f.position_assignments || []), { employee_id: empId, position }],
+        };
       }
     });
+  }
+
+  function setEmployeePosition(empId, position) {
+    setForm((f) => ({
+      ...f,
+      position_assignments: (f.position_assignments || []).map((a) =>
+        a.employee_id === empId ? { ...a, position } : a
+      ),
+    }));
   }
 
   async function handleSave(e) {
@@ -450,7 +475,7 @@ export default function Schedule() {
                 <div className="flex items-center gap-2 mb-2">
                   <label className="text-xs font-medium text-muted-foreground">Working Employees ({(form.assigned_employees || []).length}/9)</label>
                   {suggestedForSelected.length > 0 && (
-                    <button type="button" onClick={() => setForm((f) => ({ ...f, assigned_employees: suggestedForSelected.map((e) => e.id) }))}
+                    <button type="button" onClick={() => setForm((f) => ({ ...f, assigned_employees: suggestedForSelected.map((e) => e.id), position_assignments: suggestedForSelected.map((e) => ({ employee_id: e.id, position: e.hired_for || "" })) }))}
                       className="flex items-center gap-1 text-xs text-primary hover:underline">
                       <Sparkles className="w-3 h-3" /> Use suggestions
                     </button>
@@ -473,8 +498,22 @@ export default function Schedule() {
                             {isDream && <span title="Dream team" className="text-yellow-500 text-xs">★</span>}
                             {avail ? <span title="Available" className="text-green-500 text-xs">✓</span> : <span title="No availability set" className="text-muted-foreground text-xs">?</span>}
                           </span>
-                        </div>
-                        <div className="flex border-t border-border">
+                          </div>
+                          {isWorking && (
+                          <div className="px-2 pb-1">
+                            <select
+                              value={(form.position_assignments || []).find((a) => a.employee_id === emp.id)?.position || ""}
+                              onChange={(e) => setEmployeePosition(emp.id, e.target.value)}
+                              className="w-full text-xs rounded-lg border border-input bg-transparent px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
+                            >
+                              <option value="">— Position —</option>
+                              {POSITIONS.map((p) => (
+                                <option key={p.key} value={p.key}>{p.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          )}
+                          <div className="flex border-t border-border">
                           <button type="button" onClick={() => toggleEmployee(emp.id, "working")}
                             disabled={!isWorking && (form.assigned_employees || []).length >= 9}
                             className={`flex-1 text-xs py-1 rounded-bl-xl transition-all ${isWorking ? "bg-primary text-primary-foreground" : "hover:bg-primary/10 text-muted-foreground disabled:opacity-30"}`}>
@@ -655,9 +694,14 @@ export default function Schedule() {
                   <div className="mb-2">
                     <p className="text-xs font-medium text-muted-foreground mb-1">Working</p>
                     <div className="flex flex-wrap gap-2">
-                      {assignedEmps.map((emp) => (
-                        <span key={emp.id} className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg">{emp.name}</span>
-                      ))}
+                      {assignedEmps.map((emp) => {
+                        const posAssignment = (s.position_assignments || []).find((a) => a.employee_id === emp.id);
+                        return (
+                          <span key={emp.id} className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg">
+                            {emp.name}{posAssignment?.position ? ` · ${positionLabel(posAssignment.position)}` : ""}
+                          </span>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

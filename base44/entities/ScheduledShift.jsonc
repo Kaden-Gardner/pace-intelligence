@@ -31,6 +31,22 @@
         "type": "string"
       }
     },
+    "position_assignments": {
+      "type": "array",
+      "title": "Position Assignments",
+      "items": {
+        "type": "object",
+        "properties": {
+          "employee_id": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
     "on_call_employees": {
       "type": "array",
       "title": "On Call Employees",

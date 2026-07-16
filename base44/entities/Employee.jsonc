@@ -29,6 +29,32 @@
       "title": "Terminated",
       "default": false
     },
+    "hired_for": {
+      "type": "string",
+      "title": "Hired For Position",
+      "enum": [
+        "filling",
+        "pulling",
+        "sorting",
+        "bagging",
+        "boxing"
+      ]
+    },
+    "cross_trained_positions": {
+      "type": "array",
+      "title": "Cross Trained Positions",
+      "items": {
+        "type": "string",
+        "enum": [
+          "filling",
+          "pulling",
+          "sorting",
+          "bagging",
+          "boxing"
+        ]
+      },
+      "default": []
+    },
     "favorite_flavor": {
       "type": "string",
       "title": "Favorite Popsicle Flavor"

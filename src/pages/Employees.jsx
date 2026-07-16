@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
-import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake, Briefcase } from "lucide-react";
 import { getBestPosition, getEmployeePosition, getTotalCases, getCasesPerHour } from "../lib/analyticsHelpers";
+import { POSITIONS, positionLabel } from "@/lib/positions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -30,7 +31,7 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user" });
+  const [form, setForm] = useState({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [] });
   const [flavors, setFlavors] = useState([]);
 
   const [selectedPosition, setSelectedPosition] = useState({}); // empId -> position string
@@ -78,14 +79,15 @@ export default function Employees() {
       favorite_flavor: emp.favorite_flavor || "",
       active: emp.active !== false,
       app_role: emp.app_role || "user",
-
+      hired_for: emp.hired_for || "",
+      cross_trained_positions: emp.cross_trained_positions || [],
     });
     setEditingId(emp.id);
     setShowForm(true);
   }
 
   function resetForm() {
-    setForm({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user" });
+    setForm({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [] });
     setEditingId(null);
     setShowForm(false);
   }
@@ -171,9 +173,35 @@ export default function Employees() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block flex items-center gap-1"><Briefcase className="w-3 h-3" /> Hired For</label>
+              <Select value={form.hired_for || "none"} onValueChange={(v) => setForm({ ...form, hired_for: v === "none" ? "" : v })}>
+                <SelectTrigger><SelectValue placeholder="Select position..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— None —</SelectItem>
+                  {POSITIONS.map((p) => <SelectItem key={p.key} value={p.key}>{p.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="flex items-center gap-2 mt-2">
               <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
               <span className="text-sm">Active</span>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="text-xs font-medium text-muted-foreground mb-2 block">Cross Trained Positions</label>
+            <div className="flex flex-wrap gap-2">
+              {POSITIONS.map((p) => {
+                const isSelected = (form.cross_trained_positions || []).includes(p.key);
+                return (
+                  <button key={p.key} type="button"
+                    onClick={() => setForm((f) => ({ ...f, cross_trained_positions: isSelected ? (f.cross_trained_positions || []).filter((k) => k !== p.key) : [...(f.cross_trained_positions || []), p.key] }))}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                    {p.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -230,6 +258,14 @@ export default function Employees() {
                         })()}
                       </p>
                       <p className="text-xs text-muted-foreground">#{emp.employee_number}</p>
+                      {emp.hired_for && (
+                        <p className="text-xs text-accent flex items-center gap-1 mt-0.5">
+                          <Briefcase className="w-3 h-3" />{positionLabel(emp.hired_for)}
+                        </p>
+                      )}
+                      {emp.cross_trained_positions?.length > 0 && (
+                        <p className="text-xs text-muted-foreground mt-0.5">↔ {emp.cross_trained_positions.map(positionLabel).join(", ")}</p>
+                      )}
                       {bestPos && (
                         <p className="text-xs text-primary flex items-center gap-1 mt-0.5">
                           <Star className="w-3 h-3" />{bestPos}

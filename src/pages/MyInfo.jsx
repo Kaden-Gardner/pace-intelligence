@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake, BarChart2, Loader2, BookOpen, ExternalLink } from "lucide-react";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
+import { positionLabel } from "@/lib/positions";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -313,6 +314,7 @@ export default function MyInfo() {
                 const dateStr = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
                 const isOnCall = (shift.on_call_employees || []).includes(user.employee_number);
                 const isMixer = shift.mixer_employee === user.employee_number;
+                const posAssignment = (shift.position_assignments || []).find((a) => a.employee_id === employeeRecord?.id);
                 return (
                   <div key={shift.id} className="flex items-center justify-between rounded-xl bg-muted px-4 py-3">
                     <div>
@@ -325,6 +327,7 @@ export default function MyInfo() {
                       <p className="text-xs text-muted-foreground">
                         {formatTime(shift.shift_time)}
                         {shift.flavorset_id && flavorSets.find(fs => fs.id === shift.flavorset_id) ? ` · ${flavorSets.find(fs => fs.id === shift.flavorset_id).name}` : ""}
+                        {posAssignment?.position ? ` · ${positionLabel(posAssignment.position)}` : ""}
                         {isMixer ? " · Mixer" : isOnCall ? " · On Call" : ""}
                       </p>
                     </div>

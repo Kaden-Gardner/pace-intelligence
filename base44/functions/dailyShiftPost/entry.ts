@@ -86,9 +86,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    const posMap = {};
+    (shift.position_assignments || []).forEach((a) => { posMap[a.employee_id] = a.position; });
+
     const workingEmps = (shift.assigned_employees || [])
       .map((id) => empMap[id]).filter(Boolean)
-      .map((emp) => ({ id: emp.id, name: emp.name, age: getAge(emp, refDate) }));
+      .map((emp) => ({ id: emp.id, name: emp.name, age: getAge(emp, refDate), position: posMap[emp.id] || null }));
 
     const mixerEmp = shift.mixer_employee && empMap[shift.mixer_employee]
       ? { id: empMap[shift.mixer_employee].id, name: empMap[shift.mixer_employee].name, age: getAge(empMap[shift.mixer_employee], refDate) }

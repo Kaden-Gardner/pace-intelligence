@@ -9,6 +9,7 @@ import { Pin, Camera, Plus, X, Check, Trash2, Image, CalendarClock } from "lucid
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import PullToRefresh from "@/components/PullToRefresh";
 import PostInteractions from "@/components/posts/PostInteractions";
+import { positionLabel } from "@/lib/positions";
 
 function ShiftPostCard({ post }) {
   let data;
@@ -79,6 +80,7 @@ function ShiftPostCard({ post }) {
             {data.working_employees.map((emp) => (
               <span key={emp.id} className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-primary/10 text-primary rounded-full font-medium">
                 {emp.name}
+                {emp.position && <span className="text-[10px] bg-primary/20 px-1.5 py-0.5 rounded-full leading-none">{positionLabel(emp.position)}</span>}
                 {emp.age === 14 && <span className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">14</span>}
               </span>
             ))}
