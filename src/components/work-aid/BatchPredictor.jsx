@@ -12,12 +12,15 @@ export default function BatchPredictor({ shiftElapsedMs, cases, shiftStartMs }) 
   const shiftHours = shiftElapsedMs / 3600000;
   const casesPerHour = shiftHours > 0 ? cases / shiftHours : 0;
   const gallons = parseFloat(batchSize) || 0;
-  const casesForBatch = gallons / 3; // 3 gallons of punch per case
+  const GALLONS_PER_CASE = 3; // 3 gallons of punch per case
+  const casesForBatch = gallons / GALLONS_PER_CASE;
+  const remainingCases = Math.max(0, casesForBatch - cases); // subtract product already done
 
   let predictedEnd = null;
   if (gallons > 0 && casesPerHour > 0 && shiftStartMs) {
-    const hoursNeeded = casesForBatch / casesPerHour;
-    predictedEnd = new Date(shiftStartMs + hoursNeeded * 3600000);
+    const hoursNeeded = remainingCases / casesPerHour;
+    const nowMs = shiftStartMs + shiftElapsedMs;
+    predictedEnd = new Date(nowMs + hoursNeeded * 3600000);
   }
 
   return (
@@ -36,7 +39,9 @@ export default function BatchPredictor({ shiftElapsedMs, cases, shiftStartMs }) 
           className="h-8 text-sm font-semibold"
         />
         {gallons > 0 && (
-          <p className="text-[10px] text-muted-foreground mt-1">≈ {casesForBatch.toFixed(0)} cases</p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            ≈ {casesForBatch.toFixed(0)} cases{cases > 0 ? ` · ${remainingCases.toFixed(0)} left` : ""}
+          </p>
         )}
       </div>
       <div className="bg-card rounded-xl border border-border p-3 text-center">
