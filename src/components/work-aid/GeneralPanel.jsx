@@ -192,10 +192,18 @@ export default function GeneralPanel() {
       {/* Machine Down / Up Log */}
       <div className="bg-card rounded-2xl border border-border p-5">
         <h3 className="font-heading font-semibold text-sm mb-3">Machine Down / Up Log</h3>
+        <div className="flex gap-2 mb-3">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => logEvent("machine_down")} disabled={saving === "machine_down"}>
+            <ArrowDown className="w-4 h-4" /> Log Down
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => logEvent("machine_up")} disabled={saving === "machine_up"}>
+            <ArrowUp className="w-4 h-4" /> Log Up
+          </Button>
+        </div>
         {machineEvents.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">No events logged.</p>
         ) : (
-          <div className="space-y-2 mb-4">
+          <div className="space-y-2">
             {machineEvents.map((ev) => (
               <div key={ev.id} className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2">
                 <div className="flex items-center gap-2">
@@ -212,14 +220,6 @@ export default function GeneralPanel() {
             ))}
           </div>
         )}
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => logEvent("machine_down")} disabled={saving === "machine_down"}>
-            <ArrowDown className="w-4 h-4" /> Log Down
-          </Button>
-          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => logEvent("machine_up")} disabled={saving === "machine_up"}>
-            <ArrowUp className="w-4 h-4" /> Log Up
-          </Button>
-        </div>
       </div>
 
       {/* Shift End */}
