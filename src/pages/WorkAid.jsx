@@ -30,6 +30,7 @@ export default function WorkAid() {
   const [now, setNow] = useState(Date.now());
   const [activeTab, setActiveTab] = useState("general");
   const [packConstants, setPackConstants] = useState(null);
+  const [avgCasePrice, setAvgCasePrice] = useState(0);
   const [flavors, setFlavors] = useState([]);
   const [flavorEnabled, setFlavorEnabled] = useState(() => {
     try {
@@ -107,7 +108,10 @@ export default function WorkAid() {
   useEffect(() => {
     (async () => {
       try {
-        const mdef = await base44.entities.MaterialDefaults.list();
+        const [mdef, orderItems] = await Promise.all([
+          base44.entities.MaterialDefaults.list(),
+          base44.entities.OrderPickupItem.list(),
+        ]);
         const map = {};
         mdef.forEach((d) => { map[d.material_key] = d; });
         setPackConstants({
@@ -115,6 +119,8 @@ export default function WorkAid() {
           popsPerCase: map[MD_POPS_PER_CASE]?.qty_per_shift || DEFAULT_POPS_PER_CASE,
           popsPerMold: map[MD_POPS_PER_MOLD]?.qty_per_shift || DEFAULT_POPS_PER_MOLD,
         });
+        const priced = orderItems.filter((i) => i.case_sell_price > 0);
+        setAvgCasePrice(priced.length > 0 ? priced.reduce((s, i) => s + i.case_sell_price, 0) / priced.length : 0);
       } catch (err) {
         console.error("Failed to load pack constants:", err);
         setPackConstants({
@@ -286,6 +292,7 @@ export default function WorkAid() {
               downtimeMs={totalDowntimeMs}
               showLostProduct={t.key === "general"}
               packConstants={packConstants}
+              avgCasePrice={avgCasePrice}
             />
             {t.isGeneral && (
               <BatchPredictor shiftElapsedMs={shiftElapsedMs} cases={boxingTotal} shiftStartMs={shiftStartMs} />
