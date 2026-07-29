@@ -4,7 +4,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CounterPanel from "@/components/work-aid/CounterPanel";
 import FillingPanel from "@/components/work-aid/FillingPanel";
 import GeneralPanel from "@/components/work-aid/GeneralPanel";
-import SpeedBar from "@/components/work-aid/SpeedBar";
+import Scoreboard from "@/components/work-aid/Scoreboard";
 import BatchPredictor from "@/components/work-aid/BatchPredictor";
 import VideoSections from "@/components/work-aid/VideoSections";
 import FlavorBoxingTrackers from "@/components/work-aid/FlavorBoxingTrackers";
@@ -14,6 +14,7 @@ const FILLING_KEYS = ["filling_flavor_1", "filling_flavor_2", "filling_flavor_3"
 const FLAVOR_BOXING_KEYS = ["boxing_flavor_1", "boxing_flavor_2", "boxing_flavor_3", "boxing_flavor_4"];
 
 const TABS = [
+  { key: "scoreboard", label: "Scoreboard", isScoreboard: true },
   { key: "general", label: "General", isGeneral: true },
   { key: "boxing", label: "Boxing", panelLabel: "Boxing Cases", unit: "cases" },
   { key: "filling", label: "Filling", isMulti: true },
@@ -28,7 +29,7 @@ export default function WorkAid() {
   const [loading, setLoading] = useState(true);
   const [busyKeys, setBusyKeys] = useState(new Set());
   const [now, setNow] = useState(Date.now());
-  const [activeTab, setActiveTab] = useState("general");
+  const [activeTab, setActiveTab] = useState("scoreboard");
   const [packConstants, setPackConstants] = useState(null);
   const [avgCasePrice, setAvgCasePrice] = useState(0);
   const [flavors, setFlavors] = useState([]);
@@ -278,7 +279,7 @@ export default function WorkAid() {
   return (
     <div>
       <h1 className="font-heading text-2xl font-bold mb-6">Work Aid</h1>
-      <Tabs defaultValue="general" value={activeTab} onValueChange={setActiveTab}>
+      <Tabs defaultValue="scoreboard" value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="w-full justify-start overflow-x-auto mb-6">
           {TABS.map((t) => (
             <TabsTrigger key={t.key} value={t.key}>{t.label}</TabsTrigger>
@@ -286,55 +287,59 @@ export default function WorkAid() {
         </TabsList>
         {TABS.map((t) => (
           <TabsContent key={t.key} value={t.key}>
-            <SpeedBar
-              shiftElapsedMs={shiftElapsedMs}
-              cases={boxingTotal}
-              downtimeMs={totalDowntimeMs}
-              showLostProduct={t.key === "general"}
-              packConstants={packConstants}
-              avgCasePrice={avgCasePrice}
-            />
-            {t.isGeneral && (
-              <BatchPredictor shiftElapsedMs={shiftElapsedMs} cases={boxingTotal} shiftStartMs={shiftStartMs} />
-            )}
-            {t.isGeneral ? (
-              <GeneralPanel />
-            ) : t.isMulti ? (
-              <>
-                <FillingPanel
-                  counters={counters}
-                  onIncrement={(key) => adjustCounter(key, +1)}
-                  onDecrement={(key) => adjustCounter(key, -1)}
-                  onResetAll={() => resetAll(FILLING_KEYS)}
-                  busyKeys={busyKeys}
-                />
-                <VideoSections position={t.key} />
-              </>
+            {t.isScoreboard ? (
+              <Scoreboard
+                shiftElapsedMs={shiftElapsedMs}
+                cases={boxingTotal}
+                downtimeMs={totalDowntimeMs}
+                packConstants={packConstants}
+                avgCasePrice={avgCasePrice}
+              />
             ) : (
               <>
-                <CounterPanel
-                  label={t.panelLabel}
-                  counter={counters[t.key]}
-                  unit={t.unit}
-                  secondaryLabel={t.secondaryLabel}
-                  conversionDivisor={t.conversionDivisor}
-                  onIncrement={() => adjustCounter(t.key, +1)}
-                  onDecrement={() => adjustCounter(t.key, -1)}
-                  onReset={() => reset(t.key)}
-                  disabled={busyKeys.has(t.key)}
-                />
-                {t.key === "boxing" && (
-                  <FlavorBoxingTrackers
-                    flavors={flavors}
-                    counters={counters}
-                    onIncrement={(key) => adjustCounter(key, +1)}
-                    onDecrement={(key) => adjustCounter(key, -1)}
-                    busyKeys={busyKeys}
-                    enabledStates={flavorEnabled}
-                    onToggle={toggleFlavor}
-                  />
+                {t.isGeneral && (
+                  <BatchPredictor shiftElapsedMs={shiftElapsedMs} cases={boxingTotal} shiftStartMs={shiftStartMs} />
                 )}
-                <VideoSections position={t.key} />
+                {t.isGeneral ? (
+                  <GeneralPanel />
+                ) : t.isMulti ? (
+                  <>
+                    <FillingPanel
+                      counters={counters}
+                      onIncrement={(key) => adjustCounter(key, +1)}
+                      onDecrement={(key) => adjustCounter(key, -1)}
+                      onResetAll={() => resetAll(FILLING_KEYS)}
+                      busyKeys={busyKeys}
+                    />
+                    <VideoSections position={t.key} />
+                  </>
+                ) : (
+                  <>
+                    <CounterPanel
+                      label={t.panelLabel}
+                      counter={counters[t.key]}
+                      unit={t.unit}
+                      secondaryLabel={t.secondaryLabel}
+                      conversionDivisor={t.conversionDivisor}
+                      onIncrement={() => adjustCounter(t.key, +1)}
+                      onDecrement={() => adjustCounter(t.key, -1)}
+                      onReset={() => reset(t.key)}
+                      disabled={busyKeys.has(t.key)}
+                    />
+                    {t.key === "boxing" && (
+                      <FlavorBoxingTrackers
+                        flavors={flavors}
+                        counters={counters}
+                        onIncrement={(key) => adjustCounter(key, +1)}
+                        onDecrement={(key) => adjustCounter(key, -1)}
+                        busyKeys={busyKeys}
+                        enabledStates={flavorEnabled}
+                        onToggle={toggleFlavor}
+                      />
+                    )}
+                    <VideoSections position={t.key} />
+                  </>
+                )}
               </>
             )}
           </TabsContent>
