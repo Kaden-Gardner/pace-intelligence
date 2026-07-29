@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Flag, Timer } from "lucide-react";
+import { GALLONS_PER_CASE } from "@/lib/productionConstants";
 
 function formatTimeOfDay(date) {
   return date.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
@@ -12,7 +13,6 @@ export default function BatchPredictor({ shiftElapsedMs, cases, shiftStartMs }) 
   const shiftHours = shiftElapsedMs / 3600000;
   const casesPerHour = shiftHours > 0 ? cases / shiftHours : 0;
   const gallons = parseFloat(batchSize) || 0;
-  const GALLONS_PER_CASE = 3; // 3 gallons of punch per case
   const casesForBatch = gallons / GALLONS_PER_CASE;
   const remainingCases = Math.max(0, casesForBatch - cases); // subtract product already done
 

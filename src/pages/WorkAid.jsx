@@ -8,6 +8,7 @@ import SpeedBar from "@/components/work-aid/SpeedBar";
 import BatchPredictor from "@/components/work-aid/BatchPredictor";
 import VideoSections from "@/components/work-aid/VideoSections";
 import FlavorBoxingTrackers from "@/components/work-aid/FlavorBoxingTrackers";
+import { MD_BAGS_PER_CASE, MD_POPS_PER_CASE, MD_POPS_PER_MOLD, DEFAULT_BAGS_PER_CASE, DEFAULT_POPS_PER_CASE, DEFAULT_POPS_PER_MOLD } from "@/lib/productionConstants";
 
 const FILLING_KEYS = ["filling_flavor_1", "filling_flavor_2", "filling_flavor_3", "filling_flavor_4"];
 const FLAVOR_BOXING_KEYS = ["boxing_flavor_1", "boxing_flavor_2", "boxing_flavor_3", "boxing_flavor_4"];
@@ -28,6 +29,7 @@ export default function WorkAid() {
   const [busyKeys, setBusyKeys] = useState(new Set());
   const [now, setNow] = useState(Date.now());
   const [activeTab, setActiveTab] = useState("general");
+  const [packConstants, setPackConstants] = useState(null);
   const [flavors, setFlavors] = useState([]);
   const [flavorEnabled, setFlavorEnabled] = useState(() => {
     try {
@@ -98,6 +100,28 @@ export default function WorkAid() {
         setFlavors(result);
       } catch (err) {
         console.error("Failed to load flavors:", err);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const mdef = await base44.entities.MaterialDefaults.list();
+        const map = {};
+        mdef.forEach((d) => { map[d.material_key] = d; });
+        setPackConstants({
+          bagsPerCase: map[MD_BAGS_PER_CASE]?.qty_per_shift || DEFAULT_BAGS_PER_CASE,
+          popsPerCase: map[MD_POPS_PER_CASE]?.qty_per_shift || DEFAULT_POPS_PER_CASE,
+          popsPerMold: map[MD_POPS_PER_MOLD]?.qty_per_shift || DEFAULT_POPS_PER_MOLD,
+        });
+      } catch (err) {
+        console.error("Failed to load pack constants:", err);
+        setPackConstants({
+          bagsPerCase: DEFAULT_BAGS_PER_CASE,
+          popsPerCase: DEFAULT_POPS_PER_CASE,
+          popsPerMold: DEFAULT_POPS_PER_MOLD,
+        });
       }
     })();
   }, []);
@@ -227,7 +251,6 @@ export default function WorkAid() {
   const boxingMain = counters["boxing"]?.cases || 0;
   const flavorBoxingTotal = flavors.reduce((sum, f) => flavorEnabled[f.key] ? sum + (counters[f.key]?.cases || 0) : sum, 0);
   const boxingTotal = boxingMain + flavorBoxingTotal;
-  const baggingBags = counters["bagging"]?.cases || 0;
 
   const machineEvents = machineLogs
     .filter((l) => l.entry_type === "machine_down" || l.entry_type === "machine_up")
@@ -260,9 +283,9 @@ export default function WorkAid() {
             <SpeedBar
               shiftElapsedMs={shiftElapsedMs}
               cases={boxingTotal}
-              bags={baggingBags}
               downtimeMs={totalDowntimeMs}
               showLostProduct={t.key === "general"}
+              packConstants={packConstants}
             />
             {t.isGeneral && (
               <BatchPredictor shiftElapsedMs={shiftElapsedMs} cases={boxingTotal} shiftStartMs={shiftStartMs} />
