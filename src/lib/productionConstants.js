@@ -7,7 +7,7 @@ export const GALLONS_PER_CASE = 3;
 // configured on the Inventory → Product Breakdown tab.
 export const MD_BAGS_PER_CASE = "bags_per_case";
 export const MD_POPS_PER_CASE = "popsicles_per_case";
-export const MD_POPS_PER_MOLD = "popsicles_per_gallon"; // "Popsicles per Gallon (Mold Size)"
+export const MD_POPS_PER_MOLD = "popsicles_per_mold"; // "Popsicles per Mold" (each mold ≈ ½ gallon)
 
 // Fallbacks used when a MaterialDefaults value has not been configured yet.
 export const DEFAULT_BAGS_PER_CASE = 12;

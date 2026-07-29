@@ -9,6 +9,7 @@ const WRAP_LABELS = { individual_wrap: "Individual Wrap", clear_wrap: "Clear Wra
 
 const PACK_CONFIG = [
   { key: "popsicles_per_gallon", label: "Popsicles per Gallon (Mold Size)", unit: "pops/gallon", description: "How many popsicles fit in one gallon of base mix (mold size)" },
+  { key: "popsicles_per_mold",   label: "Popsicles per Mold",               unit: "pops/mold", description: "How many popsicles fit in one mold (each mold ≈ ½ gallon)" },
   { key: "popsicles_per_bag",    label: "Popsicles per Bag",                unit: "pops/bag" },
   { key: "bags_per_case",        label: "Bags per Popsicle Case",           unit: "bags/case", description: "How many bags of popsicles fit in one popsicle case" },
   { key: "bags_per_bag_case",    label: "Bags per Bag Case (empty)",        unit: "bags/case", description: "How many empty bags come in one case of bags (for purchasing)" },
