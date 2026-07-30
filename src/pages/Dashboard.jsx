@@ -273,7 +273,7 @@ export default function Dashboard() {
       </div>
 
       {/* Supervisor Friendly Competition */}
-      <ShiftLeadCompetitionCard shifts={shifts} employees={activeEmployees} />
+      <ShiftLeadCompetitionCard shifts={periodShifts} employees={activeEmployees} periodLabel={periodLabel} />
     </div>
   );
 }

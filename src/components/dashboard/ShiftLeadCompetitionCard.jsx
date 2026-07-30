@@ -35,7 +35,7 @@ function computeShiftLeadStats(shifts, employees) {
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-export default function ShiftLeadCompetitionCard({ shifts, employees }) {
+export default function ShiftLeadCompetitionCard({ shifts, employees, periodLabel }) {
   const leaders = computeShiftLeadStats(shifts, employees);
 
   return (
@@ -44,7 +44,7 @@ export default function ShiftLeadCompetitionCard({ shifts, employees }) {
         <Trophy className="w-5 h-5 text-primary" />
         <h3 className="font-heading font-semibold text-lg">Supervisor Friendly Competition</h3>
       </div>
-      <p className="text-sm text-muted-foreground mb-5">Stats as Shift Lead · all time</p>
+      <p className="text-sm text-muted-foreground mb-5">Stats as Shift Lead · {periodLabel || "all time"}</p>
 
       {leaders.length === 0 ? (
         <p className="text-sm text-muted-foreground">No shift lead data yet.</p>
