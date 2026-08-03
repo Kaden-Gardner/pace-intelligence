@@ -21,7 +21,7 @@ import {
   Legend,
 } from "recharts";
 import { getTotalCases } from "@/lib/analyticsHelpers";
-import { Stethoscope, Activity, DollarSign, Package, TrendingUp, AlertTriangle, Clock, Gauge, Calendar } from "lucide-react";
+import { Stethoscope, Activity, DollarSign, Package, TrendingUp, AlertTriangle, Clock, Gauge, Calendar, Users } from "lucide-react";
 
 function fmt$(n) {
   if (n == null) return "—";
@@ -35,6 +35,18 @@ function fmtHours(h) {
 }
 function fmtDate(dateStr) {
   return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+function parseDowntimeHours(text) {
+  if (!text) return 0;
+  const s = String(text).toLowerCase().trim();
+  const hourMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
+  if (hourMatch) return parseFloat(hourMatch[1]);
+  const minMatch = s.match(/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)\b/);
+  if (minMatch) return parseFloat(minMatch[1]) / 60;
+  const plainMatch = s.match(/(\d+(?:\.\d+)?)/);
+  if (plainMatch) return parseFloat(plainMatch[1]) / 60;
+  return 0;
 }
 
 function StatTile({ icon: Icon, label, value, sub, color }) {
@@ -62,16 +74,19 @@ function ChartCard({ title, children, height = 200 }) {
 const tooltipStyle = { borderRadius: "0.75rem", fontSize: 12 };
 
 export default function ShiftDiagnosticDialog({
-  productionShifts,
-  baseMixShifts,
+  productionShifts = [],
+  baseMixShifts = [],
   calcShiftCost,
   calcBaseMixSupplyCost,
   calcProductionSupplyCost,
   calcWasteInfo,
-  orders,
+  orders = [],
+  triggerLabel = "Diagnostic",
 }) {
   const [open, setOpen] = useState(false);
   const [days, setDays] = useState(30);
+
+  const financialMode = !!calcShiftCost;
 
   const summaries = useMemo(() => {
     const cutoff = new Date();
@@ -96,15 +111,30 @@ export default function ShiftDiagnosticDialog({
     return all
       .map((s) => {
         const isBaseMix = s._type === "basemix";
-        const laborCost = calcShiftCost(s, isBaseMix);
-        const supplyCost = isBaseMix ? calcBaseMixSupplyCost(s) : calcProductionSupplyCost(s);
-        const totalCost = laborCost + supplyCost;
+        const laborCost = financialMode ? calcShiftCost(s, isBaseMix) : 0;
+        const supplyCost = financialMode
+          ? (isBaseMix ? calcBaseMixSupplyCost(s) : calcProductionSupplyCost(s))
+          : 0;
+        const totalCost = financialMode ? laborCost + supplyCost : null;
         const cases = isBaseMix ? null : getTotalCases(s);
         const shiftHours = s.shift_duration || 8;
         const casesPerHour = !isBaseMix && cases != null && shiftHours > 0 ? cases / shiftHours : null;
-        const predictedRevenue = !isBaseMix && cases > 0 && avgCasePrice ? avgCasePrice * cases : null;
+        const predictedRevenue = (financialMode && !isBaseMix && cases > 0 && avgCasePrice) ? avgCasePrice * cases : null;
         const profitRatio = predictedRevenue && totalCost > 0 ? predictedRevenue / totalCost : null;
-        const waste = isBaseMix ? null : calcWasteInfo(s);
+        const waste = financialMode && !isBaseMix && calcWasteInfo ? calcWasteInfo(s) : null;
+        const downtimeHours = isBaseMix ? 0 : parseDowntimeHours(s.downtime);
+        const wasteGallons = isBaseMix ? 0 : (s.waste || 0);
+
+        let empIds = [];
+        if (isBaseMix) {
+          [s.mixer_1, s.mixer_2, s.mixer_3, s.shift_lead].forEach((id) => { if (id) empIds.push(id); });
+        } else {
+          [s.filling_employee, s.pulling_employee_1, s.pulling_employee_2, s.pulling_employee_3,
+           s.sorting_employee, s.bagging_employee, s.boxing_employee, s.shift_lead].forEach((id) => { if (id) empIds.push(id); });
+          if (s.training_employees) empIds.push(...s.training_employees);
+        }
+        empIds = [...new Set(empIds)].filter(Boolean);
+
         return {
           s,
           isBaseMix,
@@ -116,14 +146,16 @@ export default function ShiftDiagnosticDialog({
           predictedRevenue,
           profitRatio,
           waste,
-          downtimeHours: waste?.downtimeHours || 0,
           wasteCost: waste?.totalWasteCost || 0,
+          downtimeHours,
+          wasteGallons,
+          empCount: empIds.length,
           date: s.shift_date,
           label: fmtDate(s.shift_date) + (isBaseMix ? " BM" : ""),
         };
       })
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [days, productionShifts, baseMixShifts, calcShiftCost, calcBaseMixSupplyCost, calcProductionSupplyCost, calcWasteInfo, orders]);
+  }, [days, productionShifts, baseMixShifts, financialMode, calcShiftCost, calcBaseMixSupplyCost, calcProductionSupplyCost, calcWasteInfo, orders]);
 
   const totals = useMemo(() => {
     const totalLabor = summaries.reduce((a, b) => a + b.laborCost, 0);
@@ -133,6 +165,7 @@ export default function ShiftDiagnosticDialog({
     const totalPredictedRev = summaries.reduce((a, b) => a + (b.predictedRevenue || 0), 0);
     const totalWasteCost = summaries.reduce((a, b) => a + b.wasteCost, 0);
     const totalDowntime = summaries.reduce((a, b) => a + b.downtimeHours, 0);
+    const totalWasteGallons = summaries.reduce((a, b) => a + b.wasteGallons, 0);
     const prodShifts = summaries.filter((s) => !s.isBaseMix);
     const totalProdHours = prodShifts.reduce((a, b) => a + (b.s.shift_duration || 0), 0);
     const avgCasesPerHour = totalProdHours > 0 ? totalCases / totalProdHours : 0;
@@ -141,22 +174,13 @@ export default function ShiftDiagnosticDialog({
     const avgProfitRatio = ratioShifts.length > 0 ? ratioShifts.reduce((a, b) => a + b.profitRatio, 0) / ratioShifts.length : null;
     const profitableShifts = ratioShifts.filter((s) => s.profitRatio >= 1).length;
     const avgShiftCost = summaries.length > 0 ? totalCombined / summaries.length : 0;
+    const avgEmpCount = prodShifts.length > 0 ? prodShifts.reduce((a, b) => a + b.empCount, 0) / prodShifts.length : 0;
     return {
-      totalLabor,
-      totalSupply,
-      totalCombined,
-      totalCases,
-      totalPredictedRev,
-      totalWasteCost,
-      totalDowntime,
-      avgCasesPerHour,
-      avgCostPerCase,
-      avgProfitRatio,
-      profitableShifts,
-      ratioShiftCount: ratioShifts.length,
-      avgShiftCost,
-      prodShiftCount: prodShifts.length,
-      baseMixCount: summaries.length - prodShifts.length,
+      totalLabor, totalSupply, totalCombined, totalCases, totalPredictedRev,
+      totalWasteCost, totalDowntime, totalWasteGallons, avgCasesPerHour, avgCostPerCase,
+      avgProfitRatio, profitableShifts, ratioShiftCount: ratioShifts.length,
+      avgShiftCost, prodShiftCount: prodShifts.length,
+      baseMixCount: summaries.length - prodShifts.length, avgEmpCount,
     };
   }, [summaries]);
 
@@ -164,13 +188,16 @@ export default function ShiftDiagnosticDialog({
   const casesData = summaries.filter((x) => !x.isBaseMix).map((x) => ({ label: x.label, Cases: x.cases || 0 }));
   const ratioData = summaries.filter((x) => x.profitRatio != null).map((x) => ({ label: x.label, Ratio: parseFloat(x.profitRatio.toFixed(2)) }));
   const speedData = summaries.filter((x) => x.casesPerHour != null).map((x) => ({ label: x.label, Speed: parseFloat(x.casesPerHour.toFixed(1)) }));
-  const wasteData = summaries.filter((x) => !x.isBaseMix && x.wasteCost > 0).map((x) => ({ label: x.label, Waste: parseFloat(x.wasteCost.toFixed(2)) }));
+  const wasteCostData = summaries.filter((x) => !x.isBaseMix && x.wasteCost > 0).map((x) => ({ label: x.label, Waste: parseFloat(x.wasteCost.toFixed(2)) }));
+  const wasteGalData = summaries.filter((x) => !x.isBaseMix && x.wasteGallons > 0).map((x) => ({ label: x.label, Gallons: x.wasteGallons }));
+  const downtimeData = summaries.filter((x) => !x.isBaseMix && x.downtimeHours > 0).map((x) => ({ label: x.label, Downtime: parseFloat(x.downtimeHours.toFixed(2)) }));
+  const empData = summaries.filter((x) => !x.isBaseMix).map((x) => ({ label: x.label, Crew: x.empCount }));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2 whitespace-nowrap">
-          <Stethoscope className="w-4 h-4" /> Diagnostic
+          <Stethoscope className="w-4 h-4" /> {triggerLabel}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
@@ -210,6 +237,13 @@ export default function ShiftDiagnosticDialog({
           </p>
         </div>
 
+        {!financialMode && (
+          <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 text-xs text-blue-800">
+            <span>ℹ️</span>
+            <p>Production-only diagnostic — cost & revenue charts appear when launched from the Financials page.</p>
+          </div>
+        )}
+
         {summaries.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
             <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
@@ -219,32 +253,40 @@ export default function ShiftDiagnosticDialog({
           <>
             {/* Summary stat tiles */}
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              <StatTile icon={DollarSign} label="Total Labor Cost" value={fmt$(totals.totalLabor)} sub={`${summaries.length} shifts`} />
-              <StatTile icon={Package} label="Total Supply Cost" value={fmt$(totals.totalSupply)} sub="materials + ingredients" />
-              <StatTile icon={DollarSign} label="Total Combined Cost" value={fmt$(totals.totalCombined)} sub="labor + supplies" />
-              <StatTile icon={DollarSign} label="Avg Cost Per Shift" value={fmt$(totals.avgShiftCost)} sub={`avg of ${summaries.length}`} />
+              {financialMode && (
+                <>
+                  <StatTile icon={DollarSign} label="Total Labor Cost" value={fmt$(totals.totalLabor)} sub={`${summaries.length} shifts`} />
+                  <StatTile icon={Package} label="Total Supply Cost" value={fmt$(totals.totalSupply)} sub="materials + ingredients" />
+                  <StatTile icon={DollarSign} label="Total Combined Cost" value={fmt$(totals.totalCombined)} sub="labor + supplies" />
+                  <StatTile icon={DollarSign} label="Avg Cost Per Shift" value={fmt$(totals.avgShiftCost)} sub={`avg of ${summaries.length}`} />
+                  <StatTile icon={DollarSign} label="Avg Cost Per Case" value={totals.avgCostPerCase != null ? fmt$(totals.avgCostPerCase) : "—"} sub="combined ÷ cases" />
+                  <StatTile icon={TrendingUp} label="Predicted Revenue" value={fmt$(totals.totalPredictedRev)} sub="avg price × cases" />
+                  <StatTile icon={Gauge} label="Avg Profit Ratio" value={totals.avgProfitRatio != null ? `${totals.avgProfitRatio.toFixed(2)}×` : "—"} sub={`${totals.profitableShifts}/${totals.ratioShiftCount} profitable`} color={totals.avgProfitRatio != null && totals.avgProfitRatio >= 1 ? "hsl(var(--chart-3))" : "hsl(var(--destructive))"} />
+                  <StatTile icon={AlertTriangle} label="Total Waste Cost" value={fmt$(totals.totalWasteCost)} sub="materials + downtime" color="hsl(var(--destructive))" />
+                </>
+              )}
               <StatTile icon={Package} label="Total Cases Produced" value={totals.totalCases.toLocaleString()} sub="production shifts" />
-              <StatTile icon={DollarSign} label="Avg Cost Per Case" value={totals.avgCostPerCase != null ? fmt$(totals.avgCostPerCase) : "—"} sub="combined ÷ cases" />
-              <StatTile icon={TrendingUp} label="Predicted Revenue" value={fmt$(totals.totalPredictedRev)} sub="avg price × cases" />
-              <StatTile icon={Gauge} label="Avg Profit Ratio" value={totals.avgProfitRatio != null ? `${totals.avgProfitRatio.toFixed(2)}×` : "—"} sub={`${totals.profitableShifts}/${totals.ratioShiftCount} profitable`} color={totals.avgProfitRatio != null && totals.avgProfitRatio >= 1 ? "hsl(var(--chart-3))" : "hsl(var(--destructive))"} />
               <StatTile icon={Activity} label="Avg Cases / Hour" value={totals.avgCasesPerHour > 0 ? totals.avgCasesPerHour.toFixed(1) : "—"} sub="production speed" />
-              <StatTile icon={AlertTriangle} label="Total Waste Cost" value={fmt$(totals.totalWasteCost)} sub="materials + downtime" color="hsl(var(--destructive))" />
+              <StatTile icon={AlertTriangle} label="Waste (Gallons)" value={totals.totalWasteGallons.toFixed(1)} sub="popsicle punch" color="hsl(var(--destructive))" />
               <StatTile icon={Clock} label="Total Downtime" value={fmtHours(totals.totalDowntime)} sub="across all shifts" />
+              <StatTile icon={Users} label="Avg Crew Size" value={totals.avgEmpCount > 0 ? totals.avgEmpCount.toFixed(1) : "—"} sub="per production shift" />
             </div>
 
             {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <ChartCard title="Shift Cost Over Time">
-                <BarChart data={costData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                  <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
-                  <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `$${v}`} width={55} />
-                  <Tooltip formatter={(v) => `$${v.toFixed(2)}`} contentStyle={tooltipStyle} />
-                  <Legend wrapperStyle={{ fontSize: 11 }} />
-                  <Bar dataKey="Labor" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />
-                  <Bar dataKey="Supplies" stackId="a" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ChartCard>
+              {financialMode && (
+                <ChartCard title="Shift Cost Over Time">
+                  <BarChart data={costData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
+                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `$${v}`} width={55} />
+                    <Tooltip formatter={(v) => `$${v.toFixed(2)}`} contentStyle={tooltipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="Labor" stackId="a" fill="hsl(var(--primary))" radius={[0, 0, 0, 0]} />
+                    <Bar dataKey="Supplies" stackId="a" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ChartCard>
+              )}
 
               <ChartCard title="Cases Produced Over Time">
                 {casesData.length === 0 ? (
@@ -260,19 +302,21 @@ export default function ShiftDiagnosticDialog({
                 )}
               </ChartCard>
 
-              <ChartCard title="Profit Ratio Over Time">
-                {ratioData.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-8">No profit data available.</p>
-                ) : (
-                  <LineChart data={ratioData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
-                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={40} />
-                    <Tooltip formatter={(v) => `${v.toFixed(2)}×`} contentStyle={tooltipStyle} />
-                    <Line type="monotone" dataKey="Ratio" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 3 }} />
-                  </LineChart>
-                )}
-              </ChartCard>
+              {financialMode && (
+                <ChartCard title="Profit Ratio Over Time">
+                  {ratioData.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">No profit data available.</p>
+                  ) : (
+                    <LineChart data={ratioData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={40} />
+                      <Tooltip formatter={(v) => `${v.toFixed(2)}×`} contentStyle={tooltipStyle} />
+                      <Line type="monotone" dataKey="Ratio" stroke="hsl(var(--chart-2))" strokeWidth={2} dot={{ r: 3 }} />
+                    </LineChart>
+                  )}
+                </ChartCard>
+              )}
 
               <ChartCard title="Production Speed (cases/hr)">
                 {speedData.length === 0 ? (
@@ -288,33 +332,60 @@ export default function ShiftDiagnosticDialog({
                 )}
               </ChartCard>
 
-              <ChartCard title="Waste Cost Over Time" >
-                {wasteData.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-8">No waste recorded in range.</p>
-                ) : (
-                  <BarChart data={wasteData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
-                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `$${v}`} width={55} />
-                    <Tooltip formatter={(v) => `$${v.toFixed(2)}`} contentStyle={tooltipStyle} />
-                    <Bar dataKey="Waste" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                )}
-              </ChartCard>
+              {financialMode ? (
+                <ChartCard title="Waste Cost Over Time">
+                  {wasteCostData.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">No waste recorded in range.</p>
+                  ) : (
+                    <BarChart data={wasteCostData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} tickFormatter={(v) => `$${v}`} width={55} />
+                      <Tooltip formatter={(v) => `$${v.toFixed(2)}`} contentStyle={tooltipStyle} />
+                      <Bar dataKey="Waste" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  )}
+                </ChartCard>
+              ) : (
+                <ChartCard title="Waste Gallons Over Time">
+                  {wasteGalData.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-8">No waste recorded in range.</p>
+                  ) : (
+                    <BarChart data={wasteGalData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
+                      <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={40} />
+                      <Tooltip formatter={(v) => [`${v} gal`, "Waste"]} contentStyle={tooltipStyle} />
+                      <Bar dataKey="Gallons" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  )}
+                </ChartCard>
+              )}
 
               <ChartCard title="Downtime Hours Over Time">
-                {summaries.every((x) => x.downtimeHours === 0) ? (
+                {downtimeData.length === 0 ? (
                   <p className="text-xs text-muted-foreground text-center py-8">No downtime recorded in range.</p>
                 ) : (
-                  <BarChart
-                    data={summaries.filter((x) => !x.isBaseMix).map((x) => ({ label: x.label, Downtime: parseFloat(x.downtimeHours.toFixed(2)) }))}
-                    margin={{ top: 4, right: 4, left: 0, bottom: 40 }}
-                  >
+                  <BarChart data={downtimeData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
                     <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
                     <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={40} />
                     <Tooltip formatter={(v) => [`${v} hrs`, "Downtime"]} contentStyle={tooltipStyle} />
                     <Bar dataKey="Downtime" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                )}
+              </ChartCard>
+
+              <ChartCard title="Crew Size Over Time">
+                {empData.length === 0 ? (
+                  <p className="text-xs text-muted-foreground text-center py-8">No production data.</p>
+                ) : (
+                  <BarChart data={empData} margin={{ top: 4, right: 4, left: 0, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} angle={-35} textAnchor="end" interval={0} />
+                    <YAxis tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={40} allowDecimals={false} />
+                    <Tooltip formatter={(v) => [`${v} people`, "Crew"]} contentStyle={tooltipStyle} />
+                    <Bar dataKey="Crew" fill="hsl(var(--chart-5))" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 )}
               </ChartCard>
@@ -329,14 +400,16 @@ export default function ShiftDiagnosticDialog({
                     <tr className="text-left text-muted-foreground border-b border-border">
                       <th className="py-2 pr-3 font-medium">Date</th>
                       <th className="py-2 pr-3 font-medium">Type</th>
-                      <th className="py-2 pr-3 font-medium text-right">Labor</th>
-                      <th className="py-2 pr-3 font-medium text-right">Supplies</th>
-                      <th className="py-2 pr-3 font-medium text-right">Total</th>
+                      {financialMode && <th className="py-2 pr-3 font-medium text-right">Labor</th>}
+                      {financialMode && <th className="py-2 pr-3 font-medium text-right">Supplies</th>}
+                      {financialMode && <th className="py-2 pr-3 font-medium text-right">Total</th>}
                       <th className="py-2 pr-3 font-medium text-right">Cases</th>
                       <th className="py-2 pr-3 font-medium text-right">Cases/hr</th>
-                      <th className="py-2 pr-3 font-medium text-right">Pred. Rev</th>
-                      <th className="py-2 pr-3 font-medium text-right">Ratio</th>
-                      <th className="py-2 pr-3 font-medium text-right">Waste</th>
+                      {financialMode && <th className="py-2 pr-3 font-medium text-right">Pred. Rev</th>}
+                      {financialMode && <th className="py-2 pr-3 font-medium text-right">Ratio</th>}
+                      <th className="py-2 pr-3 font-medium text-right">Waste gal</th>
+                      <th className="py-2 pr-3 font-medium text-right">Down</th>
+                      <th className="py-2 pr-3 font-medium text-right">Crew</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -344,16 +417,18 @@ export default function ShiftDiagnosticDialog({
                       <tr key={i} className="border-b border-border/50">
                         <td className="py-2 pr-3">{x.label}</td>
                         <td className="py-2 pr-3">{x.isBaseMix ? "Base Mix" : "Production"}</td>
-                        <td className="py-2 pr-3 text-right">{fmt$(x.laborCost)}</td>
-                        <td className="py-2 pr-3 text-right">{fmt$(x.supplyCost)}</td>
-                        <td className="py-2 pr-3 text-right font-medium">{fmt$(x.totalCost)}</td>
+                        {financialMode && <td className="py-2 pr-3 text-right">{fmt$(x.laborCost)}</td>}
+                        {financialMode && <td className="py-2 pr-3 text-right">{fmt$(x.supplyCost)}</td>}
+                        {financialMode && <td className="py-2 pr-3 text-right font-medium">{fmt$(x.totalCost)}</td>}
                         <td className="py-2 pr-3 text-right">{x.cases != null ? x.cases : "—"}</td>
                         <td className="py-2 pr-3 text-right">{x.casesPerHour != null ? x.casesPerHour.toFixed(1) : "—"}</td>
-                        <td className="py-2 pr-3 text-right">{x.predictedRevenue != null ? fmt$(x.predictedRevenue) : "—"}</td>
+                        {financialMode && <td className="py-2 pr-3 text-right">{x.predictedRevenue != null ? fmt$(x.predictedRevenue) : "—"}</td>}
                         <td className="py-2 pr-3 text-right" style={x.profitRatio != null && x.profitRatio >= 1 ? { color: "hsl(var(--chart-3))" } : { color: "hsl(var(--destructive))" }}>
                           {x.profitRatio != null ? `${x.profitRatio.toFixed(2)}×` : "—"}
                         </td>
-                        <td className="py-2 pr-3 text-right">{x.wasteCost > 0 ? fmt$(x.wasteCost) : "—"}</td>
+                        <td className="py-2 pr-3 text-right">{x.wasteGallons > 0 ? x.wasteGallons : "—"}</td>
+                        <td className="py-2 pr-3 text-right">{x.downtimeHours > 0 ? fmtHours(x.downtimeHours) : "—"}</td>
+                        <td className="py-2 pr-3 text-right">{x.empCount}</td>
                       </tr>
                     ))}
                   </tbody>

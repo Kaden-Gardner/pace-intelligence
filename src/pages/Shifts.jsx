@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import ShiftStatsPanel from "@/components/shifts/ShiftStatsPanel";
 import ShiftComparePanel from "@/components/shifts/ShiftComparePanel";
+import ShiftDiagnosticDialog from "@/components/financials/ShiftDiagnosticDialog";
 
 export default function Shifts() {
   const [shifts, setShifts] = useState([]);
@@ -83,6 +84,10 @@ export default function Shifts() {
           <Button variant="outline" size="sm" className="gap-2" onClick={() => { setCompareMode((v) => !v); setCompareA(null); setCompareB(null); setStatsShift(null); }}>
             <GitCompare className="w-4 h-4" /> {compareMode ? "Cancel Compare" : "Compare"}
           </Button>
+          <ShiftDiagnosticDialog
+            productionShifts={shifts}
+            baseMixShifts={baseMixShifts}
+          />
           <div className="relative">
           <Button className="gap-2" onClick={() => setShowNewMenu((v) => !v)}>
             <Plus className="w-4 h-4" /> New Shift <ChevronDown className="w-3 h-3" />
