@@ -12,6 +12,7 @@ import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, en
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import SuppliesPricingTab from "@/components/financials/SuppliesPricingTab";
 import CostBreakdownTab from "@/components/financials/CostBreakdownTab";
+import ShiftDiagnosticDialog from "@/components/financials/ShiftDiagnosticDialog";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const GALLONS_PER_BATCH = 240;
@@ -896,6 +897,15 @@ export default function Financials() {
               <span className={`text-xs whitespace-nowrap transition-colors ${!reverseRoi ? "text-foreground font-medium" : "text-muted-foreground"}`}>Rev / Cost</span>
               <Switch checked={reverseRoi} onCheckedChange={setReverseRoi} aria-label="Toggle ROI calculation order" />
               <span className={`text-xs whitespace-nowrap transition-colors ${reverseRoi ? "text-foreground font-medium" : "text-muted-foreground"}`}>Cost / Rev</span>
+              <ShiftDiagnosticDialog
+                productionShifts={shifts}
+                baseMixShifts={baseMixShifts}
+                calcShiftCost={calcShiftCost}
+                calcBaseMixSupplyCost={calcBaseMixSupplyCost}
+                calcProductionSupplyCost={calcProductionSupplyCost}
+                calcWasteInfo={calcWasteInfo}
+                orders={orders}
+              />
             </div>
           </div>
           <div className="space-y-4">
