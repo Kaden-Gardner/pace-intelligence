@@ -623,6 +623,7 @@ export default function Financials() {
   const avgTotalCostPerCase = totalCasesProduced > 0 ? (totalShiftCost + totalSupplyCost) / totalCasesProduced : 0;
   const totalRevenue = filteredOrders.reduce((sum, o) => sum + orderRevenue(o), 0);
   const totalCasesSold = filteredOrders.reduce((sum, o) => sum + orderTotalCases(o), 0);
+  const avgSalePricePerCase = totalCasesSold > 0 ? totalRevenue / totalCasesSold : null;
 
   // Avg cases/hour across filtered production shifts
   const totalProductionHours = analyticsShifts.reduce((sum, s) => sum + (s.shift_duration || 0), 0);
@@ -1144,6 +1145,7 @@ export default function Financials() {
               { label: "Avg Labor Per Case", value: shiftTypeFilter === "basemix" ? "—" : fmt$(avgLaborPerCase), sub: `${totalCasesProduced} cases produced` },
               { label: "Avg Total Cost Per Case", value: shiftTypeFilter === "basemix" ? "—" : fmt$(avgTotalCostPerCase), sub: "labor + supplies" },
               { label: "Total Sales Revenue", value: fmt$(totalRevenue), sub: `${totalCasesSold} cases sold` },
+              { label: "Avg Sale Price Per Case", value: avgSalePricePerCase != null ? fmt$(avgSalePricePerCase) : "—", sub: "revenue ÷ cases sold" },
             ].map((stat) => (
               <div key={stat.label} className="bg-card rounded-2xl border border-border p-5">
                 <p className="text-xs font-medium text-muted-foreground mb-1">{stat.label}</p>
