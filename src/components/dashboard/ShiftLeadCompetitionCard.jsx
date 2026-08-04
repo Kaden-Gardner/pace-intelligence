@@ -1,5 +1,21 @@
-import { Trophy } from "lucide-react";
+import { Trophy, Clock } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
+
+// Parses a free-text downtime note into hours (mirrors Financials logic).
+// Returns null for empty/missing entries (so they can be excluded), and 0
+// only when the text genuinely parses to zero.
+function parseDowntimeHours(text) {
+  if (text == null) return null;
+  const s = String(text).trim();
+  if (s === "") return null;
+  const hourMatch = s.toLowerCase().match(/(\d+(?:\.\d+)?)\s*(?:hours?|hrs?|h)\b/);
+  if (hourMatch) return parseFloat(hourMatch[1]);
+  const minMatch = s.toLowerCase().match(/(\d+(?:\.\d+)?)\s*(?:minutes?|mins?|m)\b/);
+  if (minMatch) return parseFloat(minMatch[1]) / 60;
+  const plainMatch = s.match(/(\d+(?:\.\d+)?)/);
+  if (plainMatch) return parseFloat(plainMatch[1]) / 60;
+  return null;
+}
 
 function computeShiftLeadStats(shifts, employees) {
   const stats = {};
@@ -8,18 +24,22 @@ function computeShiftLeadStats(shifts, employees) {
     if (!shift.shift_lead) return;
     const empId = shift.shift_lead;
     if (!stats[empId]) {
-      stats[empId] = { totalCases: 0, totalWaste: 0, totalHours: 0, shiftCount: 0 };
+      stats[empId] = { totalCases: 0, totalWaste: 0, totalHours: 0, shiftCount: 0, downtimeHours: [], };
     }
     stats[empId].totalCases += getTotalCases(shift);
     stats[empId].totalWaste += shift.waste || 0;
     stats[empId].totalHours += shift.shift_duration || 0;
     stats[empId].shiftCount += 1;
+    const dt = parseDowntimeHours(shift.downtime);
+    if (dt != null && dt > 0) stats[empId].downtimeHours.push(dt);
   });
 
   return Object.entries(stats)
     .map(([empId, s]) => {
       const emp = employees.find((e) => e.id === empId);
       if (!emp || emp.terminated || emp.active === false) return null;
+      const totalDowntime = s.downtimeHours.reduce((a, b) => a + b, 0);
+      const lowestDowntime = s.downtimeHours.length > 0 ? Math.min(...s.downtimeHours) : null;
       return {
         name: emp.name,
         employee_number: emp.employee_number || "",
@@ -27,10 +47,20 @@ function computeShiftLeadStats(shifts, employees) {
         totalWaste: s.totalWaste,
         avgCph: s.totalHours > 0 ? s.totalCases / s.totalHours : 0,
         shiftCount: s.shiftCount,
+        totalDowntime,
+        downtimeShiftCount: s.downtimeHours.length,
+        lowestDowntime,
       };
     })
     .filter(Boolean)
     .sort((a, b) => b.avgCph - a.avgCph);
+}
+
+function fmtHours(h) {
+  if (h == null) return "—";
+  const hrs = Math.floor(h);
+  const mins = Math.round((h - hrs) * 60);
+  return `${hrs}h ${mins}m`;
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
@@ -84,6 +114,40 @@ export default function ShiftLeadCompetitionCard({ shifts, employees, periodLabe
           </table>
         </div>
       )}
+
+      {(() => {
+        const eligible = leaders.filter((l) => l.downtimeShiftCount > 0);
+        if (eligible.length === 0) return null;
+        const leastTotal = [...eligible].sort((a, b) => a.totalDowntime - b.totalDowntime)[0];
+        const lowestSingle = [...eligible].sort((a, b) => a.lowestDowntime - b.lowestDowntime)[0];
+        return (
+          <div className="mt-5 pt-5 border-t border-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Clock className="w-4 h-4 text-primary" />
+              <h4 className="font-heading font-semibold text-sm">Downtime Leaders</h4>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Excludes shifts with no downtime entry or exactly 0.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-muted/40 rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">Least Total Downtime</p>
+                <p className="font-heading font-bold text-primary text-lg">{leastTotal.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {fmtHours(leastTotal.totalDowntime)} across {leastTotal.downtimeShiftCount} shift{leastTotal.downtimeShiftCount === 1 ? "" : "s"}
+                </p>
+              </div>
+              <div className="bg-muted/40 rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">Lowest Single-Shift Downtime</p>
+                <p className="font-heading font-bold text-primary text-lg">{lowestSingle.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {fmtHours(lowestSingle.lowestDowntime)} in one shift
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
