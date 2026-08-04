@@ -17,6 +17,13 @@ function parseDowntimeHours(text) {
   return null;
 }
 
+function minMaxNorm(values) {
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  if (max === min) return values.map(() => 0);
+  return values.map((v) => (v - min) / (max - min));
+}
+
 function computeShiftLeadStats(shifts, employees) {
   const stats = {};
 
@@ -35,7 +42,7 @@ function computeShiftLeadStats(shifts, employees) {
     if (shift.waste && shift.waste > 0) stats[empId].wasteGallons.push(shift.waste);
   });
 
-  return Object.entries(stats)
+  const allLeaders = Object.entries(stats)
     .map(([empId, s]) => {
       const emp = employees.find((e) => e.id === empId);
       if (!emp || emp.terminated || emp.active === false) return null;
@@ -56,10 +63,28 @@ function computeShiftLeadStats(shifts, employees) {
         totalWasteQualifying,
         wasteShiftCount: s.wasteGallons.length,
         lowestWaste,
+        avgCasesPerShift: s.shiftCount > 0 ? s.totalCases / s.shiftCount : 0,
+        avgWastePerShift: s.shiftCount > 0 ? s.totalWaste / s.shiftCount : 0,
+        avgDowntimePerShift: s.shiftCount > 0 ? totalDowntime / s.shiftCount : 0,
       };
     })
-    .filter(Boolean)
-    .sort((a, b) => b.avgCph - a.avgCph);
+    .filter(Boolean);
+
+  // Composite ranking: most cases, least waste, least downtime, highest speed —
+  // each normalized to 0-1 across all leaders and averaged (per-shift averages).
+  const leaders = allLeaders;
+  const normCases = minMaxNorm(leaders.map((l) => l.avgCasesPerShift));
+  const normSpeed = minMaxNorm(leaders.map((l) => l.avgCph));
+  const normWaste = minMaxNorm(leaders.map((l) => l.avgWastePerShift));
+  const normDowntime = minMaxNorm(leaders.map((l) => l.avgDowntimePerShift));
+
+  leaders.forEach((l, i) => {
+    const wasteScore = 1 - normWaste[i];      // less waste is better
+    const downtimeScore = 1 - normDowntime[i]; // less downtime is better
+    l.compositeScore = (normCases[i] + normSpeed[i] + wasteScore + downtimeScore) / 4;
+  });
+
+  return leaders.sort((a, b) => b.compositeScore - a.compositeScore);
 }
 
 function fmtHours(h) {
@@ -94,6 +119,7 @@ export default function ShiftLeadCompetitionCard({ shifts, employees, periodLabe
                 <th className="text-right pb-2 font-medium">Total Cases</th>
                 <th className="text-right pb-2 font-medium">Total Waste (gal)</th>
                 <th className="text-right pb-2 font-medium">Avg Cases/hr</th>
+                <th className="text-right pb-2 font-medium">Score</th>
               </tr>
             </thead>
             <tbody>
@@ -113,6 +139,9 @@ export default function ShiftLeadCompetitionCard({ shifts, employees, periodLabe
                   <td className="py-3 text-right text-muted-foreground">{leader.totalWaste.toLocaleString()}</td>
                   <td className="py-3 text-right font-heading font-bold text-primary">
                     {leader.avgCph.toFixed(1)}
+                  </td>
+                  <td className="py-3 text-right font-heading font-bold text-primary">
+                    {(leader.compositeScore * 100).toFixed(0)}
                   </td>
                 </tr>
               ))}
