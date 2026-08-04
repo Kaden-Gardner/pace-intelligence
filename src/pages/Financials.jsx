@@ -13,6 +13,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import SuppliesPricingTab from "@/components/financials/SuppliesPricingTab";
 import CostBreakdownTab from "@/components/financials/CostBreakdownTab";
 import ShiftDiagnosticDialog from "@/components/financials/ShiftDiagnosticDialog";
+import FacilityCostCard from "@/components/financials/FacilityCostCard";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const GALLONS_PER_BATCH = 240;
@@ -115,6 +116,7 @@ export default function Financials() {
   const [flavorPrices, setFlavorPrices] = useState([]);
   const [taxSettings, setTaxSettings] = useState(null);
   const [taxInput, setTaxInput] = useState("");
+  const [facilitySettings, setFacilitySettings] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // Rates UI state
@@ -143,7 +145,7 @@ export default function Financials() {
 
   async function loadData(showLoading = true) {
     if (showLoading) setLoading(true);
-    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp, tx] = await Promise.all([
+    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp, tx, fc] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.OrderPickupItem.list().catch(() => []),
       base44.entities.Employee.list("name"),
@@ -158,6 +160,7 @@ export default function Financials() {
       base44.entities.FlavorJugDefaults.list(),
       base44.entities.FlavorPrice.list(),
       base44.entities.TaxSettings.list().catch(() => []),
+      base44.entities.FacilityCost.list().catch(() => []),
     ]);
     // Migrate legacy orders: create items for any order that has a flavorset_id but no items
     const legacyOrders = ord.filter((o) => o.flavorset_id && !oi.some((i) => i.order_id === o.id));
@@ -186,6 +189,7 @@ export default function Financials() {
     setJugDefaults(jdef);
     setFlavorPrices(fp);
     setTaxSettings(tx && tx.length > 0 ? tx[0] : null);
+    setFacilitySettings(fc && fc.length > 0 ? fc[0] : null);
     setLoading(false);
   }
 
@@ -329,6 +333,39 @@ export default function Financials() {
     }
   }
 
+  async function saveFacilityCost(inputVal) {
+    const val = parseFloat(inputVal);
+    if (isNaN(val) || val < 0) return;
+    if (facilitySettings) {
+      const updated = await base44.entities.FacilityCost.update(facilitySettings.id, { monthly_cost: val });
+      setFacilitySettings(updated);
+    } else {
+      const created = await base44.entities.FacilityCost.create({ monthly_cost: val });
+      setFacilitySettings(created);
+    }
+  }
+
+  // Facility cost allocation: divide the monthly facility cost by the number of
+  // shifts (production + base mix) in the same calendar month as the given shift.
+  const monthlyFacilityCost = facilitySettings?.monthly_cost || 0;
+  const _now = new Date();
+  const _nowMonthKey = `${_now.getFullYear()}-${_now.getMonth()}`;
+  const currentMonthShiftCount = [...shifts, ...baseMixShifts].filter((s) => {
+    const sd = new Date(s.shift_date + "T12:00:00");
+    return `${sd.getFullYear()}-${sd.getMonth()}` === _nowMonthKey;
+  }).length;
+  const currentMonthPerShift = currentMonthShiftCount > 0 ? monthlyFacilityCost / currentMonthShiftCount : 0;
+  function getFacilityCostForShift(shift) {
+    if (!monthlyFacilityCost) return 0;
+    const d = new Date(shift.shift_date + "T12:00:00");
+    const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
+    const count = [...shifts, ...baseMixShifts].filter((s) => {
+      const sd = new Date(s.shift_date + "T12:00:00");
+      return `${sd.getFullYear()}-${sd.getMonth()}` === monthKey;
+    }).length;
+    return count > 0 ? monthlyFacilityCost / count : 0;
+  }
+
   // Helper: get age for an employee at time of a shift
   function getEmpAge(empId) {
     const emp = empMap[empId];
@@ -390,6 +427,8 @@ export default function Financials() {
       if (isMinor) hours = Math.min(hours, MINOR_MAX_HOURS);
       totalCost += hours * rate;
     });
+    // Add the facility cost allocated to this shift (monthly facility cost ÷ shifts in this month)
+    totalCost += getFacilityCostForShift(shift);
     return totalCost;
   }
 
@@ -1171,6 +1210,12 @@ export default function Financials() {
 
         {/* ===== SUPPLIES ===== */}
         <TabsContent value="supplies">
+          <FacilityCostCard
+            facilityCost={facilitySettings}
+            monthlyFacilityCost={currentMonthPerShift}
+            onSave={saveFacilityCost}
+            unlocked={unlocked}
+          />
           <SuppliesPricingTab />
         </TabsContent>
 

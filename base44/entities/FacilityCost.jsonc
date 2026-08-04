@@ -1,0 +1,37 @@
+{
+  "name": "FacilityCost",
+  "type": "object",
+  "properties": {
+    "monthly_cost": {
+      "type": "number",
+      "title": "Monthly Facility Cost ($)",
+      "default": 0,
+      "description": "Flat monthly cost for the facility, allocated evenly across all shifts in each month."
+    }
+  },
+  "required": [
+    "monthly_cost"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
