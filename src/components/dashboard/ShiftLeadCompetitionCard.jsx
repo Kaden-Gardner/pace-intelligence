@@ -1,4 +1,4 @@
-import { Trophy, Clock } from "lucide-react";
+import { Trophy, Clock, Flame } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
 
 // Parses a free-text downtime note into hours (mirrors Financials logic).
@@ -24,7 +24,7 @@ function computeShiftLeadStats(shifts, employees) {
     if (!shift.shift_lead) return;
     const empId = shift.shift_lead;
     if (!stats[empId]) {
-      stats[empId] = { totalCases: 0, totalWaste: 0, totalHours: 0, shiftCount: 0, downtimeHours: [], };
+      stats[empId] = { totalCases: 0, totalWaste: 0, totalHours: 0, shiftCount: 0, downtimeHours: [], wasteGallons: [], };
     }
     stats[empId].totalCases += getTotalCases(shift);
     stats[empId].totalWaste += shift.waste || 0;
@@ -32,6 +32,7 @@ function computeShiftLeadStats(shifts, employees) {
     stats[empId].shiftCount += 1;
     const dt = parseDowntimeHours(shift.downtime);
     if (dt != null && dt > 0) stats[empId].downtimeHours.push(dt);
+    if (shift.waste && shift.waste > 0) stats[empId].wasteGallons.push(shift.waste);
   });
 
   return Object.entries(stats)
@@ -40,6 +41,8 @@ function computeShiftLeadStats(shifts, employees) {
       if (!emp || emp.terminated || emp.active === false) return null;
       const totalDowntime = s.downtimeHours.reduce((a, b) => a + b, 0);
       const lowestDowntime = s.downtimeHours.length > 0 ? Math.min(...s.downtimeHours) : null;
+      const totalWasteQualifying = s.wasteGallons.reduce((a, b) => a + b, 0);
+      const lowestWaste = s.wasteGallons.length > 0 ? Math.min(...s.wasteGallons) : null;
       return {
         name: emp.name,
         employee_number: emp.employee_number || "",
@@ -50,6 +53,9 @@ function computeShiftLeadStats(shifts, employees) {
         totalDowntime,
         downtimeShiftCount: s.downtimeHours.length,
         lowestDowntime,
+        totalWasteQualifying,
+        wasteShiftCount: s.wasteGallons.length,
+        lowestWaste,
       };
     })
     .filter(Boolean)
@@ -142,6 +148,40 @@ export default function ShiftLeadCompetitionCard({ shifts, employees, periodLabe
                 <p className="font-heading font-bold text-primary text-lg">{lowestSingle.name}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {fmtHours(lowestSingle.lowestDowntime)} in one shift
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {(() => {
+        const eligible = leaders.filter((l) => l.wasteShiftCount > 0);
+        if (eligible.length === 0) return null;
+        const leastTotal = [...eligible].sort((a, b) => a.totalWasteQualifying - b.totalWasteQualifying)[0];
+        const lowestSingle = [...eligible].sort((a, b) => a.lowestWaste - b.lowestWaste)[0];
+        return (
+          <div className="mt-5 pt-5 border-t border-border">
+            <div className="flex items-center gap-2 mb-3">
+              <Flame className="w-4 h-4 text-primary" />
+              <h4 className="font-heading font-semibold text-sm">Waste Leaders</h4>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Excludes shifts with no waste entry or exactly 0.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-muted/40 rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">Least Total Waste</p>
+                <p className="font-heading font-bold text-primary text-lg">{leastTotal.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {leastTotal.totalWasteQualifying.toFixed(1)} gal across {leastTotal.wasteShiftCount} shift{leastTotal.wasteShiftCount === 1 ? "" : "s"}
+                </p>
+              </div>
+              <div className="bg-muted/40 rounded-xl p-4">
+                <p className="text-xs text-muted-foreground mb-1">Lowest Single-Shift Waste</p>
+                <p className="font-heading font-bold text-primary text-lg">{lowestSingle.name}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {lowestSingle.lowestWaste.toFixed(1)} gal in one shift
                 </p>
               </div>
             </div>
