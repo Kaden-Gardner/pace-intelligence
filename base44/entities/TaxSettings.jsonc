@@ -1,0 +1,37 @@
+{
+  "name": "TaxSettings",
+  "type": "object",
+  "properties": {
+    "tax_rate": {
+      "type": "number",
+      "title": "Employer Payroll Tax Rate (%)",
+      "default": 0,
+      "description": "Percentage added to each employee's wage when calculating labor costs."
+    }
+  },
+  "required": [
+    "tax_rate"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

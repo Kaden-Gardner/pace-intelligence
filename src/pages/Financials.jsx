@@ -113,6 +113,8 @@ export default function Financials() {
   const [matDefaults, setMatDefaults] = useState([]);
   const [jugDefaults, setJugDefaults] = useState([]);
   const [flavorPrices, setFlavorPrices] = useState([]);
+  const [taxSettings, setTaxSettings] = useState(null);
+  const [taxInput, setTaxInput] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Rates UI state
@@ -141,7 +143,7 @@ export default function Financials() {
 
   async function loadData(showLoading = true) {
     if (showLoading) setLoading(true);
-    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp] = await Promise.all([
+    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp, tx] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.OrderPickupItem.list().catch(() => []),
       base44.entities.Employee.list("name"),
@@ -155,6 +157,7 @@ export default function Financials() {
       base44.entities.MaterialDefaults.list(),
       base44.entities.FlavorJugDefaults.list(),
       base44.entities.FlavorPrice.list(),
+      base44.entities.TaxSettings.list().catch(() => []),
     ]);
     // Migrate legacy orders: create items for any order that has a flavorset_id but no items
     const legacyOrders = ord.filter((o) => o.flavorset_id && !oi.some((i) => i.order_id === o.id));
@@ -182,8 +185,13 @@ export default function Financials() {
     setMatDefaults(mdef);
     setJugDefaults(jdef);
     setFlavorPrices(fp);
+    setTaxSettings(tx && tx.length > 0 ? tx[0] : null);
     setLoading(false);
   }
+
+  useEffect(() => {
+    if (taxSettings) setTaxInput(String(taxSettings.tax_rate));
+  }, [taxSettings]);
 
   useAutoRefresh(() => { if (unlocked) loadData(false); });
 
@@ -233,6 +241,7 @@ export default function Financials() {
   employees.forEach((e) => { empMap[e.id] = e; });
   const rateMap = {};
   rates.forEach((r) => { rateMap[r.employee_id] = r; });
+  const taxRate = taxSettings?.tax_rate || 0;
 
   const newOrders = orders.filter((o) => !o.is_priced);
   const prevOrders = orders.filter((o) => o.is_priced);
@@ -285,6 +294,14 @@ export default function Financials() {
     return rateMap[empId]?.hourly_rate || 0;
   }
 
+  // Effective hourly rate including the employer payroll tax percentage.
+  // Used everywhere labor cost is calculated so tax is included in shift costs,
+  // waste/downtime estimates, per-case labor, and profit figures.
+  function getEffectiveRate(empId) {
+    const base = rateMap[empId]?.hourly_rate || 0;
+    return base * (1 + (taxRate || 0) / 100);
+  }
+
   async function saveRate(emp) {
     const val = parseFloat(editRateVal);
     if (isNaN(val) || val < 0) return;
@@ -298,6 +315,18 @@ export default function Financials() {
     }
     setEditingRateId(null);
     setEditRateVal("");
+  }
+
+  async function saveTax() {
+    const val = parseFloat(taxInput);
+    if (isNaN(val) || val < 0) return;
+    if (taxSettings) {
+      const updated = await base44.entities.TaxSettings.update(taxSettings.id, { tax_rate: val });
+      setTaxSettings(updated);
+    } else {
+      const created = await base44.entities.TaxSettings.create({ tax_rate: val });
+      setTaxSettings(created);
+    }
   }
 
   // Helper: get age for an employee at time of a shift
@@ -337,7 +366,7 @@ export default function Financials() {
 
     let totalCost = 0;
     empIds.forEach((empId) => {
-      const rate = getRateForEmp(empId);
+      const rate = getEffectiveRate(empId);
       if (!rate) return;
       const age = getEmpAge(empId);
       const isMinor = age !== null && age < 15;
@@ -487,7 +516,7 @@ export default function Financials() {
        shift.sorting_employee, shift.bagging_employee, shift.boxing_employee, shift.shift_lead].forEach((id) => { if (id) empIds.push(id); });
       if (shift.training_employees) empIds.push(...shift.training_employees);
       empIds = [...new Set(empIds)].filter(Boolean);
-      crewHourlyRate = empIds.reduce((sum, id) => sum + getRateForEmp(id), 0);
+      crewHourlyRate = empIds.reduce((sum, id) => sum + getEffectiveRate(id), 0);
     }
     const downtimeLaborCost = downtimeHours > 0 && crewHourlyRate > 0 ? downtimeHours * crewHourlyRate : null;
 
@@ -844,6 +873,28 @@ export default function Financials() {
             )}
           </div>
           {ratesPwError && <p className="text-xs text-destructive mb-3">{ratesPwError}</p>}
+
+          {/* Employer payroll tax */}
+          <div className="bg-card rounded-2xl border border-border p-4 mb-4">
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div>
+                <p className="font-medium text-sm">Employer Payroll Tax</p>
+                <p className="text-xs text-muted-foreground">Added to each employee's wage in all labor cost calculations across Financials.</p>
+              </div>
+              {ratesUnlocked ? (
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <Input type="number" min="0" step="0.1" value={taxInput} onChange={(e) => setTaxInput(e.target.value)} className="w-24 pr-7" />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">%</span>
+                  </div>
+                  <Button size="sm" onClick={saveTax} className="gap-1"><Check className="w-3 h-3" /> Save</Button>
+                </div>
+              ) : (
+                <span className="font-heading font-bold text-primary text-lg">{taxRate}%</span>
+              )}
+            </div>
+          </div>
+
           <div className="space-y-2">
             {employees.map((emp) => {
               const rate = getRateForEmp(emp.id);
@@ -865,7 +916,12 @@ export default function Financials() {
                     </div>
                   ) : (
                     <div className="flex items-center gap-3">
-                      <span className="font-heading font-bold text-primary">{rate > 0 ? `$${rate.toFixed(2)}/hr` : "Not set"}</span>
+                      <div className="text-right">
+                        <span className="font-heading font-bold text-primary">{rate > 0 ? `$${rate.toFixed(2)}/hr` : "Not set"}</span>
+                        {rate > 0 && taxRate > 0 && (
+                          <p className="text-[11px] text-muted-foreground">+${(rate * taxRate / 100).toFixed(2)}/hr tax ({taxRate}%) → ${(rate * (1 + taxRate / 100)).toFixed(2)}/hr</p>
+                        )}
+                      </div>
                       {ratesUnlocked && (
                         <Button size="sm" variant="outline" className="text-xs" onClick={() => { setEditingRateId(emp.id); setEditRateVal(rate > 0 ? rate.toString() : ""); }}>
                           Edit
@@ -1010,7 +1066,7 @@ export default function Financials() {
                       <div className="flex flex-wrap gap-2">
                         {empIds.map((id) => {
                           const emp = empMap[id];
-                          const rate = getRateForEmp(id);
+                          const rate = getEffectiveRate(id);
                           const empEntries = timeEntries.filter((te) => te.employee_id === id || te.employee_number === emp?.employee_number);
                           const overlapping = empEntries.filter((te) => entryOverlapsShift(shift.shift_date, shift.shift_time || "06:00", shift.shift_duration || 8, te.clock_in, te.clock_out));
                           const usedDuration = overlapping.length === 0;
