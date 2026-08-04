@@ -7,7 +7,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   BarChart,
   Bar,
@@ -36,6 +35,8 @@ function fmtHours(h) {
 function fmtDate(dateStr) {
   return new Date(dateStr + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
+
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 function parseDowntimeHours(text) {
   if (!text) return 0;
@@ -84,18 +85,29 @@ export default function ShiftDiagnosticDialog({
   triggerLabel = "Diagnostic",
 }) {
   const [open, setOpen] = useState(false);
-  const [days, setDays] = useState(30);
+
+  // Month selection: store as { year, month } (month is 0-indexed)
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState({ year: now.getFullYear(), month: now.getMonth() });
+
+  // Build a list of the last 24 months (most recent first)
+  const monthOptions = useMemo(() => {
+    const opts = [];
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      opts.push({ year: d.getFullYear(), month: d.getMonth(), label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}` });
+    }
+    return opts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const financialMode = !!calcShiftCost;
 
   const summaries = useMemo(() => {
-    const cutoff = new Date();
-    cutoff.setHours(0, 0, 0, 0);
-    cutoff.setDate(cutoff.getDate() - (days - 1));
     const inRange = (dateStr) => {
       if (!dateStr) return false;
       const d = new Date(dateStr + "T12:00:00");
-      return d >= cutoff;
+      return d.getFullYear() === selectedMonth.year && d.getMonth() === selectedMonth.month;
     };
 
     const all = [
@@ -155,7 +167,7 @@ export default function ShiftDiagnosticDialog({
         };
       })
       .sort((a, b) => a.date.localeCompare(b.date));
-  }, [days, productionShifts, baseMixShifts, financialMode, calcShiftCost, calcBaseMixSupplyCost, calcProductionSupplyCost, calcWasteInfo, orders]);
+  }, [selectedMonth, productionShifts, baseMixShifts, financialMode, calcShiftCost, calcBaseMixSupplyCost, calcProductionSupplyCost, calcWasteInfo, orders]);
 
   const totals = useMemo(() => {
     const totalLabor = summaries.reduce((a, b) => a + b.laborCost, 0);
@@ -207,28 +219,33 @@ export default function ShiftDiagnosticDialog({
           </DialogTitle>
         </DialogHeader>
 
-        {/* Day selector */}
+        {/* Month selector */}
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">Past</span>
-            <Input
-              type="number"
-              min="1"
-              max="365"
-              value={days}
-              onChange={(e) => setDays(Math.max(1, Math.min(365, parseInt(e.target.value) || 1)))}
-              className="w-20 h-8"
-            />
-            <span className="text-xs text-muted-foreground">days</span>
+            <Calendar className="w-4 h-4 text-muted-foreground" />
+            <select
+              value={`${selectedMonth.year}-${selectedMonth.month}`}
+              onChange={(e) => {
+                const [y, m] = e.target.value.split("-").map(Number);
+                setSelectedMonth({ year: y, month: m });
+              }}
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {monthOptions.map((opt) => (
+                <option key={`${opt.year}-${opt.month}`} value={`${opt.year}-${opt.month}`}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
           </div>
-          <div className="flex gap-1.5">
-            {[7, 14, 30, 60, 90].map((d) => (
+          <div className="flex gap-1.5 flex-wrap">
+            {monthOptions.slice(0, 6).map((opt) => (
               <button
-                key={d}
-                onClick={() => setDays(d)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${days === d ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
+                key={`${opt.year}-${opt.month}`}
+                onClick={() => setSelectedMonth({ year: opt.year, month: opt.month })}
+                className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${selectedMonth.year === opt.year && selectedMonth.month === opt.month ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}
               >
-                {d}d
+                {MONTH_NAMES[opt.month].slice(0, 3)}
               </button>
             ))}
           </div>
@@ -247,7 +264,7 @@ export default function ShiftDiagnosticDialog({
         {summaries.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
             <Calendar className="w-10 h-10 mx-auto mb-3 opacity-30" />
-            <p>No shifts in the past {days} days.</p>
+            <p>No shifts in {MONTH_NAMES[selectedMonth.month]} {selectedMonth.year}.</p>
           </div>
         ) : (
           <>
