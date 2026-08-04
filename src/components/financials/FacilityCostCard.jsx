@@ -1,15 +1,45 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Building2, Check } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Building2, Check, History } from "lucide-react";
 
 function fmt$(n) { return n == null ? "—" : `$${Number(n).toFixed(2)}`; }
 
-export default function FacilityCostCard({ facilityCost, monthlyFacilityCost, onSave, unlocked }) {
+const MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+export default function FacilityCostCard({ facilityCost, monthlyFacilityCost, onSave, unlocked, allShifts = [] }) {
   const [val, setVal] = useState(facilityCost ? String(facilityCost.monthly_cost) : "");
   const [editing, setEditing] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const current = facilityCost?.monthly_cost || 0;
+
+  // Build per-month breakdown for the last 12 months that have shifts
+  const monthBreakdown = useMemo(() => {
+    const buckets = {};
+    allShifts.forEach((s) => {
+      if (!s.shift_date) return;
+      const d = new Date(s.shift_date + "T12:00:00");
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      buckets[key] = (buckets[key] || 0) + 1;
+    });
+    const now = new Date();
+    const rows = [];
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const count = buckets[key] || 0;
+      rows.push({
+        label: `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`,
+        isCurrent: i === 0,
+        shiftCount: count,
+        monthly: current,
+        perShift: count > 0 ? current / count : 0,
+      });
+    }
+    return rows;
+  }, [allShifts, current]);
 
   return (
     <div className="bg-card rounded-2xl border border-border p-5 mb-6">
@@ -50,10 +80,39 @@ export default function FacilityCostCard({ facilityCost, monthlyFacilityCost, on
       )}
 
       {current > 0 && monthlyFacilityCost > 0 && (
-        <div className="mt-4 pt-4 border-t border-border">
+        <div className="mt-4 pt-4 border-t border-border flex items-center justify-between gap-3 flex-wrap">
           <p className="text-xs text-muted-foreground">
             Allocated to each shift this month: <span className="font-semibold text-foreground">{fmt$(monthlyFacilityCost)}/shift</span>
           </p>
+          <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="ghost" className="gap-1 text-xs">
+                <History className="w-3.5 h-3.5" /> Previous Months
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Facility Cost — Previous Months</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                {monthBreakdown.map((row) => (
+                  <div key={row.label} className="flex items-center justify-between gap-3 rounded-xl border border-border px-4 py-3">
+                    <div>
+                      <p className="text-sm font-medium flex items-center gap-2">
+                        {row.label}
+                        {row.isCurrent && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">Current</span>}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{row.shiftCount} shift{row.shiftCount !== 1 ? "s" : ""}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-semibold">{fmt$(row.monthly)}</p>
+                      <p className="text-xs text-muted-foreground">{row.shiftCount > 0 ? `${fmt$(row.perShift)}/shift` : "—"}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       )}
     </div>

@@ -1215,6 +1215,7 @@ export default function Financials() {
             monthlyFacilityCost={currentMonthPerShift}
             onSave={saveFacilityCost}
             unlocked={unlocked}
+            allShifts={[...shifts, ...baseMixShifts]}
           />
           <SuppliesPricingTab />
         </TabsContent>
