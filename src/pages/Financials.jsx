@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { useAuth } from "@/lib/AuthContext";
@@ -198,6 +198,44 @@ export default function Financials() {
   }, [taxSettings]);
 
   useAutoRefresh(() => { if (unlocked) loadData(false); });
+
+  // Spread claimed-material cost evenly across the production shifts between
+  // consecutive "finishes" of the same material. When a material is marked used
+  // on a shift, its total cost (qty × supply price) is divided over the shifts
+  // since the previous time that same material was finished (or from the first
+  // shift if none), so each intervening shift carries an equal share.
+  const materialSpreadCost = useMemo(() => {
+    const map = {};
+    const sorted = [...shifts].sort((a, b) => {
+      if (a.shift_date !== b.shift_date) return a.shift_date.localeCompare(b.shift_date);
+      return (a.shift_time || "").localeCompare(b.shift_time || "");
+    });
+    const lastFinish = {}; // material_key -> index in sorted of previous finish
+    sorted.forEach((s, idx) => {
+      (s.materials_used || []).forEach((m) => {
+        if (!m.material_key || !m.quantity) return;
+        const priceRec = supplyPrices.find((p) => p.item_key === m.material_key && p.item_type === "material");
+        if (!priceRec) return;
+        const cost = m.quantity * priceRec.price_per_unit;
+        const prev = lastFinish[m.material_key];
+        let startIdx, count;
+        if (prev == null) {
+          startIdx = 0;
+          count = idx + 1;
+        } else {
+          startIdx = prev + 1;
+          count = idx - prev;
+        }
+        if (count <= 0) count = 1;
+        const perShift = cost / count;
+        for (let i = startIdx; i <= idx; i++) {
+          map[sorted[i].id] = (map[sorted[i].id] || 0) + perShift;
+        }
+        lastFinish[m.material_key] = idx;
+      });
+    });
+    return map;
+  }, [shifts, supplyPrices]);
 
   if (!isAdmin) {
     return (
@@ -539,12 +577,8 @@ export default function Financials() {
       }
     });
 
-    // ── Claimed materials used (per shift): quantity × measured supply price ──
-    (shift.materials_used || []).forEach((m) => {
-      if (!m.material_key || !m.quantity) return;
-      const priceRec = supplyPrices.find((p) => p.item_key === m.material_key && p.item_type === "material");
-      if (priceRec) total += m.quantity * priceRec.price_per_unit;
-    });
+    // ── Claimed materials used: cost spread across shifts between finishes ──
+    total += materialSpreadCost[shift.id] || 0;
 
     return total;
   }
