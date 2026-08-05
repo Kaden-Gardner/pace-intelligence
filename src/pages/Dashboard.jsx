@@ -11,6 +11,7 @@ import TopEmployeesCard from "../components/dashboard/TopEmployeesCard";
 import BestPairingsCard from "../components/dashboard/BestPairingsCard";
 import ShiftLeadCompetitionCard from "../components/dashboard/ShiftLeadCompetitionCard";
 import FlavorBreakdownCard from "../components/dashboard/FlavorBreakdownCard";
+import MilestoneCountdown from "../components/dashboard/MilestoneCountdown";
 import EmptyState from "../components/EmptyState";
 import {
   getTotalCases,
@@ -115,6 +116,20 @@ export default function Dashboard() {
   const weeklyData = useMemo(() => getWeeklyProductionData(periodShifts), [periodShifts]);
   const individualColor = useMemo(() => localStorage.getItem("individualCasesColor") || "#7c3aed", []);
 
+  // Year-to-date totals for milestone countdowns (reset each calendar year)
+  const currentYear = new Date().getFullYear();
+  const { yearPops, yearDollars } = useMemo(() => {
+    const yearShifts = shifts.filter((s) => s.shift_date && parseInt(s.shift_date.slice(0, 4), 10) === currentYear);
+    let pops = 0;
+    let cases = 0;
+    yearShifts.forEach((s) => {
+      const c = getTotalCases(s);
+      pops += c * (s.popsicles_per_case || 144);
+      cases += c;
+    });
+    return { yearPops: pops, yearDollars: avgCasePrice != null ? cases * avgCasePrice : null };
+  }, [shifts, avgCasePrice, currentYear]);
+
   const { flavorMap, flavorColorMap } = useMemo(() => {
     const fm = {};
     const fcm = {};
@@ -201,6 +216,9 @@ export default function Dashboard() {
         <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">Total Production</p>
         <p className="text-5xl font-heading font-bold">{totalPopsicles.toLocaleString()}</p>
         <p className="text-sm text-muted-foreground mt-1">Popsicles produced · {periodLabel}</p>
+        <div className="mt-5">
+          <MilestoneCountdown year={currentYear} yearPops={yearPops} yearDollars={yearDollars} />
+        </div>
       </div>
 
       {/* Stat Cards */}
