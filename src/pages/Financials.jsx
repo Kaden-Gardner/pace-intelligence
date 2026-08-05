@@ -539,6 +539,13 @@ export default function Financials() {
       }
     });
 
+    // ── Claimed materials used (per shift): quantity × measured supply price ──
+    (shift.materials_used || []).forEach((m) => {
+      if (!m.material_key || !m.quantity) return;
+      const priceRec = supplyPrices.find((p) => p.item_key === m.material_key && p.item_type === "material");
+      if (priceRec) total += m.quantity * priceRec.price_per_unit;
+    });
+
     return total;
   }
 

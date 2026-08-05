@@ -13,7 +13,7 @@ export const CONSUMABLE_MATERIALS = [
   { key: "tape_yellow",           label: "Yellow Tape",          unit: "rolls",      singular: "roll" },
   { key: "tape_green",           label: "Green Tape",           unit: "rolls",      singular: "roll" },
   { key: "twist_tie",             label: "Twist Tie",            unit: "rolls",      singular: "roll" },
-  { key: "pallet_wrap",           label: "Pallet Wrap",          unit: "rolls",      singular: "roll" },
+  { key: "pallet_wrap",           label: "Stretch Wrap",        unit: "rolls",      singular: "roll" },
   { key: "paper_towel_rolls",     label: "Paper Towels",         unit: "rolls",      singular: "roll" },
   { key: "kleenex_containers",    label: "Kleenex",              unit: "containers", singular: "container" },
   { key: "water_bottles",         label: "Water Bottles",        unit: "bottles",    singular: "bottle" },

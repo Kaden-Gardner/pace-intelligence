@@ -24,7 +24,7 @@ export const MATERIALS = [
   { key: "tape_yellow",       label: "Yellow Tape",       unit: "rolls" },
   { key: "tape_green",        label: "Green Tape",        unit: "rolls" },
   { key: "twist_tie",          label: "Twist Tie",         unit: "rolls" },
-  { key: "pallet_wrap",        label: "Pallet Wrap",       unit: "rolls" },
+  { key: "pallet_wrap",        label: "Stretch Wrap",       unit: "rolls" },
   { key: "paper_towel_rolls", label: "Paper Towels",      unit: "rolls" },
   { key: "kleenex_containers", label: "Kleenex",          unit: "containers" },
   { key: "water_bottles",     label: "Water Bottles",     unit: "bottles" },
