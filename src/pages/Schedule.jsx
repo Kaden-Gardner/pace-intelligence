@@ -101,6 +101,24 @@ export default function Schedule() {
     return scheduledBaseMix.filter((s) => s.shift_date === ds);
   }
 
+  // Employees already scheduled on a given date across all shifts EXCEPT the one
+  // being edited, so they can't be double-booked onto another shift that day.
+  function getEmployeesScheduledOnDate(date, { excludeShiftId, excludeBaseMixId } = {}) {
+    const ds = format(date, "yyyy-MM-dd");
+    const ids = new Set();
+    scheduledShifts.forEach((s) => {
+      if (s.shift_date !== ds || (excludeShiftId && s.id === excludeShiftId)) return;
+      (s.assigned_employees || []).forEach((id) => { if (id) ids.add(id); });
+      (s.on_call_employees || []).forEach((id) => { if (id) ids.add(id); });
+      if (s.mixer_employee) ids.add(s.mixer_employee);
+    });
+    scheduledBaseMix.forEach((s) => {
+      if (s.shift_date !== ds || (excludeBaseMixId && s.id === excludeBaseMixId)) return;
+      [s.mixer_1, s.mixer_2, s.mixer_3, s.shift_lead, s.admin_employee].forEach((id) => { if (id) ids.add(id); });
+    });
+    return ids;
+  }
+
   function getSuggestedEmployees(date) {
     const ds = format(date, "yyyy-MM-dd");
     const availOnDate = availabilities.filter((a) => a.date === ds && a.is_available);
@@ -272,6 +290,9 @@ export default function Schedule() {
   const availOnSelected = selectedDate
     ? availabilities.filter((a) => a.date === format(selectedDate, "yyyy-MM-dd") && a.is_available)
     : [];
+  const scheduledElsewhere = selectedDate
+    ? getEmployeesScheduledOnDate(selectedDate, { excludeShiftId: editShift?.id, excludeBaseMixId: editBaseMix?.id })
+    : new Set();
 
   // All upcoming production + base mix shifts merged and sorted
   const todayStr = format(TODAY, "yyyy-MM-dd");
@@ -463,7 +484,7 @@ export default function Schedule() {
                   <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— None —</SelectItem>
-                    {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                    {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                     </Select>
                     {form.mixer_employee && (
@@ -490,13 +511,15 @@ export default function Schedule() {
                       (a.employee_number && a.employee_number === emp.employee_number)
                     );
                     const isDream = dreamTeamIds.has(emp.id);
+                    const isBlocked = scheduledElsewhere.has(emp.id) && !isWorking && !isOnCall;
                     return (
-                      <div key={emp.id} className={`flex flex-col rounded-xl border transition-all ${isWorking ? "bg-primary/10 border-primary" : isOnCall ? "bg-yellow-50 border-yellow-300" : "border-border"}`}>
+                      <div key={emp.id} className={`flex flex-col rounded-xl border transition-all ${isWorking ? "bg-primary/10 border-primary" : isOnCall ? "bg-yellow-50 border-yellow-300" : isBlocked ? "opacity-60 border-orange-200 bg-orange-50/40" : "border-border"}`}>
                         <div className="flex items-center gap-2 px-3 py-2">
                           <span className="flex-1 truncate text-sm font-medium">{emp.name}</span>
                           <span className="flex gap-0.5">
                             {isDream && <span title="Dream team" className="text-yellow-500 text-xs">★</span>}
                             {avail ? <span title="Available" className="text-green-500 text-xs">✓</span> : <span title="No availability set" className="text-muted-foreground text-xs">?</span>}
+                            {isBlocked && <span title="Already on another shift today" className="text-orange-500 text-xs">⏰</span>}
                           </span>
                           </div>
                           {isWorking && (
@@ -515,12 +538,15 @@ export default function Schedule() {
                           )}
                           <div className="flex border-t border-border">
                           <button type="button" onClick={() => toggleEmployee(emp.id, "working")}
-                            disabled={!isWorking && (form.assigned_employees || []).length >= 9}
+                            disabled={isBlocked || (!isWorking && (form.assigned_employees || []).length >= 9)}
+                            title={isBlocked ? "Already scheduled on another shift today" : ""}
                             className={`flex-1 text-xs py-1 rounded-bl-xl transition-all ${isWorking ? "bg-primary text-primary-foreground" : "hover:bg-primary/10 text-muted-foreground disabled:opacity-30"}`}>
                             Working
                           </button>
                           <button type="button" onClick={() => toggleEmployee(emp.id, "oncall")}
-                            className={`flex-1 text-xs py-1 rounded-br-xl border-l border-border transition-all ${isOnCall ? "bg-yellow-400 text-yellow-900" : "hover:bg-yellow-50 text-muted-foreground"}`}>
+                            disabled={isBlocked}
+                            title={isBlocked ? "Already scheduled on another shift today" : ""}
+                            className={`flex-1 text-xs py-1 rounded-br-xl border-l border-border transition-all ${isOnCall ? "bg-yellow-400 text-yellow-900" : "hover:bg-yellow-50 text-muted-foreground disabled:opacity-30"}`}>
                             On Call
                           </button>
                         </div>
@@ -605,7 +631,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -615,7 +641,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -625,7 +651,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -635,7 +661,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select shift lead..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id}>{emp.name}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
