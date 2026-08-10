@@ -221,7 +221,7 @@ export default function Availability() {
       user_id: uid,
       label: sample?.employee_name || sample?.created_by?.split("@")[0] || uid,
     };
-  });
+  }).sort((a, b) => (a.label || "").localeCompare(b.label || ""));
 
   // Compute bulk week label
   const bulkWeekBase = new Date(TODAY);
@@ -451,7 +451,7 @@ export default function Availability() {
       {/* Admin: day detail panel */}
       {isAdmin && adminSelectedDate && (() => {
         const ds = format(adminSelectedDate, "yyyy-MM-dd");
-        const dayAvails = activeAvailabilities.filter((a) => a.date === ds);
+        const dayAvails = activeAvailabilities.filter((a) => a.date === ds).sort((a, b) => (a.employee_name || "").localeCompare(b.employee_name || ""));
         return (
           <div className="mt-6 bg-card rounded-2xl border border-border p-6">
             <div className="flex items-center justify-between mb-4">

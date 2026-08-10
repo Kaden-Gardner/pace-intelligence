@@ -688,7 +688,7 @@ export default function Schedule() {
       <div className="mt-6 space-y-3">
         {allUpcoming.map((s) => {
           if (s._type === "production") {
-            const assignedEmps = (s.assigned_employees || []).map((id) => empMap[id]).filter(Boolean);
+            const assignedEmps = (s.assigned_employees || []).map((id) => empMap[id]).filter(Boolean).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
             return (
               <div key={`p-${s.id}`} className="bg-card rounded-2xl border border-border p-5 active:bg-muted/50 transition-colors">
                 <div className="flex items-center gap-3 mb-3">
@@ -735,7 +735,7 @@ export default function Schedule() {
                   <div>
                     <p className="text-xs font-medium text-muted-foreground mb-1">On Call</p>
                     <div className="flex flex-wrap gap-2">
-                      {(s.on_call_employees || []).map((id) => empMap[id]).filter(Boolean).map((emp) => (
+                      {(s.on_call_employees || []).map((id) => empMap[id]).filter(Boolean).sort((a, b) => (a.name || "").localeCompare(b.name || "")).map((emp) => (
                         <span key={emp.id} className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-lg">{emp.name}</span>
                       ))}
                     </div>

@@ -29,8 +29,8 @@ export default function UpcomingShiftTab({ scheduledShifts, employees, flavorSet
   }
 
   const fs = fsMap[nextShift.flavorset_id];
-  const assignedEmps = (nextShift.assigned_employees || []).map((id) => empMap[id]).filter(Boolean);
-  const onCallEmps = (nextShift.on_call_employees || []).map((id) => empMap[id]).filter(Boolean);
+  const assignedEmps = (nextShift.assigned_employees || []).map((id) => empMap[id]).filter(Boolean).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  const onCallEmps = (nextShift.on_call_employees || []).map((id) => empMap[id]).filter(Boolean).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   const mixerEmp = nextShift.mixer_employee ? empMap[nextShift.mixer_employee] : null;
 
   const posMap = {};

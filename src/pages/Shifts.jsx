@@ -27,6 +27,7 @@ export default function Shifts() {
   const [compareA, setCompareA] = useState(null);
   const [compareB, setCompareB] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
+  const [shiftTypeFilter, setShiftTypeFilter] = useState("production");
 
   const loadData = useCallback(async () => {
     const [s, bms, e, fs, md] = await Promise.all([
@@ -81,9 +82,11 @@ export default function Shifts() {
           <p className="text-muted-foreground mt-1">Manage and review shift data</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => { setCompareMode((v) => !v); setCompareA(null); setCompareB(null); setStatsShift(null); }}>
-            <GitCompare className="w-4 h-4" /> {compareMode ? "Cancel Compare" : "Compare"}
-          </Button>
+          {shiftTypeFilter === "production" && (
+            <Button variant="outline" size="sm" className="gap-2" onClick={() => { setCompareMode((v) => !v); setCompareA(null); setCompareB(null); setStatsShift(null); }}>
+              <GitCompare className="w-4 h-4" /> {compareMode ? "Cancel Compare" : "Compare"}
+            </Button>
+          )}
           <ShiftDiagnosticDialog
             productionShifts={shifts}
             baseMixShifts={baseMixShifts}
@@ -110,6 +113,15 @@ export default function Shifts() {
         </div>
       </div>
 
+      <div className="flex gap-2 mb-6">
+        {[{ key: "production", label: "Production", Icon: Package }, { key: "basemix", label: "Base Mixing", Icon: FlaskConical }].map((t) => (
+          <button key={t.key} onClick={() => { setShiftTypeFilter(t.key); setCompareMode(false); setCompareA(null); setCompareB(null); setStatsShift(null); }}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${shiftTypeFilter === t.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+            <t.Icon className="w-3.5 h-3.5" /> {t.label}
+          </button>
+        ))}
+      </div>
+
       {compareMode && (
         <div className="mb-4 bg-primary/5 border border-primary/20 rounded-xl px-4 py-3 text-sm text-primary font-medium flex items-center gap-2">
           <GitCompare className="w-4 h-4" />
@@ -117,17 +129,17 @@ export default function Shifts() {
         </div>
       )}
 
-      {shifts.length === 0 && baseMixShifts.length === 0 ? (
+      {(shiftTypeFilter === "production" ? shifts.length === 0 : baseMixShifts.length === 0) ? (
         <EmptyState
           icon={Calendar}
           title="No shifts recorded"
           description="Add your first shift to start tracking production data."
           actionLabel="Add First Shift"
-          actionTo="/shifts/new"
+          actionTo={shiftTypeFilter === "production" ? "/shifts/new" : "/shifts/new-base-mix"}
         />
       ) : (
         <div className="space-y-6">
-          {shifts.length > 0 && (
+          {shiftTypeFilter === "production" && shifts.length > 0 && (
             <div>
               <h2 className="font-heading font-semibold text-base mb-3 flex items-center gap-2">
                 <Package className="w-4 h-4 text-primary" /> Production Shifts
@@ -228,7 +240,7 @@ export default function Shifts() {
             </div>
           )}
 
-          {baseMixShifts.length > 0 && (
+          {shiftTypeFilter === "basemix" && baseMixShifts.length > 0 && (
             <div>
               <h2 className="font-heading font-semibold text-base mb-3 flex items-center gap-2">
                 <FlaskConical className="w-4 h-4 text-primary" /> Base Mixing Shifts
