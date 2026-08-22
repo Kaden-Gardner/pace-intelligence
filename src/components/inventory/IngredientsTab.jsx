@@ -3,7 +3,9 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Check, X, Settings, FlaskConical } from "lucide-react";
+import { Plus, Pencil, Check, X, Settings, FlaskConical, ClipboardCheck } from "lucide-react";
+import InventoryCheckDialog from "./InventoryCheckDialog";
+import { computeIngredientUsage, buildOrderList, getOrderCutoffDateStr } from "@/lib/inventoryUsage";
 
 export const INGREDIENTS = [
   { key: "xanthan_gum", label: "Xanthan Gum",  unit: "lbs" },
@@ -43,6 +45,10 @@ export default function IngredientsTab({ flavors, flavorSets }) {
   const [savingDefaults, setSavingDefaults] = useState(false);
 
   const [saving, setSaving] = useState(false);
+
+  const [showCheck, setShowCheck] = useState(false);
+  const [checkLoading, setCheckLoading] = useState(false);
+  const [checkEntries, setCheckEntries] = useState([]);
 
   useEffect(() => { load(); }, []);
 
@@ -157,6 +163,24 @@ export default function IngredientsTab({ flavors, flavorSets }) {
     setShowDefaults(false);
   }
 
+  async function runCheck() {
+    setShowCheck(true);
+    setCheckLoading(true);
+    try {
+      const cutoff = getOrderCutoffDateStr();
+      const shifts = await base44.entities.BaseMixingShift.list("-shift_date", 500);
+      const recent = shifts.filter((s) => s.shift_date && s.shift_date >= cutoff);
+      const totals = computeIngredientUsage(recent, defaults);
+      const items = INGREDIENTS.map((ing) => {
+        const rec = ingInv.find((i) => i.ingredient === ing.key);
+        return { key: ing.key, label: ing.label, unit: ing.unit, onHand: rec?.quantity ?? 0 };
+      });
+      setCheckEntries(buildOrderList(items, totals));
+    } finally {
+      setCheckLoading(false);
+    }
+  }
+
   if (loading) return <div className="flex justify-center py-12"><div className="w-6 h-6 border-4 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
 
   const flavorMap = {};
@@ -169,6 +193,9 @@ export default function IngredientsTab({ flavors, flavorSets }) {
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h3 className="font-heading font-semibold text-lg">Ingredients</h3>
           <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="default" size="sm" className="gap-1.5 text-xs" onClick={runCheck}>
+              <ClipboardCheck className="w-3 h-3" /> Inventory Check
+            </Button>
             <span className="text-xs text-muted-foreground">Set defaults:</span>
             <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={() => openDefaults(null)}>
               <Settings className="w-3 h-3" /> Global
@@ -390,6 +417,14 @@ export default function IngredientsTab({ flavors, flavorSets }) {
           </div>
         </div>
       )}
+
+      <InventoryCheckDialog
+        open={showCheck}
+        onOpenChange={setShowCheck}
+        title="Ingredients — Order Check"
+        entries={checkEntries}
+        loading={checkLoading}
+      />
     </div>
   );
 }

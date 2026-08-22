@@ -3,7 +3,9 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Pencil, Check, X, Plus, Trash2, Settings } from "lucide-react";
+import { Pencil, Check, X, Plus, Trash2, Settings, ClipboardCheck } from "lucide-react";
+import InventoryCheckDialog from "./InventoryCheckDialog";
+import { computeMaterialUsage, buildOrderList, getOrderCutoffDateStr } from "@/lib/inventoryUsage";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 export const MATERIALS = [
@@ -60,6 +62,10 @@ export default function MaterialsTab({ flavorSets }) {
   const [addBagCases, setAddBagCases] = useState(1);
   const [addBagPerCase, setAddBagPerCase] = useState(100);
   const [saving, setSaving] = useState(false);
+
+  const [showCheck, setShowCheck] = useState(false);
+  const [checkLoading, setCheckLoading] = useState(false);
+  const [checkEntries, setCheckEntries] = useState([]);
 
 
 
@@ -207,6 +213,24 @@ export default function MaterialsTab({ flavorSets }) {
     setBagInv((prev) => prev.filter((b) => b.id !== id));
   }
 
+  async function runCheck() {
+    setShowCheck(true);
+    setCheckLoading(true);
+    try {
+      const cutoff = getOrderCutoffDateStr();
+      const shifts = await base44.entities.Shift.list("-shift_date", 500);
+      const recent = shifts.filter((s) => s.shift_date && s.shift_date >= cutoff);
+      const totals = computeMaterialUsage(recent, matDefaults);
+      const items = MATERIALS.map((m) => {
+        const rec = matInv.find((mi) => mi.material === m.key);
+        return { key: m.key, label: m.label, unit: m.unit, onHand: rec?.quantity ?? 0 };
+      });
+      setCheckEntries(buildOrderList(items, totals));
+    } finally {
+      setCheckLoading(false);
+    }
+  }
+
   if (loading) return <div className="flex justify-center py-12"><div className="w-6 h-6 border-4 border-primary/30 border-t-primary rounded-full animate-spin" /></div>;
 
   const fsMap = {};
@@ -219,6 +243,9 @@ export default function MaterialsTab({ flavorSets }) {
         <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
           <h3 className="font-heading font-semibold text-lg">General Materials</h3>
           <div className="flex gap-2">
+            <Button variant="default" size="sm" className="gap-1.5 text-xs" onClick={runCheck}>
+              <ClipboardCheck className="w-3 h-3" /> Inventory Check
+            </Button>
             <Button variant="outline" size="sm" className="gap-1.5 text-xs" onClick={openWrapDefaults}>
               <Settings className="w-3 h-3" /> Wrap Defaults
             </Button>
@@ -477,6 +504,14 @@ export default function MaterialsTab({ flavorSets }) {
           </div>
         </div>
       )}
+
+      <InventoryCheckDialog
+        open={showCheck}
+        onOpenChange={setShowCheck}
+        title="Materials — Order Check"
+        entries={checkEntries}
+        loading={checkLoading}
+      />
     </div>
   );
 }
