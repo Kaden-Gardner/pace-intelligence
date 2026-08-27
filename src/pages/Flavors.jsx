@@ -182,7 +182,7 @@ export default function Flavors() {
                 const containerLabels = { liquid_1gal: "1-gal jug", liquid_5gal: "5-gal jug", powder_5gal: "5-gal bucket (powder)" };
                 const typeLabels = { processed: "Processed", bought: "Bought" };
                 return (
-                <div key={f.id} className="bg-card rounded-2xl border border-border p-4 hover:shadow-md transition-shadow">
+                <div key={f.id} className="rounded-2xl border-2 p-4 hover:shadow-md transition-shadow" style={{ backgroundColor: `color-mix(in srgb, ${f.color || "hsl(192 75% 42%)"} 12%, transparent)`, borderColor: f.color || "hsl(192 75% 42%)" }}>
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-8 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: f.color || "hsl(192 75% 42%)" }} />
                     <p className="font-medium text-sm">{f.name}</p>
@@ -270,7 +270,7 @@ export default function Flavors() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {flavorSets.map((fs) => (
-                <div key={fs.id} className="bg-card rounded-2xl border border-border p-5 hover:shadow-md transition-shadow">
+                <div key={fs.id} className="rounded-2xl border-2 p-5 hover:shadow-md transition-shadow" style={{ backgroundColor: `color-mix(in srgb, ${fs.color || "hsl(var(--border))"} 12%, transparent)`, borderColor: fs.color || "hsl(var(--border))" }}>
                   <div className="flex items-center gap-2 mb-3">
                     {fs.color && <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: fs.color }} />}
                     <h4 className="font-heading font-semibold">{fs.name}</h4>
