@@ -78,10 +78,12 @@ Deno.serve(async (req) => {
   let totalCasesHourNumerator = 0;
   let totalCasesHourCount = 0;
   const positionTotals = {};
+  let lifetimeCases = 0;
 
   for (const s of myShifts) {
     const duration = s.shift_duration;
     const totalCases = getTotalCases(s);
+    if (totalCases > 0) lifetimeCases += totalCases;
     if (duration && duration > 0 && totalCases > 0) {
       totalCasesHourNumerator += totalCases / duration;
       totalCasesHourCount++;
@@ -121,6 +123,8 @@ Deno.serve(async (req) => {
       avgCasesPerHour: null,
       avgPopsPerMinute: null,
       positionTotals: {},
+      lifetimeCases: 0,
+      packConstants: { popsPerCase, popsPerMold, bagsPerCase },
     });
   }
 
@@ -133,5 +137,7 @@ Deno.serve(async (req) => {
     avgCasesPerHour: avgCasesPerHour != null ? Math.round(avgCasesPerHour * 10) / 10 : null,
     avgPopsPerMinute: avgPopsPerMinute != null ? Math.round(avgPopsPerMinute * 100) / 100 : null,
     positionTotals: positionTotalsOut,
+    lifetimeCases,
+    packConstants: { popsPerCase, popsPerMold, bagsPerCase },
   });
 });

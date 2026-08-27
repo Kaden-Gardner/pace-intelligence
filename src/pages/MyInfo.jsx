@@ -22,6 +22,30 @@ function formatTime(t) {
   return `${h12}:${m} ${ampm}`;
 }
 
+const METRIC_OPTIONS = [
+  { value: "pallets", label: "Pallets" },
+  { value: "gallons", label: "Gallons" },
+  { value: "molds", label: "Molds" },
+  { value: "pops", label: "Pops" },
+  { value: "bags", label: "Bags" },
+  { value: "cases", label: "Cases" },
+];
+
+function convertCases(cases, metric, pack) {
+  const popsPerCase = pack?.popsPerCase || 144;
+  const popsPerMold = pack?.popsPerMold || 24;
+  const bagsPerCase = pack?.bagsPerCase || 12;
+  switch (metric) {
+    case "cases": return cases;
+    case "pallets": return Math.floor(cases / 66);
+    case "gallons": return cases * 3;
+    case "molds": return popsPerMold > 0 ? (cases * popsPerCase) / popsPerMold : 0;
+    case "pops": return cases * popsPerCase;
+    case "bags": return cases * bagsPerCase;
+    default: return cases;
+  }
+}
+
 export default function MyInfo() {
   const { user } = useAuth();
   const [favFlavor, setFavFlavor] = useState(user?.favorite_flavor || "");
@@ -46,6 +70,7 @@ export default function MyInfo() {
   const [statsLoading, setStatsLoading] = useState(false);
   const [statsLoaded, setStatsLoaded] = useState(false);
   const [isPpm, setIsPpm] = useRateUnit();
+  const [metric, setMetric] = useState("pallets");
 
   // Dark mode state — read from localStorage, fallback to system
   const getInitialDark = () => {
@@ -274,6 +299,25 @@ export default function MyInfo() {
                   </div>
                 ) : stats && stats.shiftsWithData > 0 ? (
                   <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-medium text-muted-foreground">Lifetime production</p>
+                      <Select value={metric} onValueChange={setMetric}>
+                        <SelectTrigger className="w-[120px] h-8 text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {METRIC_OPTIONS.map((o) => (
+                            <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="bg-primary/5 rounded-xl p-4 text-center border border-primary/20">
+                      <p className="text-3xl font-heading font-bold text-primary">
+                        {Math.round(convertCases(stats.lifetimeCases || 0, metric, stats.packConstants)).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{(METRIC_OPTIONS.find((o) => o.value === metric)?.label || "").toLowerCase()} · {stats.totalShifts} shift{stats.totalShifts !== 1 ? "s" : ""}</p>
+                    </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">Averaged across {stats.shiftsWithData} shift{stats.shiftsWithData !== 1 ? "s" : ""}</p>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
