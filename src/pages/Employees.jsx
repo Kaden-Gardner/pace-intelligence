@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake, Briefcase } from "lucide-react";
-import { getBestPosition, getEmployeePosition, getTotalCases, getCasesPerHour, POSITION_PRODUCTION, getPositionProduction, resolvePackConstants } from "../lib/analyticsHelpers";
+import { getBestPosition, getEmployeePosition, getShiftEmployees, getTotalCases, getCasesPerHour, POSITION_PRODUCTION, getPositionProduction, resolvePackConstants } from "../lib/analyticsHelpers";
 import { POSITIONS, positionLabel } from "@/lib/positions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import EmptyState from "../components/EmptyState";
+import EmployeeMilestoneTracker from "@/components/EmployeeMilestoneTracker";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +56,23 @@ export default function Employees() {
 
   useEffect(() => { load(); }, []);
   useAutoRefresh(load);
+
+  // Per-employee lifetime pops (each shift counted once per crew member).
+  const lifetimePopsByEmp = useMemo(() => {
+    const casesByEmp = {};
+    shifts.forEach((shift) => {
+      const totalCases = getTotalCases(shift);
+      if (totalCases <= 0) return;
+      getShiftEmployees(shift).forEach((id) => {
+        if (!id) return;
+        casesByEmp[id] = (casesByEmp[id] || 0) + totalCases;
+      });
+    });
+    const popsPerCase = packConstants.popsPerCase || 144;
+    const out = {};
+    Object.keys(casesByEmp).forEach((id) => { out[id] = casesByEmp[id] * popsPerCase; });
+    return out;
+  }, [shifts, packConstants]);
 
   async function handleSave() {
     if (!form.name || !form.employee_number) return;
@@ -381,6 +399,11 @@ export default function Employees() {
                     </div>
                   );
                 })()}
+
+                {/* Popsicle milestone — admin only, so we can congratulate them */}
+                {isAdmin && (
+                  <EmployeeMilestoneTracker lifetimePops={lifetimePopsByEmp[emp.id] || 0} compact />
+                )}
 
                 {/* Admin actions only */}
                 {isAdmin && (

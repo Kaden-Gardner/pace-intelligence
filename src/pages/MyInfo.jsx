@@ -10,6 +10,7 @@ import { positionLabel, positionColor, POSITIONS } from "@/lib/positions";
 import { POSITION_PRODUCTION } from "@/lib/analyticsHelpers";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import EmployeeMilestoneTracker from "@/components/EmployeeMilestoneTracker";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -350,6 +351,7 @@ export default function MyInfo() {
                         </div>
                       </div>
                     )}
+                    <EmployeeMilestoneTracker lifetimePops={(stats.lifetimeCases || 0) * (stats.packConstants?.popsPerCase || 144)} />
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground mt-3 italic">No shift data found yet.</p>
