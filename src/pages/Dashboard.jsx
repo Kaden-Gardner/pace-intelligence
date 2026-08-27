@@ -12,12 +12,14 @@ import BestPairingsCard from "../components/dashboard/BestPairingsCard";
 import ShiftLeadCompetitionCard from "../components/dashboard/ShiftLeadCompetitionCard";
 import FlavorBreakdownCard from "../components/dashboard/FlavorBreakdownCard";
 import MilestoneCountdown from "../components/dashboard/MilestoneCountdown";
+import PositionMVPsCard from "../components/dashboard/PositionMVPsCard";
 import EmptyState from "../components/EmptyState";
 import {
   getTotalCases,
   computeEmployeeStats,
   findDreamTeam,
   getWeeklyProductionData,
+  resolvePackConstants,
 } from "../lib/analyticsHelpers";
 
 const PERIODS = [
@@ -54,10 +56,11 @@ export default function Dashboard() {
   const [timeEntries, setTimeEntries] = useState([]);
   const [rates, setRates] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [packConstants, setPackConstants] = useState({});
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    const [s, e, f, fs, inv, te, rt, ord] = await Promise.all([
+    const [s, e, f, fs, inv, te, rt, ord, matDef] = await Promise.all([
       base44.entities.Shift.list("-shift_date", 500),
       base44.entities.Employee.list(),
       base44.entities.Flavor.list(),
@@ -66,7 +69,11 @@ export default function Dashboard() {
       base44.entities.TimeEntry.list("-clock_in", 2000),
       base44.entities.EmployeeRate.list(),
       base44.entities.OrderPickup.list("-pickup_date", 500),
+      base44.entities.MaterialDefaults.list(),
     ]);
+    const matMap = {};
+    matDef.forEach((d) => { matMap[d.material_key] = d; });
+    setPackConstants(resolvePackConstants(matMap));
     setShifts(s);
     setEmployees(e);
     setFlavors(f);
@@ -289,6 +296,9 @@ export default function Dashboard() {
           <BestPairingsCard shifts={shifts} employees={employees} />
         </div>
       </div>
+
+      {/* Position MVPs — lifetime production leaders */}
+      <PositionMVPsCard shifts={shifts} employees={activeEmployees} packConstants={packConstants} />
 
       {/* Supervisor Friendly Competition */}
       <ShiftLeadCompetitionCard shifts={periodShifts} employees={activeEmployees} periodLabel={periodLabel} />
