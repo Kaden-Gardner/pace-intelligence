@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { User, IceCream, Hash, Save, CalendarClock, Phone, Trash2, LogOut, Moon, Bell, BellOff, Cake, BarChart2, Loader2, BookOpen, ExternalLink, Briefcase } from "lucide-react";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 import { positionLabel, positionColor, POSITIONS } from "@/lib/positions";
+import { POSITION_PRODUCTION } from "@/lib/analyticsHelpers";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
@@ -287,6 +288,24 @@ export default function MyInfo() {
                       </p>
                       <p className="text-xs text-muted-foreground mt-1">{formatRate(stats.avgCasesPerHour, isPpm).label}</p>
                     </div>
+                    {stats.positionTotals && Object.keys(stats.positionTotals).length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Lifetime production by position</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {Object.keys(stats.positionTotals).sort().map((pos) => {
+                            const pt = stats.positionTotals[pos];
+                            const meta = POSITION_PRODUCTION[pos];
+                            return (
+                              <div key={pos} className="bg-muted rounded-xl p-3 text-center">
+                                <p className="text-xs text-muted-foreground">{positionLabel(pos)}</p>
+                                <p className="font-heading font-bold text-primary text-lg">{Number(pt.total).toLocaleString()}</p>
+                                <p className="text-[11px] text-muted-foreground">{meta?.label || pt.unit} · {pt.shifts} shift{pt.shifts !== 1 ? "s" : ""}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground mt-3 italic">No shift data found yet.</p>

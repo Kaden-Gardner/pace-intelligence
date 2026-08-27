@@ -1,3 +1,5 @@
+import { GALLONS_PER_CASE, DEFAULT_POPS_PER_CASE, DEFAULT_POPS_PER_MOLD, DEFAULT_BAGS_PER_CASE } from "./productionConstants";
+
 export function getTotalCases(shift) {
   const flavorsetCases = shift.flavorset_cases || 0;
   const indiv1 = shift.individual_flavor_1_cases || 0;
@@ -250,4 +252,45 @@ export function getWeeklyProductionData(shifts) {
       cph: totalHours > 0 ? (totalCases / totalHours) : 0,
     };
   });
+}
+
+// ── Per-position production metrics (lifetime totals) ──
+// Maps each production position to the unit it produces per shift.
+export const POSITION_PRODUCTION = {
+  pulling: { label: "Molds Touched", unit: "molds" },
+  filling: { label: "Gallons Poured", unit: "gal" },
+  sorting: { label: "Pops Touched", unit: "pops" },
+  bagging: { label: "Bags Filled", unit: "bags" },
+  boxing: { label: "Cases Made", unit: "cases" },
+};
+
+// Resolve pack constants from a MaterialDefaults map (keyed by material_key).
+export function resolvePackConstants(matDefaultsMap = {}) {
+  return {
+    bagsPerCase: matDefaultsMap["bags_per_case"]?.qty_per_shift || DEFAULT_BAGS_PER_CASE,
+    popsPerCase: matDefaultsMap["popsicles_per_case"]?.qty_per_shift || DEFAULT_POPS_PER_CASE,
+    popsPerMold: matDefaultsMap["popsicles_per_mold"]?.qty_per_shift || DEFAULT_POPS_PER_MOLD,
+  };
+}
+
+// Per-position production metric for a single shift.
+// `position` accepts the capitalized label (from getEmployeePosition) or the lowercase key.
+// Returns null for positions without a production metric (Shift Lead, Training).
+export function getPositionProduction(shift, position, packConstants = {}) {
+  const pos = String(position || "").toLowerCase();
+  if (!POSITION_PRODUCTION[pos]) return null;
+  const totalCases = getTotalCases(shift);
+  if (totalCases <= 0) return 0;
+  const popsPerCase = packConstants.popsPerCase || DEFAULT_POPS_PER_CASE;
+  const popsPerMold = packConstants.popsPerMold || DEFAULT_POPS_PER_MOLD;
+  const bagsPerCase = packConstants.bagsPerCase || DEFAULT_BAGS_PER_CASE;
+  const totalPops = totalCases * popsPerCase;
+  switch (pos) {
+    case "pulling": return popsPerMold > 0 ? totalPops / popsPerMold : 0;
+    case "filling": return totalCases * GALLONS_PER_CASE;
+    case "sorting": return totalPops;
+    case "bagging": return totalCases * bagsPerCase;
+    case "boxing": return totalCases;
+    default: return null;
+  }
 }

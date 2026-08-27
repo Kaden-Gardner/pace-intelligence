@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake, Briefcase } from "lucide-react";
-import { getBestPosition, getEmployeePosition, getTotalCases, getCasesPerHour } from "../lib/analyticsHelpers";
+import { getBestPosition, getEmployeePosition, getTotalCases, getCasesPerHour, POSITION_PRODUCTION, getPositionProduction, resolvePackConstants } from "../lib/analyticsHelpers";
 import { POSITIONS, positionLabel } from "@/lib/positions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,13 +35,18 @@ export default function Employees() {
   const [flavors, setFlavors] = useState([]);
 
   const [selectedPosition, setSelectedPosition] = useState({}); // empId -> position string
+  const [packConstants, setPackConstants] = useState({});
 
   async function load() {
-    const [data, prodShifts, flavorList] = await Promise.all([
+    const [data, prodShifts, flavorList, matDef] = await Promise.all([
       base44.entities.Employee.list("name", 500),
       base44.entities.Shift.list("-shift_date", 500),
       base44.entities.Flavor.list("name"),
+      base44.entities.MaterialDefaults.list(),
     ]);
+    const matMap = {};
+    matDef.forEach((d) => { matMap[d.material_key] = d; });
+    setPackConstants(resolvePackConstants(matMap));
     setEmployees(data);
     setShifts(prodShifts);
     setFlavors(flavorList);
@@ -327,10 +332,12 @@ export default function Employees() {
                     const totalCases = getTotalCases(shift);
                     const duration = shift.shift_duration || 0;
                     positions.forEach((pos) => {
-                      if (!positionData[pos]) positionData[pos] = { shifts: 0, totalCases: 0, totalHours: 0 };
+                      if (!positionData[pos]) positionData[pos] = { shifts: 0, totalCases: 0, totalHours: 0, totalProduction: 0 };
                       positionData[pos].shifts += 1;
                       positionData[pos].totalCases += totalCases;
                       positionData[pos].totalHours += duration;
+                      const prod = getPositionProduction(shift, pos, packConstants);
+                      if (prod != null) positionData[pos].totalProduction += prod;
                     });
                   });
                   const positionList = Object.keys(positionData).sort();
@@ -351,19 +358,25 @@ export default function Employees() {
                           {positionList.map((p) => <option key={p} value={p}>{p}</option>)}
                         </select>
                       </div>
-                      <div className="flex gap-3">
-                        <div className="flex-1 bg-muted rounded-xl px-3 py-2 text-center">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div className="bg-muted rounded-xl px-3 py-2 text-center">
                           <p className="font-heading font-bold text-primary text-sm">{avgCph}</p>
                           <p className="text-xs text-muted-foreground">cases/hr</p>
                         </div>
-                        <div className="flex-1 bg-muted rounded-xl px-3 py-2 text-center">
+                        <div className="bg-muted rounded-xl px-3 py-2 text-center">
                           <p className="font-heading font-bold text-primary text-sm">{avgCases}</p>
                           <p className="text-xs text-muted-foreground">avg cases/shift</p>
                         </div>
-                        <div className="flex-1 bg-muted rounded-xl px-3 py-2 text-center">
+                        <div className="bg-muted rounded-xl px-3 py-2 text-center">
                           <p className="font-heading font-bold text-primary text-sm">{pd.shifts}</p>
                           <p className="text-xs text-muted-foreground">shifts</p>
                         </div>
+                        {POSITION_PRODUCTION[chosenPos.toLowerCase()] && (
+                          <div className="bg-muted rounded-xl px-3 py-2 text-center">
+                            <p className="font-heading font-bold text-primary text-sm">{Math.round(pd.totalProduction || 0).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground">{POSITION_PRODUCTION[chosenPos.toLowerCase()].label}</p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
