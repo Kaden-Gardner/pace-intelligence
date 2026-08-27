@@ -1,0 +1,138 @@
+import { useMemo, useState } from "react";
+import { getTotalCases } from "@/lib/analyticsHelpers";
+import { Users, Trophy } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const PALLET_CASES = 66;
+const GALLONS_PER_CASE = 3;
+
+const STAT_OPTIONS = [
+  { value: "pallets", label: "Pallets" },
+  { value: "gallons", label: "Gallons" },
+  { value: "molds", label: "Molds" },
+  { value: "pops", label: "Pops" },
+  { value: "bags", label: "Bags" },
+  { value: "cases", label: "Cases" },
+];
+
+const POSITION_FIELDS = [
+  "filling_employee",
+  "pulling_employee_1",
+  "pulling_employee_2",
+  "pulling_employee_3",
+  "sorting_employee",
+  "bagging_employee",
+  "boxing_employee",
+  "shift_lead",
+];
+
+// Everyone who worked a shift together (all positions + training), sorted for a stable signature.
+function getShiftCrew(shift) {
+  const ids = new Set();
+  POSITION_FIELDS.forEach((f) => { if (shift[f]) ids.add(shift[f]); });
+  (shift.training_employees || []).forEach((id) => ids.add(id));
+  return Array.from(ids).sort();
+}
+
+// A shift's total output for a given metric (whole-crew, not per-position).
+function getShiftMetric(shift, statKey, pack) {
+  const totalCases = getTotalCases(shift);
+  const popsPerCase = pack.popsPerCase || 144;
+  const popsPerMold = pack.popsPerMold || 24;
+  const bagsPerCase = pack.bagsPerCase || 12;
+  const totalPops = totalCases * popsPerCase;
+  switch (statKey) {
+    case "cases": return totalCases;
+    case "pallets": return Math.floor(totalCases / PALLET_CASES);
+    case "gallons": return totalCases * GALLONS_PER_CASE;
+    case "molds": return popsPerMold > 0 ? totalPops / popsPerMold : 0;
+    case "pops": return totalPops;
+    case "bags": return totalCases * bagsPerCase;
+    default: return 0;
+  }
+}
+
+export default function MostValuableTeamCard({ shifts, employees, packConstants }) {
+  const [stat, setStat] = useState("pallets");
+  const empMap = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
+
+  const best = useMemo(() => {
+    const groups = {};
+    shifts.forEach((shift) => {
+      const ids = getShiftCrew(shift);
+      if (ids.length < 2) return; // a team needs at least 2 members
+      const sig = ids.join(",");
+      if (!groups[sig]) groups[sig] = { ids, shifts: [] };
+      groups[sig].shifts.push(shift);
+    });
+
+    let top = null;
+    Object.values(groups).forEach((g) => {
+      if (g.shifts.length < 2) return; // recurring team only (same crew, 2+ shifts)
+      const total = g.shifts.reduce((sum, s) => sum + getShiftMetric(s, stat, packConstants), 0);
+      if (!top || total > top.total) top = { ids: g.ids, shiftCount: g.shifts.length, total };
+    });
+    return top;
+  }, [shifts, stat, packConstants]);
+
+  const statLabel = STAT_OPTIONS.find((o) => o.value === stat)?.label.toLowerCase() || stat;
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-1">
+        <Trophy className="w-5 h-5 text-primary" />
+        <h2 className="font-heading font-semibold text-lg">MVT — Most Valuable Team</h2>
+      </div>
+      <p className="text-xs text-muted-foreground mb-4">All time · recurring crew with the highest combined output</p>
+      <div className="bg-card rounded-2xl border border-border p-6">
+        <div className="flex items-center justify-between gap-2 mb-4">
+          <span className="text-xs font-medium text-muted-foreground">Filter by stat</span>
+          <Select value={stat} onValueChange={setStat}>
+            <SelectTrigger className="w-[130px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STAT_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {best ? (
+          <>
+            <div className="flex flex-wrap gap-2 mb-5">
+              {best.ids
+                .map((id) => empMap[id]?.name)
+                .filter(Boolean)
+                .sort((a, b) => a.localeCompare(b))
+                .map((name) => (
+                  <span key={name} className="inline-flex items-center gap-1 bg-primary/10 text-primary rounded-full px-2.5 py-1 text-xs font-medium">
+                    <Users className="w-3 h-3" />
+                    {name}
+                  </span>
+                ))}
+            </div>
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-3xl font-heading font-bold text-primary">{Math.round(best.total).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">{statLabel} combined</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-medium">{best.shiftCount} shifts together</p>
+                <p className="text-xs text-muted-foreground">{best.ids.length} crew members</p>
+              </div>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">No recurring team yet — the same crew needs to work 2+ shifts together.</p>
+        )}
+      </div>
+    </div>
+  );
+}

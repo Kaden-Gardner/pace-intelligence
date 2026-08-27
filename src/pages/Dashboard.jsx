@@ -13,6 +13,7 @@ import ShiftLeadCompetitionCard from "../components/dashboard/ShiftLeadCompetiti
 import FlavorBreakdownCard from "../components/dashboard/FlavorBreakdownCard";
 import MilestoneCountdown from "../components/dashboard/MilestoneCountdown";
 import PositionMVPsCard from "../components/dashboard/PositionMVPsCard";
+import MostValuableTeamCard from "../components/dashboard/MostValuableTeamCard";
 import EmptyState from "../components/EmptyState";
 import {
   getTotalCases,
@@ -299,6 +300,9 @@ export default function Dashboard() {
 
       {/* Position MVPs — lifetime production leaders */}
       <PositionMVPsCard shifts={shifts} employees={activeEmployees} packConstants={packConstants} />
+
+      {/* MVT — Most Valuable Team (recurring crew, filterable stat) */}
+      <MostValuableTeamCard shifts={shifts} employees={activeEmployees} packConstants={packConstants} />
 
       {/* Supervisor Friendly Competition */}
       <ShiftLeadCompetitionCard shifts={periodShifts} employees={activeEmployees} periodLabel={periodLabel} />
