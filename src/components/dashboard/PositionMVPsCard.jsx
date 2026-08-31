@@ -7,8 +7,34 @@ import {
 } from "@/lib/analyticsHelpers";
 import { positionColor, positionLabel } from "@/lib/positions";
 import { Crown } from "lucide-react";
+import {
+  GALLONS_PER_CASE,
+  DEFAULT_POPS_PER_CASE,
+  DEFAULT_POPS_PER_MOLD,
+  DEFAULT_BAGS_PER_CASE,
+} from "@/lib/productionConstants";
 
 const PALLET_CASES = 66; // cases per completed pallet (matches inventory pallet math)
+
+// Convert a position metric total back to equivalent finished cases for pricing.
+function metricToCases(award, value, pc = {}) {
+  const popsPerCase = pc.popsPerCase || DEFAULT_POPS_PER_CASE;
+  const popsPerMold = pc.popsPerMold || DEFAULT_POPS_PER_MOLD;
+  const bagsPerCase = pc.bagsPerCase || DEFAULT_BAGS_PER_CASE;
+  if (award.kind === "leader") return value * PALLET_CASES; // pallets → cases
+  switch (award.key) {
+    case "boxing": return value;                       // already cases
+    case "pulling": return popsPerMold > 0 ? value * popsPerMold / popsPerCase : 0;
+    case "filling": return value * GALLONS_PER_CASE;
+    case "sorting": return value / popsPerCase;
+    case "bagging": return value / bagsPerCase;
+    default: return 0;
+  }
+}
+
+function formatUSD(n) {
+  return n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+}
 
 // Each award — five production MVPs plus MVL for shift leads (pallets completed).
 const MVP_AWARDS = [
@@ -20,7 +46,7 @@ const MVP_AWARDS = [
   { key: "shift_lead", abbr: "MVL", title: "Most Valuable Leader", kind: "leader", label: "Shift Lead", unit: "pallets", color: "bg-emerald-100 text-emerald-800" },
 ];
 
-export default function PositionMVPsCard({ shifts, employees, packConstants }) {
+export default function PositionMVPsCard({ shifts, employees, packConstants, avgCasePrice }) {
   const empMap = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
 
   const mvps = useMemo(() => {
@@ -102,6 +128,11 @@ export default function PositionMVPsCard({ shifts, employees, packConstants }) {
                 <p className="text-xs text-primary font-medium mt-0.5">
                   {mvp && mvp.total > 0 ? `${Math.round(mvp.total).toLocaleString()} ${unit}` : "No data"}
                 </p>
+                {mvp && mvp.total > 0 && avgCasePrice != null && (
+                  <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                    {formatUSD(metricToCases(p, mvp.total, packConstants) * avgCasePrice)}
+                  </p>
+                )}
               </div>
             );
           })}

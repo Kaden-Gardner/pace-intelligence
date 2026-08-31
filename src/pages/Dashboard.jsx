@@ -299,7 +299,7 @@ export default function Dashboard() {
       </div>
 
       {/* Position MVPs — lifetime production leaders */}
-      <PositionMVPsCard shifts={shifts} employees={activeEmployees} packConstants={packConstants} />
+      <PositionMVPsCard shifts={shifts} employees={activeEmployees} packConstants={packConstants} avgCasePrice={avgCasePrice} />
 
       {/* MVT — Most Valuable Team (recurring crew, filterable stat) */}
       <MostValuableTeamCard shifts={shifts} employees={activeEmployees} packConstants={packConstants} />
