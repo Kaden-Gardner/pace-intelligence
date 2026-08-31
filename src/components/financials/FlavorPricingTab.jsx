@@ -99,7 +99,7 @@ export default function FlavorPricingTab() {
           const isEditingPrice = editing?.flavorId === flavor.id && editing?.field === "price_per_container";
 
           return (
-            <div key={flavor.id} className="bg-card rounded-2xl border border-border p-5">
+            <div key={flavor.id} className="rounded-2xl border-2 p-5" style={{ backgroundColor: `color-mix(in srgb, ${flavor.color || "hsl(192 75% 42%)"} 12%, transparent)`, borderColor: flavor.color || "hsl(192 75% 42%)" }}>
               <div className="flex items-center gap-2 mb-4">
                 {flavor.color && <div className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: flavor.color }} />}
                 <p className="font-heading font-semibold">{flavor.name}</p>

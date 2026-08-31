@@ -315,26 +315,27 @@ export default function IngredientsTab({ flavors, flavorSets }) {
           </div>
         )}
 
-        {jugInv.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No flavor jugs recorded yet.</p>
+        {flavors.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No flavors set up yet. Add flavors in the Flavors tab.</p>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            {jugInv.map((jug) => {
-              const fl = flavorMap[jug.flavor_id];
-              const jugDefault = jugDefaults.find((d) => d.flavor_id === jug.flavor_id);
-              const isEditingDefault = editJugDefaultId === jug.flavor_id;
+            {flavors.map((f) => {
+              const jug = jugInv.find((j) => j.flavor_id === f.id);
+              const jugDefault = jugDefaults.find((d) => d.flavor_id === f.id);
+              const isEditingDefault = editJugDefaultId === f.id;
+              const flavorColor = f.color || "hsl(192 75% 42%)";
               return (
-                <div key={jug.id} className="bg-card rounded-2xl border border-border p-4">
+                <div key={f.id} className="rounded-2xl border-2 p-4" style={{ backgroundColor: `color-mix(in srgb, ${flavorColor} 12%, transparent)`, borderColor: flavorColor }}>
                   <div className="flex items-center gap-2 mb-1">
-                     {fl?.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: fl.color }} />}
-                     <p className="font-medium text-sm">{fl?.name || "Unknown"}</p>
-                   </div>
-                   {fl?.container_type && (
-                     <p className="text-[10px] text-muted-foreground mb-1">
-                       {{ liquid_1gal: "1-gal jug", liquid_5gal: "5-gal jug", powder_5gal: "5-gal bucket (powder)" }[fl.container_type]}
-                     </p>
-                   )}
-                  {editJugId === jug.id ? (
+                    {f.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />}
+                    <p className="font-medium text-sm">{f.name}</p>
+                  </div>
+                  {f.container_type && (
+                    <p className="text-[10px] text-muted-foreground mb-1">
+                      {{ liquid_1gal: "1-gal jug", liquid_5gal: "5-gal jug", powder_5gal: "5-gal bucket (powder)" }[f.container_type]}
+                    </p>
+                  )}
+                  {jug && editJugId === jug.id ? (
                     <div className="space-y-2">
                       <Input type="number" min="0" step="1" value={editJugVal} onChange={(e) => setEditJugVal(parseFloat(e.target.value) || 0)} autoFocus />
                       <div className="flex gap-1">
@@ -346,32 +347,35 @@ export default function IngredientsTab({ flavors, flavorSets }) {
                     <div>
                       <div className="flex items-end justify-between">
                         <div>
-                          <p className="text-2xl font-heading font-bold">{Math.floor(jug.gallons ?? 0)}</p>
+                          <p className="text-2xl font-heading font-bold">{jug ? Math.floor(jug.gallons ?? 0) : 0}</p>
                           <p className="text-xs text-muted-foreground">containers</p>
                         </div>
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditJugId(jug.id); setEditJugVal(jug.gallons ?? 0); }}>
-                          <Pencil className="w-3 h-3" />
-                        </Button>
-                      </div>
-                      {/* oz per gallon default */}
-                      <div className="mt-2 pt-2 border-t border-border">
-                        {isEditingDefault ? (
-                          <div className="flex items-center gap-1">
-                            <Input type="number" min="0" step="0.1" className="h-7 text-xs w-20" value={editJugDefaultVal}
-                              onChange={(e) => setEditJugDefaultVal(e.target.value)} autoFocus
-                              onKeyDown={(e) => e.key === "Enter" && saveJugDefault(jug.flavor_id)} />
-                            <span className="text-[10px] text-muted-foreground">oz/gal</span>
-                            <Button size="sm" className="h-6 w-6 p-0" onClick={() => saveJugDefault(jug.flavor_id)}><Check className="w-3 h-3" /></Button>
-                            <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditJugDefaultId(null)}><X className="w-3 h-3" /></Button>
-                          </div>
-                        ) : (
-                          <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full"
-                            onClick={() => { setEditJugDefaultId(jug.flavor_id); setEditJugDefaultVal(jugDefault?.oz_per_gallon_base ?? ""); }}>
-                            <FlaskConical className="w-3 h-3 flex-shrink-0" />
-                            {jugDefault ? `${jugDefault.oz_per_gallon_base} oz/gal base` : "Set oz/gal default"}
-                          </button>
+                        {jug && (
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => { setEditJugId(jug.id); setEditJugVal(jug.gallons ?? 0); }}>
+                            <Pencil className="w-3 h-3" />
+                          </Button>
                         )}
                       </div>
+                      {jug && (
+                        <div className="mt-2 pt-2 border-t border-border">
+                          {isEditingDefault ? (
+                            <div className="flex items-center gap-1">
+                              <Input type="number" min="0" step="0.1" className="h-7 text-xs w-20" value={editJugDefaultVal}
+                                onChange={(e) => setEditJugDefaultVal(e.target.value)} autoFocus
+                                onKeyDown={(e) => e.key === "Enter" && saveJugDefault(f.id)} />
+                              <span className="text-[10px] text-muted-foreground">oz/gal</span>
+                              <Button size="sm" className="h-6 w-6 p-0" onClick={() => saveJugDefault(f.id)}><Check className="w-3 h-3" /></Button>
+                              <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => setEditJugDefaultId(null)}><X className="w-3 h-3" /></Button>
+                            </div>
+                          ) : (
+                            <button className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors w-full"
+                              onClick={() => { setEditJugDefaultId(f.id); setEditJugDefaultVal(jugDefault?.oz_per_gallon_base ?? ""); }}>
+                              <FlaskConical className="w-3 h-3 flex-shrink-0" />
+                              {jugDefault ? `${jugDefault.oz_per_gallon_base} oz/gal base` : "Set oz/gal default"}
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

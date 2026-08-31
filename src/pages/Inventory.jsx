@@ -358,7 +358,7 @@ export default function Inventory() {
                 {flavors.map((f) => {
                   const inv = individualInv.find((i) => i.flavor_id === f.id);
                   return (
-                    <div key={f.id} className="bg-card rounded-2xl border border-border p-4">
+                    <div key={f.id} className="rounded-2xl border-2 p-4" style={{ backgroundColor: `color-mix(in srgb, ${f.color || "hsl(192 75% 42%)"} 12%, transparent)`, borderColor: f.color || "hsl(192 75% 42%)" }}>
                       <div className="flex items-center gap-2 mb-3">
                         {f.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />}
                         <p className="font-medium text-sm flex-1 truncate">{f.name}</p>
