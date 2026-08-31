@@ -348,22 +348,22 @@ export default function Inventory() {
             )}
           </div>
 
-          {/* Individual Flavor Cases */}
+          {/* Individual Flavor Cases — shows every flavor from the Flavors tab */}
           <div>
             <h3 className="font-heading font-semibold mb-3">Individual Flavor Cases</h3>
-            {individualInv.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No individual flavor inventory yet.</p>
+            {flavors.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No flavors set up yet. Add flavors in the Flavors tab.</p>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                {individualInv.map((inv) => {
-                  const fl = flMap[inv.flavor_id];
+                {flavors.map((f) => {
+                  const inv = individualInv.find((i) => i.flavor_id === f.id);
                   return (
-                    <div key={inv.id} className="bg-card rounded-2xl border border-border p-4">
+                    <div key={f.id} className="bg-card rounded-2xl border border-border p-4">
                       <div className="flex items-center gap-2 mb-3">
-                        {fl?.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: fl.color }} />}
-                        <p className="font-medium text-sm flex-1 truncate">{fl?.name || "Unknown Flavor"}</p>
+                        {f.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />}
+                        <p className="font-medium text-sm flex-1 truncate">{f.name}</p>
                       </div>
-                      {editingInvId === inv.id ? (
+                      {inv && editingInvId === inv.id ? (
                         <div className="space-y-2">
                           <label className="text-xs text-muted-foreground block">Cases on hand</label>
                           <Input type="number" min="0" value={editCases} onChange={(e) => setEditCases(parseFloat(e.target.value) || 0)} autoFocus />
@@ -375,23 +375,25 @@ export default function Inventory() {
                       ) : (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-2xl font-heading font-bold">{inv.cases || 0}</p>
+                            <p className="text-2xl font-heading font-bold">{inv?.cases || 0}</p>
                             <p className="text-xs text-muted-foreground">cases</p>
                           </div>
-                          <div className="flex gap-1">
-                            <Button variant="ghost" size="sm" className="h-7" onClick={() => { setEditingInvId(inv.id); setEditCases(inv.cases || 0); }}>
-                              <Pencil className="w-3 h-3" />
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader><AlertDialogTitle>Remove from Inventory</AlertDialogTitle><AlertDialogDescription>Delete this record?</AlertDialogDescription></AlertDialogHeader>
-                                <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteInv(inv.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
+                          {inv && (
+                            <div className="flex gap-1">
+                              <Button variant="ghost" size="sm" className="h-7" onClick={() => { setEditingInvId(inv.id); setEditCases(inv.cases || 0); }}>
+                                <Pencil className="w-3 h-3" />
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button variant="ghost" size="sm" className="h-7 text-destructive hover:text-destructive"><Trash2 className="w-3 h-3" /></Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader><AlertDialogTitle>Remove from Inventory</AlertDialogTitle><AlertDialogDescription>Delete this record?</AlertDialogDescription></AlertDialogHeader>
+                                  <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => deleteInv(inv.id)} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">Delete</AlertDialogAction></AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

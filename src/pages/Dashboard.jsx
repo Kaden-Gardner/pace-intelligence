@@ -147,6 +147,7 @@ export default function Dashboard() {
 
   const flavorCases = useMemo(() => {
     const fc = {};
+    flavors.forEach((f) => { fc[f.name] = 0; }); // include every flavor, even with no recorded cases
     periodShifts.forEach((s) => {
       [
         [s.individual_flavor_1, s.individual_flavor_1_cases],
@@ -161,7 +162,7 @@ export default function Dashboard() {
       });
     });
     return fc;
-  }, [periodShifts, flavorMap]);
+  }, [periodShifts, flavorMap, flavors]);
 
   const palletInventory = useMemo(
     () => inventory.filter((inv) => inv.flavorset_id && flavorSets.some((fs) => fs.id === inv.flavorset_id)),
