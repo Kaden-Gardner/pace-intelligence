@@ -25,6 +25,7 @@ export default function PositionMVPsCard({ shifts, employees, packConstants }) {
 
   const mvps = useMemo(() => {
     const totals = {}; // award key -> { empId -> total }
+    const leadCases = {}; // shift lead empId -> lifetime cases
     shifts.forEach((shift) => {
       // Production positions
       employees.forEach((emp) => {
@@ -39,26 +40,37 @@ export default function PositionMVPsCard({ shifts, employees, packConstants }) {
           totals[key][emp.id] = (totals[key][emp.id] || 0) + prod;
         });
       });
-      // Shift lead — pallets completed
+      // Shift lead — accumulate total cases, convert to pallets at the end
       const lead = shift.shift_lead;
       if (lead) {
-        const pallets = Math.floor(getTotalCases(shift) / PALLET_CASES);
-        if (pallets > 0) {
-          if (!totals.shift_lead) totals.shift_lead = {};
-          totals.shift_lead[lead] = (totals.shift_lead[lead] || 0) + pallets;
+        const cases = getTotalCases(shift);
+        if (cases > 0) {
+          if (!leadCases) leadCases = {};
+          leadCases[lead] = (leadCases[lead] || 0) + cases;
         }
       }
     });
 
     const result = {};
     MVP_AWARDS.forEach((p) => {
-      const posTotals = totals[p.key] || {};
-      let topId = null;
-      let topVal = 0;
-      Object.entries(posTotals).forEach(([id, val]) => {
-        if (val > topVal) { topVal = val; topId = id; }
-      });
-      result[p.key] = { empId: topId, total: topVal };
+      if (p.kind === "leader") {
+        const posTotals = leadCases || {};
+        let topId = null;
+        let topVal = 0;
+        Object.entries(posTotals).forEach(([id, cases]) => {
+          const pallets = Math.floor(cases / PALLET_CASES);
+          if (pallets > topVal) { topVal = pallets; topId = id; }
+        });
+        result[p.key] = { empId: topId, total: topVal };
+      } else {
+        const posTotals = totals[p.key] || {};
+        let topId = null;
+        let topVal = 0;
+        Object.entries(posTotals).forEach(([id, val]) => {
+          if (val > topVal) { topVal = val; topId = id; }
+        });
+        result[p.key] = { empId: topId, total: topVal };
+      }
     });
     return result;
   }, [shifts, employees, packConstants]);
