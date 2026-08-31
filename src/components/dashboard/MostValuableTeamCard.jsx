@@ -58,7 +58,7 @@ function getShiftMetric(shift, statKey, pack) {
   }
 }
 
-export default function MostValuableTeamCard({ shifts, employees, packConstants }) {
+export default function MostValuableTeamCard({ shifts, employees, packConstants, avgCasePrice }) {
   const [stat, setStat] = useState("pallets");
   const empMap = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
 
@@ -75,8 +75,12 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants 
     let top = null;
     Object.values(groups).forEach((g) => {
       if (g.shifts.length < 2) return; // recurring team only (same crew, 2+ shifts)
-      const total = g.shifts.reduce((sum, s) => sum + getShiftMetric(s, stat, packConstants), 0);
-      if (!top || total > top.total) top = { ids: g.ids, shiftCount: g.shifts.length, total };
+      const totalCases = g.shifts.reduce((sum, s) => sum + getTotalCases(s), 0);
+      // Pallets use the same math as the MVL: sum cases first, then divide by 66.
+      const total = stat === "pallets"
+        ? Math.floor(totalCases / PALLET_CASES)
+        : g.shifts.reduce((sum, s) => sum + getShiftMetric(s, stat, packConstants), 0);
+      if (!top || total > top.total) top = { ids: g.ids, shiftCount: g.shifts.length, total, totalCases };
     });
     return top;
   }, [shifts, stat, packConstants]);
@@ -122,6 +126,11 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants 
               <div>
                 <p className="text-3xl font-heading font-bold text-primary">{Math.round(best.total).toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">{statLabel} combined</p>
+                {avgCasePrice != null && (
+                  <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mt-1">
+                    {(best.totalCases * avgCasePrice).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
+                  </p>
+                )}
               </div>
               <div className="text-right">
                 <p className="text-sm font-medium">{best.shiftCount} shifts together</p>

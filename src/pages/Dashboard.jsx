@@ -302,7 +302,7 @@ export default function Dashboard() {
       <PositionMVPsCard shifts={shifts} employees={activeEmployees} packConstants={packConstants} avgCasePrice={avgCasePrice} />
 
       {/* MVT — Most Valuable Team (recurring crew, filterable stat) */}
-      <MostValuableTeamCard shifts={shifts} employees={activeEmployees} packConstants={packConstants} />
+      <MostValuableTeamCard shifts={shifts} employees={activeEmployees} packConstants={packConstants} avgCasePrice={avgCasePrice} />
 
       {/* Supervisor Friendly Competition */}
       <ShiftLeadCompetitionCard shifts={periodShifts} employees={activeEmployees} periodLabel={periodLabel} />
