@@ -25,7 +25,7 @@ function metricToCases(award, value, pc = {}) {
   switch (award.key) {
     case "boxing": return value;                       // already cases
     case "pulling": return popsPerMold > 0 ? value * popsPerMold / popsPerCase : 0;
-    case "filling": return value * GALLONS_PER_CASE;
+    case "filling": return value / GALLONS_PER_CASE; // gallons → cases (3 gal per case)
     case "sorting": return value / popsPerCase;
     case "bagging": return value / bagsPerCase;
     default: return 0;
