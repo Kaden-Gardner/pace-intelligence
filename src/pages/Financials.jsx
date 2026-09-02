@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame } from "lucide-react";
+import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame, Pencil } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subYears } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -899,15 +899,36 @@ export default function Financials() {
                           const fs = fsMap[item.flavorset_id];
                           const label = item.item_type === "flavorset" ? (fs?.name || "Flavorset") : (item.flavor_id ? `Flavor #${item.flavor_id.slice(-4)}` : "Individual");
                           const color = fs?.color;
+                          const isPricingThis = pricingItemId === item.id;
                           return (
-                            <div key={item.id} className="flex items-center justify-between text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-1.5">
+                            <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground bg-muted/30 rounded-lg px-3 py-1.5">
                               <span className="flex items-center gap-1.5">
                                 {color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: color }} />}
                                 {label} · {Math.round(item.cases || 0)} cases
                               </span>
-                              <span className="font-medium text-foreground">
-                                {fmt$(item.case_sell_price)}/case = {fmt$((item.case_sell_price || 0) * Math.round(item.cases || 0))}
-                              </span>
+                              {isPricingThis ? (
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <div className="relative">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                    <Input type="number" min="0" step="0.01" placeholder="0.00" value={priceInput}
+                                      onChange={(e) => setPriceInput(e.target.value)} className="pl-7 w-28 h-7" autoFocus
+                                      onKeyDown={(e) => e.key === "Enter" && handlePriceItem(item, o.id)} />
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">per case</span>
+                                  {priceInput && <span className="text-xs font-medium text-primary">= ${(parseFloat(priceInput) * Math.round(item.cases || 0)).toFixed(2)}</span>}
+                                  <Button size="sm" className="h-7 gap-1" onClick={() => handlePriceItem(item, o.id)}><Check className="w-3 h-3" /> Save</Button>
+                                  <Button size="sm" variant="ghost" className="h-7" onClick={() => { setPricingItemId(null); setPriceInput(""); }}><X className="w-3 h-3" /></Button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-foreground">
+                                    {fmt$(item.case_sell_price)}/case = {fmt$((item.case_sell_price || 0) * Math.round(item.cases || 0))}
+                                  </span>
+                                  <Button size="sm" variant="ghost" className="h-6 w-6 p-0" onClick={() => { setPricingItemId(item.id); setPriceInput(item.case_sell_price > 0 ? String(item.case_sell_price) : ""); }}>
+                                    <Pencil className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           );
                         })}
