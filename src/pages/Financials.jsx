@@ -13,6 +13,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import SuppliesPricingTab from "@/components/financials/SuppliesPricingTab";
 import CostBreakdownTab from "@/components/financials/CostBreakdownTab";
 import ShiftDiagnosticDialog from "@/components/financials/ShiftDiagnosticDialog";
+import InventoryValueCard from "@/components/financials/InventoryValueCard";
 import FacilityCostCard from "@/components/financials/FacilityCostCard";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
@@ -1330,6 +1331,8 @@ export default function Financials() {
               </div>
             ))}
           </div>
+          <InventoryValueCard />
+
           {/* Production rate & revenue rate card */}
           {shiftTypeFilter !== "basemix" && (
             <div className="bg-card rounded-2xl border border-border p-5 mb-8">
