@@ -1041,6 +1041,7 @@ export default function Financials() {
                 calcProductionSupplyCost={calcProductionSupplyCost}
                 calcWasteInfo={calcWasteInfo}
                 orders={orders}
+                orderItems={orderItems}
               />
             </div>
           </div>

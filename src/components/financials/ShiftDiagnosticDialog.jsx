@@ -82,6 +82,7 @@ export default function ShiftDiagnosticDialog({
   calcProductionSupplyCost,
   calcWasteInfo,
   orders = [],
+  orderItems = [],
   triggerLabel = "Diagnostic",
 }) {
   const [open, setOpen] = useState(false);
@@ -196,6 +197,35 @@ export default function ShiftDiagnosticDialog({
     };
   }, [summaries]);
 
+  // Sales vs. production value for the selected month
+  const monthlySales = useMemo(() => {
+    const inMonth = (dateStr) => {
+      if (!dateStr) return false;
+      const d = new Date(dateStr + "T12:00:00");
+      return d.getFullYear() === selectedMonth.year && d.getMonth() === selectedMonth.month;
+    };
+    const monthOrders = orders.filter((o) => inMonth(o.pickup_date));
+    let casesSold = 0;
+    let revenue = 0;
+    monthOrders.forEach((o) => {
+      const items = orderItems.filter((i) => i.order_id === o.id);
+      if (items.length > 0) {
+        casesSold += items.reduce((s, i) => s + Math.round(i.cases || 0), 0);
+        revenue += items.reduce((s, i) => s + (i.case_sell_price || 0) * Math.round(i.cases || 0), 0);
+      } else {
+        casesSold += Math.round(o.cases || 0);
+        revenue += (o.case_sell_price || 0) * Math.round(o.cases || 0);
+      }
+    });
+    const pricedItems = orderItems.filter((i) => i.case_sell_price > 0);
+    const avgCasePrice = pricedItems.length > 0
+      ? pricedItems.reduce((s, i) => s + i.case_sell_price, 0) / pricedItems.length
+      : null;
+    const casesProduced = totals.totalCases;
+    const madeValue = (avgCasePrice && casesProduced > 0) ? avgCasePrice * casesProduced : 0;
+    return { casesSold, revenue, casesProduced, madeValue, avgCasePrice, orderCount: monthOrders.length };
+  }, [orders, orderItems, selectedMonth, totals.totalCases]);
+
   const costData = summaries.map((x) => ({ label: x.label, Labor: parseFloat(x.laborCost.toFixed(2)), Supplies: parseFloat(x.supplyCost.toFixed(2)) }));
   const casesData = summaries.filter((x) => !x.isBaseMix).map((x) => ({ label: x.label, Cases: x.cases || 0 }));
   const ratioData = summaries.filter((x) => x.profitRatio != null).map((x) => ({ label: x.label, Ratio: parseFloat(x.profitRatio.toFixed(2)) }));
@@ -287,6 +317,33 @@ export default function ShiftDiagnosticDialog({
               <StatTile icon={AlertTriangle} label="Waste (Gallons)" value={totals.totalWasteGallons.toFixed(1)} sub="popsicle punch" color="hsl(var(--destructive))" />
               <StatTile icon={Clock} label="Total Downtime" value={fmtHours(totals.totalDowntime)} sub="across all shifts" />
               <StatTile icon={Users} label="Avg Crew Size" value={totals.avgEmpCount > 0 ? totals.avgEmpCount.toFixed(1) : "—"} sub="per production shift" />
+            </div>
+
+            {/* Sales vs. Production Value */}
+            <div className="bg-card rounded-2xl border border-border p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <DollarSign className="w-4 h-4 text-primary" />
+                <p className="text-sm font-medium">Sales vs. Production Value — {MONTH_NAMES[selectedMonth.month]} {selectedMonth.year}</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-muted/40 rounded-xl p-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Sold From Orders</p>
+                  <p className="font-heading font-bold text-2xl text-primary">{fmt$(monthlySales.revenue)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{monthlySales.casesSold.toLocaleString()} cases · {monthlySales.orderCount} orders</p>
+                </div>
+                <div className="bg-muted/40 rounded-xl p-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-1">Value of Product Made</p>
+                  <p className="font-heading font-bold text-2xl" style={{ color: "hsl(var(--chart-3))" }}>{fmt$(monthlySales.madeValue)}</p>
+                  <p className="text-xs text-muted-foreground mt-1">{monthlySales.casesProduced.toLocaleString()} cases · avg {fmt$(monthlySales.avgCasePrice)}/case</p>
+                </div>
+              </div>
+              {monthlySales.casesProduced > 0 && monthlySales.casesSold > 0 && (
+                <p className="text-xs text-muted-foreground mt-3">
+                  {monthlySales.casesSold > monthlySales.casesProduced
+                    ? `Sold ${monthlySales.casesSold - monthlySales.casesProduced} more cases than produced this month (drawn from inventory).`
+                    : `Produced ${monthlySales.casesProduced - monthlySales.casesSold} more cases than sold this month (added to inventory).`}
+                </p>
+              )}
             </div>
 
             {/* Charts */}
