@@ -164,7 +164,11 @@ export function findDreamTeam(shifts, employees, laborData) {
   const { empMap, rateMap, timeEntries, avgCasePrice } = laborData;
   if (avgCasePrice == null) return []; // need priced orders to estimate revenue
 
+  // Only shifts crewed entirely by current, non-terminated employees are eligible —
+  // a crew with a terminated member is not a team you could field today.
+  const eligibleIds = new Set(employees.filter((e) => !e.terminated).map((e) => e.id));
   const scored = shifts
+    .filter((s) => getShiftEmployees(s).every((id) => eligibleIds.has(id)))
     .map((s) => {
       const laborCost = calcShiftLaborCost(s, { empMap, rateMap, timeEntries });
       const cases = getTotalCases(s);
@@ -184,11 +188,9 @@ export function findDreamTeam(shifts, employees, laborData) {
   });
   if (scored.length === 0) return [];
 
-  // Never show terminated employees — the dream team must be a crew you could actually field.
-  const activeCrew = scored[0].crew
+  return scored[0].crew
     .map((id) => employees.find((e) => e.id === id))
-    .filter((e) => e && !e.terminated);
-  return activeCrew;
+    .filter(Boolean);
 }
 
 export function findBestPairings(shifts, employees) {
