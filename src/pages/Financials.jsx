@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame, Pencil } from "lucide-react";
+import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame, Pencil, Crown } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subYears } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -16,6 +16,7 @@ import ShiftDiagnosticDialog from "@/components/financials/ShiftDiagnosticDialog
 import InventoryValueCard from "@/components/financials/InventoryValueCard";
 import FacilityCostCard from "@/components/financials/FacilityCostCard";
 import PayPeriodsCard from "@/components/financials/PayPeriodsCard";
+import BigBoyPage from "@/components/financials/BigBoyPage";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const GALLONS_PER_BATCH = 240;
@@ -138,6 +139,8 @@ export default function Financials() {
   const [shiftTypeFilter, setShiftTypeFilter] = useState("all"); // "all" | "production" | "basemix"
   // ROI display mode: false = predicted revenue / cost, true = cost / predicted revenue
   const [reverseRoi, setReverseRoi] = useState(false);
+  // Big Boy Page: full-scale all-metrics view toggled from the analytics tab
+  const [showBigBoy, setShowBigBoy] = useState(false);
 
   function handleUnlock() {
     if (pwInput !== "ecap") { setPwError("Incorrect password."); return; }
@@ -1300,6 +1303,30 @@ export default function Financials() {
               <span className="font-semibold">Disclaimer:</span> All financial figures in this app are based on <span className="font-semibold">estimates and approximations</span> (labor hours, case counts, pricing). Before making any conclusive financial decisions, all administrators should consult verified financial records and statistics outside of this application.
             </p>
           </div>
+          <div className="mb-6">
+            <Button size="lg" className="gap-2" onClick={() => setShowBigBoy(true)}>
+              <Crown className="w-4 h-4" /> Big Boy Page
+            </Button>
+          </div>
+          {showBigBoy ? (
+            <BigBoyPage
+              shifts={shifts}
+              baseMixShifts={baseMixShifts}
+              employees={employees}
+              rates={rates}
+              timeEntries={timeEntries}
+              orders={orders}
+              orderItems={orderItems}
+              flavorSets={flavorSets}
+              matDefaults={matDefaults}
+              taxRate={taxRate}
+              calcShiftCost={calcShiftCost}
+              calcProductionSupplyCost={calcProductionSupplyCost}
+              orderRevenue={orderRevenue}
+              onBack={() => setShowBigBoy(false)}
+            />
+          ) : (
+            <>
           <div className="flex flex-wrap gap-2 mb-4">
             {PERIODS.map((p) => (
               <button key={p.key} onClick={() => setPeriod(p.key)}
@@ -1448,6 +1475,8 @@ export default function Financials() {
               </div>
             );
           })()}
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>
