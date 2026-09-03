@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { getTotalCases } from "@/lib/analyticsHelpers";
+import { getTotalCases, getTraineeId } from "@/lib/analyticsHelpers";
 import { Users, Trophy } from "lucide-react";
 import {
   Select,
@@ -36,8 +36,8 @@ const POSITION_FIELDS = [
 function getShiftCrew(shift) {
   const ids = new Set();
   POSITION_FIELDS.forEach((f) => { if (shift[f]) ids.add(shift[f]); });
-  (shift.training_employees || []).forEach((id) => ids.add(id));
-  return Array.from(ids).sort();
+  (shift.training_employees || []).forEach((t) => ids.add(getTraineeId(t)));
+  return Array.from(ids).filter(Boolean).sort();
 }
 
 // A shift's total output for a given metric (whole-crew, not per-position).

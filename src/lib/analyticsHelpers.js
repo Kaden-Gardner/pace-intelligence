@@ -1,5 +1,13 @@
 import { GALLONS_PER_CASE, DEFAULT_POPS_PER_CASE, DEFAULT_POPS_PER_MOLD, DEFAULT_BAGS_PER_CASE } from "./productionConstants";
 
+// Trainee entries are stored as "empId|position" strings (see ShiftPositionsSection);
+// this extracts the plain employee ID for matching.
+export function getTraineeId(entry) {
+  if (!entry) return entry;
+  const idx = entry.indexOf("|");
+  return idx === -1 ? entry : entry.substring(0, idx);
+}
+
 export function getTotalCases(shift) {
   const flavorsetCases = shift.flavorset_cases || 0;
   const indiv1 = shift.individual_flavor_1_cases || 0;
@@ -26,9 +34,9 @@ export function getShiftEmployees(shift) {
   if (shift.boxing_employee) employees.add(shift.boxing_employee);
   if (shift.shift_lead) employees.add(shift.shift_lead);
   if (shift.training_employees) {
-    shift.training_employees.forEach((e) => employees.add(e));
+    shift.training_employees.forEach((e) => employees.add(getTraineeId(e)));
   }
-  return [...employees];
+  return [...employees].filter(Boolean);
 }
 
 export function getEmployeePosition(shift, employeeId) {
@@ -41,7 +49,7 @@ export function getEmployeePosition(shift, employeeId) {
   if (shift.bagging_employee === employeeId) positions.push("Bagging");
   if (shift.boxing_employee === employeeId) positions.push("Boxing");
   if (shift.shift_lead === employeeId) positions.push("Shift Lead");
-  if (shift.training_employees?.includes(employeeId)) positions.push("Training");
+  if (shift.training_employees?.some((e) => getTraineeId(e) === employeeId)) positions.push("Training");
   return positions;
 }
 
@@ -124,7 +132,7 @@ export function calcShiftLaborCost(shift, { empMap, rateMap, timeEntries }) {
   let empIds = [];
   [shift.filling_employee, shift.pulling_employee_1, shift.pulling_employee_2, shift.pulling_employee_3,
    shift.sorting_employee, shift.bagging_employee, shift.boxing_employee, shift.shift_lead].forEach((id) => { if (id) empIds.push(id); });
-  if (shift.training_employees) empIds.push(...shift.training_employees);
+  if (shift.training_employees) empIds.push(...shift.training_employees.map(getTraineeId));
   empIds = [...new Set(empIds)].filter(Boolean);
 
   let totalCost = 0;

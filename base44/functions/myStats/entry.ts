@@ -71,7 +71,7 @@ Deno.serve(async (req) => {
   // Find shifts where this employee was assigned to any position
   const myShifts = shifts.filter((s) => {
     const inMainPositions = POSITION_FIELDS.some((f) => s[f] === empId);
-    const inTraining = (s.training_employees || []).includes(empId);
+    const inTraining = (s.training_employees || []).some((t) => String(t || "").split("|")[0] === empId);
     return inMainPositions || inTraining;
   });
 
