@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Check, X, Pencil, Wallet } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseISO, differenceInMinutes } from "date-fns";
+import InfoButton from "@/components/bigboy/InfoButton";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const LENGTH_OPTIONS = [
@@ -24,7 +25,7 @@ function nextWeekday(from, targetDay) {
   return d;
 }
 
-export default function PayPeriodsCard({ employees, rates, timeEntries, taxRate }) {
+export default function PayPeriodsCard({ employees, rates, timeEntries, taxRate, info }) {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -148,6 +149,7 @@ export default function PayPeriodsCard({ employees, rates, timeEntries, taxRate 
             <p className="text-sm font-medium">Pay Periods — Total Paid</p>
             <p className="text-xs text-muted-foreground">Every pay period since your start date, using clocked hours × each employee's hourly rate.</p>
           </div>
+          {info && <InfoButton {...info} />}
         </div>
         {settings && !editing && (
           <Button size="sm" variant="outline" className="text-xs gap-1" onClick={startEditing}>

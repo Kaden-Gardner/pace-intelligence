@@ -2,8 +2,9 @@ import { Users } from "lucide-react";
 import { findBestPairings } from "../../lib/analyticsHelpers";
 import { Switch } from "@/components/ui/switch";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
+import InfoButton from "@/components/bigboy/InfoButton";
 
-export default function BestPairingsCard({ shifts, employees }) {
+export default function BestPairingsCard({ shifts, employees, info }) {
   const [isPpm, setIsPpm] = useRateUnit();
   const pairings = findBestPairings(shifts, employees);
 
@@ -12,6 +13,7 @@ export default function BestPairingsCard({ shifts, employees }) {
       <div className="flex items-center gap-2 mb-1">
         <Users className="w-5 h-5 text-primary" />
         <h3 className="font-heading font-semibold text-lg">Best Pairings</h3>
+        {info && <InfoButton {...info} />}
       </div>
       <div className="flex items-center gap-2 mb-4">
         <p className="text-sm text-muted-foreground">Employee combos that maximize production</p>

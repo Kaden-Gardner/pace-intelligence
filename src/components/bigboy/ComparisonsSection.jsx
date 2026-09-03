@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { getShiftEmployees, getTotalCases } from "@/lib/analyticsHelpers";
 import Section from "@/components/bigboy/Section";
 import Tile from "@/components/bigboy/Tile";
+import InfoButton from "@/components/bigboy/InfoButton";
+import { INFO } from "@/components/bigboy/explanations";
 import { fmtInt, fmtNum, fmtPct, fmt$ } from "@/components/bigboy/format";
 
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -25,12 +27,15 @@ function cphOf(list) {
   return h > 0 ? c / h : 0;
 }
 
-function CompareCard({ title, withLabel, withoutLabel, withVal, withoutVal, withN, withoutN }) {
+function CompareCard({ title, withLabel, withoutLabel, withVal, withoutVal, withN, withoutN, info }) {
   const diff = withVal - withoutVal;
   const pct = withoutVal > 0 ? (diff / withoutVal) * 100 : 0;
   return (
     <div className="bg-card rounded-2xl border border-border p-5">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">{title}</p>
+      <div className="flex items-center gap-1.5 mb-3">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
+        {info && <InfoButton {...info} />}
+      </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-muted/40 rounded-xl p-3">
           <p className="text-[11px] text-muted-foreground mb-0.5">{withLabel} · {withN} shifts</p>
@@ -121,20 +126,23 @@ export default function ComparisonsSection({ shifts, rates, taxRate, avgCasePric
     <Section title="Comparisons & Insights" subtitle="How shift setup and conditions affect output — weekday vs weekday, crew size, start times, leadership, and training.">
       <div className="bg-card rounded-2xl border border-border p-5 mb-6">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <Tile label="Best Weekday" value={stats.bestDay ? DAY_NAMES[stats.bestDay.key] : "—"} sub={stats.bestDay ? `${fmtNum(stats.bestDay.cph)} cases/hr` : null} highlight />
-          <Tile label="Best Crew Size" value={stats.bestCrew ? `${stats.bestCrew.key} people` : "—"} sub={stats.bestCrew ? `${fmtNum(stats.bestCrew.cph)} cases/hr` : null} highlight />
-          <Tile label="Best Start Time" value={stats.bestStart?.key || "—"} sub={stats.bestStart ? `${fmtNum(stats.bestStart.cph)} cases/hr · ${stats.bestStart.shifts} shifts` : null} />
-          <Tile label="Downtime Cost" value={fmt$(stats.downtimeLabor)} sub={`${fmtNum(stats.downtimeHours)} hr across ${stats.downtimeShifts} shifts`} />
-          <Tile label="Lost to Downtime" value={fmtInt(stats.downtimeCasesLost)} sub={avgCasePrice != null ? `${fmt$(stats.downtimeCasesLost * avgCasePrice)} est. value` : "cases not made"} />
-          <Tile label="Waste (Pops)" value={fmtInt(stats.wastePops)} sub={`${fmtInt(stats.wasteGallons)} gallons`} />
-          <Tile label="Sell-Through" value={stats.sellThrough != null ? fmtPct(stats.sellThrough) : "—"} sub={`${fmtInt(casesSold)} sold ÷ ${fmtInt(stats.produced)} made`} />
-          <Tile label="Stock Runway" value={stats.runwayWeeks != null ? `${fmtNum(stats.runwayWeeks)} wks` : "—"} sub={`${fmtInt(stockCases)} cases on hand`} />
+          <Tile label="Best Weekday" value={stats.bestDay ? DAY_NAMES[stats.bestDay.key] : "—"} sub={stats.bestDay ? `${fmtNum(stats.bestDay.cph)} cases/hr` : null} highlight info={INFO.comparisons.bestDay} />
+          <Tile label="Best Crew Size" value={stats.bestCrew ? `${stats.bestCrew.key} people` : "—"} sub={stats.bestCrew ? `${fmtNum(stats.bestCrew.cph)} cases/hr` : null} highlight info={INFO.comparisons.bestCrew} />
+          <Tile label="Best Start Time" value={stats.bestStart?.key || "—"} sub={stats.bestStart ? `${fmtNum(stats.bestStart.cph)} cases/hr · ${stats.bestStart.shifts} shifts` : null} info={INFO.comparisons.bestStart} />
+          <Tile label="Downtime Cost" value={fmt$(stats.downtimeLabor)} sub={`${fmtNum(stats.downtimeHours)} hr across ${stats.downtimeShifts} shifts`} info={INFO.comparisons.downtimeCost} />
+          <Tile label="Lost to Downtime" value={fmtInt(stats.downtimeCasesLost)} sub={avgCasePrice != null ? `${fmt$(stats.downtimeCasesLost * avgCasePrice)} est. value` : "cases not made"} info={INFO.comparisons.downtimeLost} />
+          <Tile label="Waste (Pops)" value={fmtInt(stats.wastePops)} sub={`${fmtInt(stats.wasteGallons)} gallons`} info={INFO.comparisons.wastePops} />
+          <Tile label="Sell-Through" value={stats.sellThrough != null ? fmtPct(stats.sellThrough) : "—"} sub={`${fmtInt(casesSold)} sold ÷ ${fmtInt(stats.produced)} made`} info={INFO.comparisons.sellThrough} />
+          <Tile label="Stock Runway" value={stats.runwayWeeks != null ? `${fmtNum(stats.runwayWeeks)} wks` : "—"} sub={`${fmtInt(stockCases)} cases on hand`} info={INFO.comparisons.runway} />
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
         <div className="bg-card rounded-2xl border border-border p-5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Weekday Showdown</p>
+          <div className="flex items-center gap-1.5 mb-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Weekday Showdown</p>
+            <InfoButton {...INFO.comparisons.weekdayTable} />
+          </div>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-muted-foreground text-left border-b border-border">
@@ -159,7 +167,10 @@ export default function ComparisonsSection({ shifts, rates, taxRate, avgCasePric
         </div>
 
         <div className="bg-card rounded-2xl border border-border p-5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Crew Size vs Speed</p>
+          <div className="flex items-center gap-1.5 mb-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Crew Size vs Speed</p>
+            <InfoButton {...INFO.comparisons.crewTable} />
+          </div>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-muted-foreground text-left border-b border-border">
@@ -184,7 +195,10 @@ export default function ComparisonsSection({ shifts, rates, taxRate, avgCasePric
         </div>
 
         <div className="bg-card rounded-2xl border border-border p-5">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Start Time Comparison</p>
+          <div className="flex items-center gap-1.5 mb-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Start Time Comparison</p>
+            <InfoButton {...INFO.comparisons.startTable} />
+          </div>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-muted-foreground text-left border-b border-border">
@@ -215,12 +229,14 @@ export default function ComparisonsSection({ shifts, rates, taxRate, avgCasePric
           withLabel="With a lead" withoutLabel="No lead"
           withVal={stats.lead.with} withoutVal={stats.lead.without}
           withN={stats.lead.withN} withoutN={stats.lead.withoutN}
+          info={INFO.comparisons.leadCard}
         />
         <CompareCard
           title="Training Shifts"
           withLabel="Trainees present" withoutLabel="Full crew"
           withVal={stats.training.with} withoutVal={stats.training.without}
           withN={stats.training.withN} withoutN={stats.training.withoutN}
+          info={INFO.comparisons.trainingCard}
         />
       </div>
     </Section>

@@ -3,8 +3,9 @@ import { TrendingUp, ChevronDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
+import InfoButton from "@/components/bigboy/InfoButton";
 
-export default function TopEmployeesCard({ empStats }) {
+export default function TopEmployeesCard({ empStats, info }) {
   const [selectedId, setSelectedId] = useState(null);
   const [isPpm, setIsPpm] = useRateUnit();
   const top5 = empStats.slice(0, 5);
@@ -22,6 +23,7 @@ export default function TopEmployeesCard({ empStats }) {
       <div className="flex items-center gap-2 mb-1">
         <TrendingUp className="w-5 h-5 text-primary" />
         <h3 className="font-heading font-semibold text-lg">Top Employees</h3>
+        {info && <InfoButton {...info} />}
       </div>
       <div className="flex items-center gap-2 mb-4">
         <p className="text-sm text-muted-foreground">By average {isPpm ? "pops/min" : "cases/hr"}</p>

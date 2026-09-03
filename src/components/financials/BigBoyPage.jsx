@@ -26,6 +26,7 @@ import BestPairingsCard from "@/components/dashboard/BestPairingsCard";
 import PositionMVPsCard from "@/components/dashboard/PositionMVPsCard";
 import MostValuableTeamCard from "@/components/dashboard/MostValuableTeamCard";
 import ShiftLeadCompetitionCard from "@/components/dashboard/ShiftLeadCompetitionCard";
+import { INFO } from "@/components/bigboy/explanations";
 
 const GALLONS_PER_CASE = 3;
 const CASES_PER_PALLET = 66;
@@ -378,14 +379,14 @@ export default function BigBoyPage({
         <h2 className="font-heading font-semibold text-lg mb-1">Team Performance</h2>
         <p className="text-xs text-muted-foreground mb-4">All time · dream team, top employees, best pairings, position MVPs, MVT, and shift lead leaderboard.</p>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          <DreamTeamCard dreamTeam={dreamTeam} />
-          <TopEmployeesCard empStats={empEntries} />
-          <BestPairingsCard shifts={shifts} employees={activeEmployees} />
+          <DreamTeamCard dreamTeam={dreamTeam} info={INFO.team.dream} />
+          <TopEmployeesCard empStats={empEntries} info={INFO.team.topEmployees} />
+          <BestPairingsCard shifts={shifts} employees={activeEmployees} info={INFO.team.pairings} />
         </div>
-        <PositionMVPsCard shifts={shifts} employees={activeEmployees} packConstants={pack} avgCasePrice={avgCasePrice} />
-        <MostValuableTeamCard shifts={shifts} employees={activeEmployees} packConstants={pack} avgCasePrice={avgCasePrice} />
+        <PositionMVPsCard shifts={shifts} employees={activeEmployees} packConstants={pack} avgCasePrice={avgCasePrice} info={INFO.team.mvps} />
+        <MostValuableTeamCard shifts={shifts} employees={activeEmployees} packConstants={pack} avgCasePrice={avgCasePrice} info={INFO.team.mvt} />
         <div className="mt-6">
-          <ShiftLeadCompetitionCard shifts={shifts} employees={activeEmployees} periodLabel="All Time" />
+          <ShiftLeadCompetitionCard shifts={shifts} employees={activeEmployees} periodLabel="All Time" info={INFO.team.leads} />
         </div>
       </div>
 
@@ -394,7 +395,7 @@ export default function BigBoyPage({
       <FinancialSection finances={finances} monthlyRows={monthlyRows} taxRate={taxRate} />
 
       <div className="mb-10">
-        <PayPeriodsCard employees={employees} rates={rates} timeEntries={timeEntries} taxRate={taxRate} />
+        <PayPeriodsCard employees={employees} rates={rates} timeEntries={timeEntries} taxRate={taxRate} info={INFO.team.payPeriods} />
       </div>
 
       <SalesSection sales={sales} finances={finances} totalCasesProduced={totals.cases} />
@@ -408,7 +409,7 @@ export default function BigBoyPage({
       />
 
       <div className="mb-6">
-        <InventoryValueCard />
+        <InventoryValueCard info={INFO.team.inventoryValue} />
       </div>
     </div>
   );

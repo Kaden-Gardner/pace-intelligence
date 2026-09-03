@@ -46,7 +46,9 @@ const MVP_AWARDS = [
   { key: "shift_lead", abbr: "MVL", title: "Most Valuable Leader", kind: "leader", label: "Shift Lead", unit: "pallets", color: "bg-emerald-100 text-emerald-800" },
 ];
 
-export default function PositionMVPsCard({ shifts, employees, packConstants, avgCasePrice }) {
+import InfoButton from "@/components/bigboy/InfoButton";
+
+export default function PositionMVPsCard({ shifts, employees, packConstants, avgCasePrice, info }) {
   const empMap = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
 
   const mvps = useMemo(() => {
@@ -106,6 +108,7 @@ export default function PositionMVPsCard({ shifts, employees, packConstants, avg
       <div className="flex items-center gap-2 mb-1">
         <Crown className="w-5 h-5 text-primary" />
         <h2 className="font-heading font-semibold text-lg">Position MVPs</h2>
+        {info && <InfoButton {...info} />}
       </div>
       <p className="text-xs text-muted-foreground mb-4">All time · highest lifetime production per job</p>
       <div className="bg-card rounded-2xl border border-border p-6">

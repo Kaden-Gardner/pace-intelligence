@@ -58,7 +58,9 @@ function getShiftMetric(shift, statKey, pack) {
   }
 }
 
-export default function MostValuableTeamCard({ shifts, employees, packConstants, avgCasePrice }) {
+import InfoButton from "@/components/bigboy/InfoButton";
+
+export default function MostValuableTeamCard({ shifts, employees, packConstants, avgCasePrice, info }) {
   const [stat, setStat] = useState("pallets");
   const empMap = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
 
@@ -92,6 +94,7 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants,
       <div className="flex items-center gap-2 mb-1">
         <Trophy className="w-5 h-5 text-primary" />
         <h2 className="font-heading font-semibold text-lg">MVT — Most Valuable Team</h2>
+        {info && <InfoButton {...info} />}
       </div>
       <p className="text-xs text-muted-foreground mb-4">All time · recurring crew with the highest combined output</p>
       <div className="bg-card rounded-2xl border border-border p-6">

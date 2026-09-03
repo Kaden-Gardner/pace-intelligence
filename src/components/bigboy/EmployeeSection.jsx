@@ -1,10 +1,16 @@
 import Section from "@/components/bigboy/Section";
+import InfoButton from "@/components/bigboy/InfoButton";
+import { INFO } from "@/components/bigboy/explanations";
 import { fmtInt, fmtNum, fmt$ } from "@/components/bigboy/format";
 
 export default function EmployeeSection({ rows, avgCasePrice }) {
   return (
     <Section title="Every Employee — Lifetime Stats" subtitle="All-time production per employee across every position they've worked, with pay from clocked hours.">
       <div className="bg-card rounded-2xl border border-border p-5 overflow-x-auto">
+        <div className="flex items-center gap-1.5 mb-4">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">How to read this table</p>
+          <InfoButton {...INFO.employees.table} />
+        </div>
         <table className="w-full text-xs">
           <thead>
             <tr className="text-muted-foreground text-left border-b border-border">

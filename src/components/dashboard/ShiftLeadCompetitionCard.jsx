@@ -96,7 +96,9 @@ function fmtHours(h) {
 
 const MEDALS = ["🥇", "🥈", "🥉"];
 
-export default function ShiftLeadCompetitionCard({ shifts, employees, periodLabel }) {
+import InfoButton from "@/components/bigboy/InfoButton";
+
+export default function ShiftLeadCompetitionCard({ shifts, employees, periodLabel, info }) {
   const leaders = computeShiftLeadStats(shifts, employees);
 
   return (
@@ -104,6 +106,7 @@ export default function ShiftLeadCompetitionCard({ shifts, employees, periodLabe
       <div className="flex items-center gap-2 mb-1">
         <Trophy className="w-5 h-5 text-primary" />
         <h3 className="font-heading font-semibold text-lg">Supervisor Friendly Competition</h3>
+        {info && <InfoButton {...info} />}
       </div>
       <p className="text-sm text-muted-foreground mb-5">Stats as Shift Lead · {periodLabel || "all time"}</p>
 

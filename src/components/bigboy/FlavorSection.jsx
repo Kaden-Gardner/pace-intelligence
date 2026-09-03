@@ -1,5 +1,7 @@
 import Section from "@/components/bigboy/Section";
 import Tile from "@/components/bigboy/Tile";
+import InfoButton from "@/components/bigboy/InfoButton";
+import { INFO } from "@/components/bigboy/explanations";
 import { fmtInt, fmtPct, fmt$ } from "@/components/bigboy/format";
 import FlavorBreakdownCard from "@/components/dashboard/FlavorBreakdownCard";
 
@@ -19,14 +21,17 @@ export default function FlavorSection({ flavorStats, palletsOnHand, singlesOnHan
   return (
     <Section title="Flavors, Flavorsets & Stock on Hand" subtitle="Production and sales by flavorset and individual flavor, plus everything currently in stock.">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-        <Tile label="Pallets on Hand" value={fmtInt(totalPallets)} sub={`${palletsOnHand.length} flavorsets stocked`} />
-        <Tile label="Individual Cases on Hand" value={fmtInt(totalSingles)} sub={`${singlesOnHand.length} flavors stocked`} />
-        <Tile label="Flavorset Cases Produced" value={fmtInt(fsProdTotal)} sub="all time" />
-        <Tile label="Individual Cases Produced" value={fmtInt(flProdTotal)} sub="all time" />
+        <Tile label="Pallets on Hand" value={fmtInt(totalPallets)} sub={`${palletsOnHand.length} flavorsets stocked`} info={INFO.flavors.palletsOnHand} />
+        <Tile label="Individual Cases on Hand" value={fmtInt(totalSingles)} sub={`${singlesOnHand.length} flavors stocked`} info={INFO.flavors.singlesOnHand} />
+        <Tile label="Flavorset Cases Produced" value={fmtInt(fsProdTotal)} sub="all time" info={INFO.flavors.fsProduced} />
+        <Tile label="Individual Cases Produced" value={fmtInt(flProdTotal)} sub="all time" info={INFO.flavors.flProduced} />
       </div>
 
       <div className="bg-card rounded-2xl border border-border p-5 mb-6 overflow-x-auto">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Flavorsets — Production vs Sales</p>
+        <div className="flex items-center gap-1.5 mb-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Flavorsets — Production vs Sales</p>
+          <InfoButton {...INFO.flavors.fsTable} />
+        </div>
         <table className="w-full text-xs">
           <thead>
             <tr className="text-muted-foreground text-left border-b border-border">
@@ -60,7 +65,10 @@ export default function FlavorSection({ flavorStats, palletsOnHand, singlesOnHan
       </div>
 
       <div className="bg-card rounded-2xl border border-border p-5 mb-6 overflow-x-auto">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Individual Flavors — Production vs Sales</p>
+        <div className="flex items-center gap-1.5 mb-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Individual Flavors — Production vs Sales</p>
+          <InfoButton {...INFO.flavors.flTable} />
+        </div>
         <table className="w-full text-xs">
           <thead>
             <tr className="text-muted-foreground text-left border-b border-border">
@@ -94,7 +102,10 @@ export default function FlavorSection({ flavorStats, palletsOnHand, singlesOnHan
       </div>
 
       <div className="mb-6">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Individual Flavor Production Share</p>
+        <div className="flex items-center gap-1.5 mb-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Individual Flavor Production Share</p>
+          <InfoButton {...INFO.flavors.shareChart} />
+        </div>
         <FlavorBreakdownCard flavorCases={flavorCasesMap} flavorColorMap={flavorColorMap} />
       </div>
     </Section>

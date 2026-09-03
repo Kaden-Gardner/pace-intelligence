@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 import { Warehouse, Package, FlaskConical, Snowflake } from "lucide-react";
+import InfoButton from "@/components/bigboy/InfoButton";
 
 const GALLONS_PER_BATCH = 240;
 const CASES_PER_PALLET = 66;
@@ -23,7 +24,7 @@ function ValueTile({ icon: Icon, label, value, sub, highlight }) {
   );
 }
 
-export default function InventoryValueCard() {
+export default function InventoryValueCard({ info }) {
   const [state, setState] = useState(null);
 
   useEffect(() => { load(); }, []);
@@ -129,6 +130,7 @@ export default function InventoryValueCard() {
         <div className="flex items-center gap-2">
           <Warehouse className="w-4 h-4 text-primary" />
           <p className="text-sm font-medium">Inventory Value In Stock</p>
+          {info && <InfoButton {...info} />}
         </div>
         <p className="text-xs text-muted-foreground">Materials & ingredients at cost · freezer product at avg sale price</p>
       </div>
