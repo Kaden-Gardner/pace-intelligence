@@ -516,7 +516,7 @@ export const INFO = {
     },
     pairings: {
       title: "Best Pairings",
-      calc: "Every pair of employees who worked 2+ shifts together, ranked by the average cases/hr (or pops/min) of their shared shifts.",
+      calc: "Every pair of current, non-terminated employees who worked 2+ shifts together, ranked by the average cases/hr (or pops/min) of their shared shifts. Terminated employees never appear in a pairing.",
       usage: "Which duos click — use it to seed crews and to pair trainees with mentors.",
       display: "List of pairs with their shared shift count and average rate; the switch flips the rate unit.",
     },

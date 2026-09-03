@@ -194,8 +194,11 @@ export function findDreamTeam(shifts, employees, laborData) {
 export function findBestPairings(shifts, employees) {
   const pairScores = {};
 
+  // Only current, non-terminated employees can appear in a pairing.
+  const eligibleIds = new Set(employees.filter((e) => !e.terminated).map((e) => e.id));
+
   shifts.forEach((shift) => {
-    const crew = getShiftEmployees(shift);
+    const crew = getShiftEmployees(shift).filter((id) => eligibleIds.has(id));
     const cph = getCasesPerHour(shift);
 
     for (let i = 0; i < crew.length; i++) {
