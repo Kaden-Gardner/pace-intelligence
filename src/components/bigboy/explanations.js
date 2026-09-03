@@ -516,7 +516,7 @@ export const INFO = {
     },
     pairings: {
       title: "Best Pairings",
-      calc: "Every pair of current, non-terminated employees who worked 2+ shifts together, ranked by the average cases/hr (or pops/min) of their shared shifts. Terminated employees never appear in a pairing.",
+      calc: "Every pair of current employees who worked 2+ shifts together, ranked by the average cases/hr (or pops/min) of their shared shifts. Any shift featuring a terminated employee is excluded from the data set entirely, so pairings only reflect fully-current crews.",
       usage: "Which duos click — use it to seed crews and to pair trainees with mentors.",
       display: "List of pairs with their shared shift count and average rate; the switch flips the rate unit.",
     },
@@ -528,7 +528,7 @@ export const INFO = {
     },
     mvt: {
       title: "MVT — Most Valuable Team",
-      calc: "Shifts are grouped by exact crew (the same people working together); only crews with 2+ shared shifts count. The stat picker ranks them by combined output — pallets uses the same sum-then-convert math as the MVL; other stats sum each shift's raw metric.",
+      calc: "Shifts are grouped by exact crew (the same people working together); only crews with 2+ shared shifts count, and any shift featuring a terminated employee is excluded from the data set entirely. The stat picker ranks them by combined output — pallets uses the same sum-then-convert math as the MVL; other stats sum each shift's raw metric.",
       usage: "The recurring crew that out-produces every other recurring crew — use the Team Combination dropdown to browse every recurring crew with their shared shifts and pallets completed together.",
       display: "Crew names as chips with the combined total, shift count, pallets completed, crew size, and estimated dollar value; the dropdown lists every recurring team combination.",
     },

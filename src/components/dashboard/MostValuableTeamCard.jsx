@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { getTotalCases, getTraineeId } from "@/lib/analyticsHelpers";
+import { excludeShiftsWithTerminated, getTotalCases, getTraineeId } from "@/lib/analyticsHelpers";
 import { Users, Trophy } from "lucide-react";
 import {
   Select,
@@ -66,11 +66,17 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants,
 
   const [selectedSig, setSelectedSig] = useState(null);
 
+  // Any shift featuring a terminated employee is excluded from the data set entirely.
+  const eligibleShifts = useMemo(
+    () => excludeShiftsWithTerminated(shifts, employees),
+    [shifts, employees]
+  );
+
   // All recurring team combinations (same exact crew, 2+ shifts together),
   // ranked by the currently selected stat.
   const teams = useMemo(() => {
     const groups = {};
-    shifts.forEach((shift) => {
+    eligibleShifts.forEach((shift) => {
       const ids = getShiftCrew(shift);
       if (ids.length < 2) return; // a team needs at least 2 members
       const sig = ids.join(",");
@@ -90,7 +96,7 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants,
         return { sig: g.ids.join(","), ids: g.ids, shiftCount: g.shifts.length, totalCases, pallets, total };
       })
       .sort((a, b) => b.total - a.total);
-  }, [shifts, stat, packConstants]);
+  }, [eligibleShifts, stat, packConstants]);
 
   const selected = teams.find((t) => t.sig === selectedSig) || teams[0] || null;
   const teamNames = (t) => t.ids.map((id) => empMap[id]?.name).filter(Boolean).sort((a, b) => a.localeCompare(b));

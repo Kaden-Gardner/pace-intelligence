@@ -39,6 +39,14 @@ export function getShiftEmployees(shift) {
   return [...employees].filter(Boolean);
 }
 
+// Shifts crewed entirely by current, non-terminated employees — any shift that
+// features a terminated employee is excluded from the data set entirely.
+export function excludeShiftsWithTerminated(shifts, employees) {
+  const terminatedIds = new Set(employees.filter((e) => e.terminated).map((e) => e.id));
+  if (terminatedIds.size === 0) return shifts;
+  return shifts.filter((s) => getShiftEmployees(s).every((id) => !terminatedIds.has(id)));
+}
+
 export function getEmployeePosition(shift, employeeId) {
   const positions = [];
   if (shift.filling_employee === employeeId) positions.push("Filling");
@@ -196,11 +204,9 @@ export function findDreamTeam(shifts, employees, laborData) {
 export function findBestPairings(shifts, employees) {
   const pairScores = {};
 
-  // Only current, non-terminated employees can appear in a pairing.
-  const eligibleIds = new Set(employees.filter((e) => !e.terminated).map((e) => e.id));
-
-  shifts.forEach((shift) => {
-    const crew = getShiftEmployees(shift).filter((id) => eligibleIds.has(id));
+  // Any shift featuring a terminated employee is excluded from the data set entirely.
+  excludeShiftsWithTerminated(shifts, employees).forEach((shift) => {
+    const crew = getShiftEmployees(shift);
     const cph = getCasesPerHour(shift);
 
     for (let i = 0; i < crew.length; i++) {
