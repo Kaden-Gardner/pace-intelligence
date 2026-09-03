@@ -416,7 +416,7 @@ export default function Employees() {
                       />
                     </div>
                     {showMilestones[emp.id] && (
-                      <EmployeeMilestoneTracker lifetimePops={lifetimePopsByEmp[emp.id] || 0} compact />
+                      <EmployeeMilestoneTracker lifetimePops={lifetimePopsByEmp[emp.id] || 0} compact embedded />
                     )}
                   </div>
                 )}

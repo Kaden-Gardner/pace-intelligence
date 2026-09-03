@@ -30,7 +30,7 @@ function formatPops(n) {
   return `${Math.round(n)}`;
 }
 
-export default function EmployeeMilestoneTracker({ lifetimePops = 0, compact = false }) {
+export default function EmployeeMilestoneTracker({ lifetimePops = 0, compact = false, embedded = false }) {
   const pops = Math.max(0, lifetimePops);
   const reached = MILESTONES.filter((m) => pops >= m);
   const lastReached = reached.length > 0 ? reached[reached.length - 1] : 0;
@@ -43,7 +43,7 @@ export default function EmployeeMilestoneTracker({ lifetimePops = 0, compact = f
 
   if (compact) {
     return (
-      <div className="mt-3 pt-3 border-t border-border">
+      <div className={embedded ? "mt-2" : "mt-3 pt-3 border-t border-border"}>
         <div className="flex items-center gap-1.5 mb-1.5">
           <Trophy className="w-3.5 h-3.5 text-primary" />
           <span className="text-xs font-medium text-muted-foreground">Popsicle Milestones</span>
