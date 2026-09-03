@@ -17,6 +17,7 @@ import EmployeeSection from "@/components/bigboy/EmployeeSection";
 import FinancialSection from "@/components/bigboy/FinancialSection";
 import SalesSection from "@/components/bigboy/SalesSection";
 import FlavorSection from "@/components/bigboy/FlavorSection";
+import ComparisonsSection from "@/components/bigboy/ComparisonsSection";
 import InventoryValueCard from "@/components/financials/InventoryValueCard";
 import PayPeriodsCard from "@/components/financials/PayPeriodsCard";
 import DreamTeamCard from "@/components/dashboard/DreamTeamCard";
@@ -255,6 +256,7 @@ export default function BigBoyPage({
         });
         const clockedH = clocked[emp.id] || 0;
         const rate = rateMap[emp.id]?.hourly_rate || 0;
+        const effRate = rate * (1 + (taxRate || 0) / 100);
         return {
           id: emp.id, name: emp.name, number: emp.employee_number,
           active: emp.active !== false && !emp.terminated,
@@ -263,11 +265,11 @@ export default function BigBoyPage({
           schedHours: st.totalHours, clockedH,
           cases: st.totalCases,
           cph: st.totalHours > 0 ? st.totalCases / st.totalHours : 0,
-          pos, pay: clockedH * rate,
+          pos, pay: clockedH * effRate,
         };
       })
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [employees, empStats, shifts, pack, rateMap, timeEntries]);
+  }, [employees, empStats, shifts, pack, rateMap, timeEntries, taxRate]);
 
   // ── Sales stats ──
   const sales = useMemo(() => {
@@ -318,21 +320,23 @@ export default function BigBoyPage({
 
   const palletsOnHand = useMemo(() => (inventory || []).filter((i) => i.flavorset_id), [inventory]);
   const singlesOnHand = useMemo(() => (inventory || []).filter((i) => i.flavor_id), [inventory]);
+  const stockCases = useMemo(() => [...palletsOnHand, ...singlesOnHand].reduce((s, i) => s + (i.cases || 0), 0), [palletsOnHand, singlesOnHand]);
 
   const weeklyData = useMemo(() => getWeeklyProductionData(shifts), [shifts]);
   const individualColor = useMemo(() => localStorage.getItem("individualCasesColor") || "#7c3aed", []);
 
   const currentYear = new Date().getFullYear();
   const milestone = useMemo(() => {
-    let pops = 0, cases = 0;
+    let pops = 0, revenue = 0;
+    const yr = String(currentYear);
     shifts.forEach((s) => {
       if (parseInt(s.shift_date?.slice(0, 4), 10) !== currentYear) return;
       const c = getTotalCases(s);
-      cases += c;
       pops += c * (s.popsicles_per_case || pack.popsPerCase);
     });
-    return { year: currentYear, yearPops: pops, yearDollars: avgCasePrice != null ? cases * avgCasePrice : null };
-  }, [shifts, pack, avgCasePrice, currentYear]);
+    orders.forEach((o) => { if (o.pickup_date?.startsWith(yr)) revenue += fnRef.current.orderRevenue(o); });
+    return { year: currentYear, yearPops: pops, yearDollars: revenue > 0 ? revenue : null };
+  }, [shifts, pack, orders, currentYear]);
 
   return (
     <div>
@@ -358,6 +362,16 @@ export default function BigBoyPage({
         flavorSets={flavorSets}
         individualColor={individualColor}
         milestone={milestone}
+      />
+
+      <ComparisonsSection
+        shifts={shifts}
+        rates={rates}
+        taxRate={taxRate}
+        avgCasePrice={avgCasePrice}
+        casesSold={finances.casesSold}
+        stockCases={stockCases}
+        spanDays={totals.spanDays}
       />
 
       <div className="mb-10">
