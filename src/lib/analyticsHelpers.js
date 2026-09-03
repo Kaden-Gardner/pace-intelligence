@@ -184,9 +184,11 @@ export function findDreamTeam(shifts, employees, laborData) {
   });
   if (scored.length === 0) return [];
 
-  return scored[0].crew
+  // Never show terminated employees — the dream team must be a crew you could actually field.
+  const activeCrew = scored[0].crew
     .map((id) => employees.find((e) => e.id === id))
-    .filter(Boolean);
+    .filter((e) => e && !e.terminated);
+  return activeCrew;
 }
 
 export function findBestPairings(shifts, employees) {

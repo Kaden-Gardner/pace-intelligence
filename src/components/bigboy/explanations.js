@@ -504,8 +504,8 @@ export const INFO = {
   team: {
     dream: {
       title: "Dream Team",
-      calc: "From all shifts, the crew the analytics engine scores highest across return on labor cost (production value vs. what the crew cost), total cases, line speed and crew size.",
-      usage: "If you could staff a shift with any crew from history, this is it — use it for high-stakes runs.",
+      calc: "From all shifts, the crew the analytics engine scores highest across return on labor cost (production value vs. what the crew cost), total cases, line speed and crew size. Terminated employees are filtered out of the winning crew.",
+      usage: "If you could staff a shift with any crew from history, this is it — use it for high-stakes runs. Only current employees are ever listed.",
       display: "Ranked list with employee numbers; appears once several shifts of data exist.",
     },
     topEmployees: {
