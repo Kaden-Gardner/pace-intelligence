@@ -1,0 +1,48 @@
+{
+  "name": "PayPeriodSettings",
+  "type": "object",
+  "properties": {
+    "period_days": {
+      "type": "number",
+      "title": "Pay Period Length (days)",
+      "default": 14
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "First Pay Period Start Date"
+    },
+    "pay_day": {
+      "type": "number",
+      "title": "Pay Day (0 = Sunday, 6 = Saturday)",
+      "default": 5
+    }
+  },
+  "required": [
+    "period_days",
+    "start_date",
+    "pay_day"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

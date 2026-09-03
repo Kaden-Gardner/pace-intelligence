@@ -15,6 +15,7 @@ import CostBreakdownTab from "@/components/financials/CostBreakdownTab";
 import ShiftDiagnosticDialog from "@/components/financials/ShiftDiagnosticDialog";
 import InventoryValueCard from "@/components/financials/InventoryValueCard";
 import FacilityCostCard from "@/components/financials/FacilityCostCard";
+import PayPeriodsCard from "@/components/financials/PayPeriodsCard";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const GALLONS_PER_BATCH = 240;
@@ -1035,6 +1036,8 @@ export default function Financials() {
               );
             })}
           </div>
+
+          <PayPeriodsCard employees={employees} rates={rates} timeEntries={timeEntries} taxRate={taxRate} />
         </TabsContent>
 
         {/* ===== SHIFTS ===== */}
