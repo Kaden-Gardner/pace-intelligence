@@ -64,7 +64,11 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants,
   const [stat, setStat] = useState("pallets");
   const empMap = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
 
-  const best = useMemo(() => {
+  const [selectedSig, setSelectedSig] = useState(null);
+
+  // All recurring team combinations (same exact crew, 2+ shifts together),
+  // ranked by the currently selected stat.
+  const teams = useMemo(() => {
     const groups = {};
     shifts.forEach((shift) => {
       const ids = getShiftCrew(shift);
@@ -74,18 +78,22 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants,
       groups[sig].shifts.push(shift);
     });
 
-    let top = null;
-    Object.values(groups).forEach((g) => {
-      if (g.shifts.length < 2) return; // recurring team only (same crew, 2+ shifts)
-      const totalCases = g.shifts.reduce((sum, s) => sum + getTotalCases(s), 0);
-      // Pallets use the same math as the MVL: sum cases first, then divide by 66.
-      const total = stat === "pallets"
-        ? Math.floor(totalCases / PALLET_CASES)
-        : g.shifts.reduce((sum, s) => sum + getShiftMetric(s, stat, packConstants), 0);
-      if (!top || total > top.total) top = { ids: g.ids, shiftCount: g.shifts.length, total, totalCases };
-    });
-    return top;
+    return Object.values(groups)
+      .filter((g) => g.shifts.length >= 2) // recurring team only
+      .map((g) => {
+        const totalCases = g.shifts.reduce((sum, s) => sum + getTotalCases(s), 0);
+        // Pallets use the same math as the MVL: sum cases first, then divide by 66.
+        const pallets = Math.floor(totalCases / PALLET_CASES);
+        const total = stat === "pallets"
+          ? pallets
+          : g.shifts.reduce((sum, s) => sum + getShiftMetric(s, stat, packConstants), 0);
+        return { sig: g.ids.join(","), ids: g.ids, shiftCount: g.shifts.length, totalCases, pallets, total };
+      })
+      .sort((a, b) => b.total - a.total);
   }, [shifts, stat, packConstants]);
+
+  const selected = teams.find((t) => t.sig === selectedSig) || teams[0] || null;
+  const teamNames = (t) => t.ids.map((id) => empMap[id]?.name).filter(Boolean).sort((a, b) => a.localeCompare(b));
 
   const statLabel = STAT_OPTIONS.find((o) => o.value === stat)?.label.toLowerCase() || stat;
 
@@ -111,10 +119,27 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants,
             </SelectContent>
           </Select>
         </div>
-        {best ? (
+        {teams.length > 0 ? (
+          <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+            <span className="text-xs font-medium text-muted-foreground">Team combination</span>
+            <Select value={selected.sig} onValueChange={setSelectedSig}>
+              <SelectTrigger className="flex-1 min-w-[180px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {teams.map((t) => (
+                  <SelectItem key={t.sig} value={t.sig} className="text-xs whitespace-normal">
+                    {teamNames(t).join(", ")} — {t.shiftCount} shifts · {t.pallets} pallets
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : null}
+        {selected ? (
           <>
             <div className="flex flex-wrap gap-2 mb-5">
-              {best.ids
+              {selected.ids
                 .map((id) => empMap[id]?.name)
                 .filter(Boolean)
                 .sort((a, b) => a.localeCompare(b))
@@ -127,17 +152,18 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants,
             </div>
             <div className="flex items-end justify-between gap-4">
               <div>
-                <p className="text-3xl font-heading font-bold text-primary">{Math.round(best.total).toLocaleString()}</p>
+                <p className="text-3xl font-heading font-bold text-primary">{Math.round(selected.total).toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">{statLabel} combined</p>
                 {avgCasePrice != null && (
                   <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium mt-1">
-                    {(best.totalCases * avgCasePrice).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
+                    {(selected.totalCases * avgCasePrice).toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 })}
                   </p>
                 )}
               </div>
               <div className="text-right">
-                <p className="text-sm font-medium">{best.shiftCount} shifts together</p>
-                <p className="text-xs text-muted-foreground">{best.ids.length} crew members</p>
+                <p className="text-sm font-medium">{selected.shiftCount} shifts together</p>
+                <p className="text-xs text-muted-foreground">{selected.pallets.toLocaleString()} pallets completed together</p>
+                <p className="text-xs text-muted-foreground">{selected.ids.length} crew members</p>
               </div>
             </div>
           </>

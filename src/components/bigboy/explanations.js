@@ -529,8 +529,8 @@ export const INFO = {
     mvt: {
       title: "MVT — Most Valuable Team",
       calc: "Shifts are grouped by exact crew (the same people working together); only crews with 2+ shared shifts count. The stat picker ranks them by combined output — pallets uses the same sum-then-convert math as the MVL; other stats sum each shift's raw metric.",
-      usage: "The recurring crew that out-produces every other recurring crew.",
-      display: "Crew names as chips with the combined total, shift count, crew size, and estimated dollar value.",
+      usage: "The recurring crew that out-produces every other recurring crew — use the Team Combination dropdown to browse every recurring crew with their shared shifts and pallets completed together.",
+      display: "Crew names as chips with the combined total, shift count, pallets completed, crew size, and estimated dollar value; the dropdown lists every recurring team combination.",
     },
     leads: {
       title: "Supervisor Friendly Competition",
