@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
-import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake, Briefcase } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake, Briefcase, Trophy } from "lucide-react";
 import { getBestPosition, getEmployeePosition, getShiftEmployees, getTotalCases, getCasesPerHour, POSITION_PRODUCTION, getPositionProduction, resolvePackConstants } from "../lib/analyticsHelpers";
 import { POSITIONS, positionLabel } from "@/lib/positions";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ export default function Employees() {
   const [flavors, setFlavors] = useState([]);
 
   const [selectedPosition, setSelectedPosition] = useState({}); // empId -> position string
+  const [showMilestones, setShowMilestones] = useState({}); // empId -> milestone visible (non-admins)
   const [packConstants, setPackConstants] = useState({});
 
   async function load() {
@@ -400,9 +401,24 @@ export default function Employees() {
                   );
                 })()}
 
-                {/* Popsicle milestone — admin only, so we can congratulate them */}
-                {isAdmin && (
+                {/* Popsicle milestone — always shown for admins; non-admins toggle it per employee */}
+                {isAdmin ? (
                   <EmployeeMilestoneTracker lifetimePops={lifetimePopsByEmp[emp.id] || 0} compact />
+                ) : (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                        <Trophy className="w-3.5 h-3.5 text-primary" /> Popsicle Milestones
+                      </span>
+                      <Switch
+                        checked={!!showMilestones[emp.id]}
+                        onCheckedChange={(v) => setShowMilestones((prev) => ({ ...prev, [emp.id]: v }))}
+                      />
+                    </div>
+                    {showMilestones[emp.id] && (
+                      <EmployeeMilestoneTracker lifetimePops={lifetimePopsByEmp[emp.id] || 0} compact />
+                    )}
+                  </div>
                 )}
 
                 {/* Admin actions only */}
