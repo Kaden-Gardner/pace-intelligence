@@ -242,6 +242,39 @@ export default function Financials() {
     return map;
   }, [shifts, supplyPrices]);
 
+  // Salary labor is treated as overhead: each salary employee accrues
+  // 40 hrs/week (80 hrs per biweekly pay period). The monthly pool is split
+  // evenly across every shift (production + base mix) in that month, exactly
+  // like the facility cost allocation — so salary labor is never tied to a
+  // single shift's clocked time.
+  const salaryOverheadByMonth = useMemo(() => {
+    const map = {};
+    const SALARY_HOURS_PER_DAY = 40 / 7;
+    const tRate = taxSettings?.tax_rate || 0;
+    const rateById = {};
+    rates.forEach((r) => { rateById[r.employee_id] = r.hourly_rate || 0; });
+    const counts = {};
+    [...shifts, ...baseMixShifts].forEach((s) => {
+      const d = new Date(s.shift_date + "T12:00:00");
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      counts[key] = (counts[key] || 0) + 1;
+    });
+    Object.keys(counts).forEach((key) => {
+      const [y, m] = key.split("-").map(Number);
+      const daysInMonth = new Date(y, m + 1, 0).getDate();
+      let pool = 0;
+      employees.forEach((e) => {
+        if (!e.is_salary || e.terminated) return;
+        const base = rateById[e.id] || 0;
+        if (!base) return;
+        const rate = base * (1 + tRate / 100);
+        pool += rate * SALARY_HOURS_PER_DAY * daysInMonth;
+      });
+      map[key] = counts[key] > 0 ? pool / counts[key] : 0;
+    });
+    return map;
+  }, [shifts, baseMixShifts, employees, rates, taxSettings]);
+
   if (!isAdmin) {
     return (
       <div className="flex items-center justify-center py-24 text-muted-foreground">
@@ -364,6 +397,12 @@ export default function Financials() {
     setEditRateVal("");
   }
 
+  async function toggleSalary(emp) {
+    const val = !emp.is_salary;
+    await base44.entities.Employee.update(emp.id, { is_salary: val });
+    setEmployees((prev) => prev.map((e) => (e.id === emp.id ? { ...e, is_salary: val } : e)));
+  }
+
   async function saveTax() {
     const val = parseFloat(taxInput);
     if (isNaN(val) || val < 0) return;
@@ -409,6 +448,12 @@ export default function Financials() {
     return count > 0 ? monthlyFacilityCost / count : 0;
   }
 
+  function getSalaryOverheadForShift(shift) {
+    const d = new Date(shift.shift_date + "T12:00:00");
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    return salaryOverheadByMonth[key] || 0;
+  }
+
   // Helper: get age for an employee at time of a shift
   function getEmpAge(empId) {
     const emp = empMap[empId];
@@ -448,6 +493,7 @@ export default function Financials() {
     empIds.forEach((empId) => {
       const rate = getEffectiveRate(empId);
       if (!rate) return;
+      if (empMap[empId]?.is_salary) return; // salary labor is overhead, not per-shift
       const age = getEmpAge(empId);
       const isMinor = age !== null && age < 15;
       const MINOR_MAX_HOURS = 3;
@@ -470,8 +516,8 @@ export default function Financials() {
       if (isMinor) hours = Math.min(hours, MINOR_MAX_HOURS);
       totalCost += hours * rate;
     });
-    // Add the facility cost allocated to this shift (monthly facility cost ÷ shifts in this month)
-    totalCost += getFacilityCostForShift(shift);
+    // Add the facility cost + salary overhead allocated to this shift (monthly pools ÷ shifts in this month)
+    totalCost += getFacilityCostForShift(shift) + getSalaryOverheadForShift(shift);
     return totalCost;
   }
 
@@ -1007,8 +1053,17 @@ export default function Financials() {
               return (
                 <div key={emp.id} className="bg-card rounded-2xl border border-border p-4 flex items-center justify-between gap-4">
                   <div>
-                    <p className="font-medium">{emp.name}</p>
+                    <p className="font-medium flex items-center gap-2">
+                      {emp.name}
+                      {emp.is_salary && <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium bg-accent/15 text-accent">Salary</span>}
+                    </p>
                     <p className="text-xs text-muted-foreground">#{emp.employee_number}</p>
+                    {ratesUnlocked && (
+                      <label className="flex items-center gap-1.5 mt-1 cursor-pointer">
+                        <Switch checked={!!emp.is_salary} onCheckedChange={() => toggleSalary(emp)} />
+                        <span className="text-[11px] text-muted-foreground">Salary employee</span>
+                      </label>
+                    )}
                   </div>
                   {ratesUnlocked && editingRateId === emp.id ? (
                     <div className="flex items-center gap-2">
@@ -1175,6 +1230,13 @@ export default function Financials() {
                       <div className="flex flex-wrap gap-2">
                         {empIds.map((id) => {
                           const emp = empMap[id];
+                          if (emp?.is_salary) {
+                            return (
+                              <span key={id} className="text-xs px-2 py-1 bg-accent/10 text-accent rounded-lg flex items-center gap-1">
+                                {emp.name} · Salary
+                              </span>
+                            );
+                          }
                           const rate = getEffectiveRate(id);
                           const empEntries = timeEntries.filter((te) => te.employee_id === id || te.employee_number === emp?.employee_number);
                           const overlapping = empEntries.filter((te) => entryOverlapsShift(shift.shift_date, shift.shift_time || "06:00", shift.shift_duration || 8, te.clock_in, te.clock_out));

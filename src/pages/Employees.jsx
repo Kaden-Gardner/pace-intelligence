@@ -32,7 +32,7 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [] });
+  const [form, setForm] = useState({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [], is_salary: false });
   const [flavors, setFlavors] = useState([]);
 
   const [selectedPosition, setSelectedPosition] = useState({}); // empId -> position string
@@ -105,13 +105,14 @@ export default function Employees() {
       app_role: emp.app_role || "user",
       hired_for: emp.hired_for || "",
       cross_trained_positions: emp.cross_trained_positions || [],
+      is_salary: emp.is_salary || false,
     });
     setEditingId(emp.id);
     setShowForm(true);
   }
 
   function resetForm() {
-    setForm({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [] });
+    setForm({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [], is_salary: false });
     setEditingId(null);
     setShowForm(false);
   }
@@ -211,6 +212,11 @@ export default function Employees() {
               <Switch checked={form.active} onCheckedChange={(v) => setForm({ ...form, active: v })} />
               <span className="text-sm">Active</span>
             </div>
+            <div className="flex items-center gap-2 mt-2 sm:col-span-2">
+              <Switch checked={!!form.is_salary} onCheckedChange={(v) => setForm({ ...form, is_salary: v })} />
+              <span className="text-sm">Salary Employee</span>
+              <span className="text-xs text-muted-foreground">— paid a fixed 80 hrs/pay period; labor counted as overhead, no clock-in</span>
+            </div>
           </div>
 
           <div className="mt-4">
@@ -308,6 +314,9 @@ export default function Employees() {
                       }`}>
                         {emp.terminated ? "Terminated" : emp.active !== false ? "Active" : "Inactive"}
                       </div>
+                      {emp.is_salary && (
+                        <div className="text-xs px-2 py-0.5 rounded-full font-medium bg-accent/15 text-accent">Salary</div>
+                      )}
                       {emp.app_role === "admin" && (
                         <div className="flex items-center gap-1 text-xs text-accent bg-accent/10 px-2 py-0.5 rounded-full font-medium">
                           <Shield className="w-3 h-3" /> Admin

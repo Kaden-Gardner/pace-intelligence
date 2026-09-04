@@ -96,6 +96,11 @@ export default function TimeTracking() {
         setTerminalSaving(false);
         return;
       }
+      if (emp.is_salary) {
+        setTerminalStatus({ type: "error", message: `${emp.name} is a salary employee and doesn't clock in.` });
+        setTerminalSaving(false);
+        return;
+      }
       const activeEmpEntry = entries.find((e) =>
         (e.employee_id === emp.id || e.employee_number === emp.employee_number) &&
         e.clock_in && !e.clock_out
@@ -148,8 +153,13 @@ export default function TimeTracking() {
   const activeEntry = entries.find((e) => e.user_id === user?.id && e.clock_in && !e.clock_out);
 
   async function handleClockInWithGeo() {
-    setCheckingGeo(true);
     setGeoError(null);
+    const linkedEmp = employees.find((e) => e.employee_number === user?.employee_number);
+    if (linkedEmp?.is_salary) {
+      setGeoError("You're a salary employee — your time is tracked automatically.");
+      return;
+    }
+    setCheckingGeo(true);
     if (!navigator.geolocation) {
       setGeoError("Geolocation not supported by your browser.");
       setCheckingGeo(false);

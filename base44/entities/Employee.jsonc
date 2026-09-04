@@ -29,6 +29,12 @@
       "title": "Terminated",
       "default": false
     },
+    "is_salary": {
+      "type": "boolean",
+      "title": "Salary Employee",
+      "default": false,
+      "description": "Salary employees are paid a fixed 80 hours per pay period (40 hrs/week). Their labor is calculated as overhead distributed across all shifts (like facility cost), and they do not clock in."
+    },
     "hired_for": {
       "type": "string",
       "title": "Hired For Position",

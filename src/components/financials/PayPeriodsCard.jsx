@@ -128,6 +128,22 @@ export default function PayPeriodsCard({ employees, rates, timeEntries, taxRate,
       out[idx].hours += hours;
       out[idx].pay += hours * rate;
     });
+
+    // Salary employees earn a fixed 40 hrs/week (40/7 × period days = 80 for
+    // biweekly) every pay period — no clock entries. Add their fixed hours +
+    // pay to each period. Terminated salary employees stop accruing.
+    const periodDays = settings?.period_days || 14;
+    const salaryHoursPerPeriod = (40 / 7) * periodDays;
+    employees.forEach((e) => {
+      if (!e.is_salary || e.terminated) return;
+      const rate = rateById[e.id] || 0;
+      if (!rate) return;
+      out.forEach((p) => {
+        p.hours += salaryHoursPerPeriod;
+        p.pay += salaryHoursPerPeriod * rate;
+      });
+    });
+
     return { list: out, unpricedHours };
   }, [periods, rates, employees, timeEntries]);
 
@@ -147,7 +163,7 @@ export default function PayPeriodsCard({ employees, rates, timeEntries, taxRate,
           <Wallet className="w-4 h-4 text-primary" />
           <div>
             <p className="text-sm font-medium">Pay Periods — Total Paid</p>
-            <p className="text-xs text-muted-foreground">Every pay period since your start date, using clocked hours × each employee's hourly rate.</p>
+            <p className="text-xs text-muted-foreground">Every pay period since your start date, using clocked hours × each employee's hourly rate. Salary employees are auto-paid 80 hrs/period.</p>
           </div>
           {info && <InfoButton {...info} />}
         </div>
