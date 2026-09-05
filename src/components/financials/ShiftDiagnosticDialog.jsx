@@ -21,6 +21,7 @@ import {
 } from "recharts";
 import { getTotalCases } from "@/lib/analyticsHelpers";
 import { Stethoscope, Activity, DollarSign, Package, TrendingUp, AlertTriangle, Clock, Gauge, Calendar, Users } from "lucide-react";
+import MathValue from "@/components/financials/MathValue";
 
 function fmt$(n) {
   if (n == null) return "—";
@@ -157,6 +158,7 @@ export default function ShiftDiagnosticDialog({
           cases,
           casesPerHour,
           predictedRevenue,
+          avgCasePrice,
           profitRatio,
           waste,
           wasteCost: waste?.totalWasteCost || 0,
@@ -192,7 +194,7 @@ export default function ShiftDiagnosticDialog({
       totalLabor, totalSupply, totalCombined, totalCases, totalPredictedRev,
       totalWasteCost, totalDowntime, totalWasteGallons, avgCasesPerHour, avgCostPerCase,
       avgProfitRatio, profitableShifts, ratioShiftCount: ratioShifts.length,
-      avgShiftCost, prodShiftCount: prodShifts.length,
+      avgShiftCost, prodShiftCount: prodShifts.length, totalProdHours,
       baseMixCount: summaries.length - prodShifts.length, avgEmpCount,
     };
   }, [summaries]);
@@ -207,15 +209,20 @@ export default function ShiftDiagnosticDialog({
     const monthOrders = orders.filter((o) => inMonth(o.pickup_date));
     let casesSold = 0;
     let revenue = 0;
+    const orderBreakdown = [];
     monthOrders.forEach((o) => {
       const items = orderItems.filter((i) => i.order_id === o.id);
+      let cs, rev;
       if (items.length > 0) {
-        casesSold += items.reduce((s, i) => s + Math.round(i.cases || 0), 0);
-        revenue += items.reduce((s, i) => s + (i.case_sell_price || 0) * Math.round(i.cases || 0), 0);
+        cs = items.reduce((s, i) => s + Math.round(i.cases || 0), 0);
+        rev = items.reduce((s, i) => s + (i.case_sell_price || 0) * Math.round(i.cases || 0), 0);
       } else {
-        casesSold += Math.round(o.cases || 0);
-        revenue += (o.case_sell_price || 0) * Math.round(o.cases || 0);
+        cs = Math.round(o.cases || 0);
+        rev = (o.case_sell_price || 0) * Math.round(o.cases || 0);
       }
+      casesSold += cs;
+      revenue += rev;
+      orderBreakdown.push({ name: o.vendor_name || "Order", date: o.pickup_date, cases: cs, revenue: rev });
     });
     const pricedItems = orderItems.filter((i) => i.case_sell_price > 0);
     const avgCasePrice = pricedItems.length > 0
@@ -223,8 +230,10 @@ export default function ShiftDiagnosticDialog({
       : null;
     const casesProduced = totals.totalCases;
     const madeValue = (avgCasePrice && casesProduced > 0) ? avgCasePrice * casesProduced : 0;
-    return { casesSold, revenue, casesProduced, madeValue, avgCasePrice, orderCount: monthOrders.length };
+    return { casesSold, revenue, casesProduced, madeValue, avgCasePrice, orderCount: monthOrders.length, orderBreakdown };
   }, [orders, orderItems, selectedMonth, totals.totalCases]);
+
+  const avgCasePrice = summaries.length ? summaries[0].avgCasePrice : null;
 
   const costData = summaries.map((x) => ({ label: x.label, Labor: parseFloat(x.laborCost.toFixed(2)), Supplies: parseFloat(x.supplyCost.toFixed(2)) }));
   const casesData = summaries.filter((x) => !x.isBaseMix).map((x) => ({ label: x.label, Cases: x.cases || 0 }));
@@ -302,21 +311,21 @@ export default function ShiftDiagnosticDialog({
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {financialMode && (
                 <>
-                  <StatTile icon={DollarSign} label="Total Labor Cost" value={fmt$(totals.totalLabor)} sub={`${summaries.length} shifts`} />
-                  <StatTile icon={Package} label="Total Supply Cost" value={fmt$(totals.totalSupply)} sub="materials + ingredients" />
-                  <StatTile icon={DollarSign} label="Total Combined Cost" value={fmt$(totals.totalCombined)} sub="labor + supplies" />
-                  <StatTile icon={DollarSign} label="Avg Cost Per Shift" value={fmt$(totals.avgShiftCost)} sub={`avg of ${summaries.length}`} />
-                  <StatTile icon={DollarSign} label="Avg Cost Per Case" value={totals.avgCostPerCase != null ? fmt$(totals.avgCostPerCase) : "—"} sub="combined ÷ cases" />
-                  <StatTile icon={TrendingUp} label="Predicted Revenue" value={fmt$(totals.totalPredictedRev)} sub="avg price × cases" />
-                  <StatTile icon={Gauge} label="Avg Profit Ratio" value={totals.avgProfitRatio != null ? `${totals.avgProfitRatio.toFixed(2)}×` : "—"} sub={`${totals.profitableShifts}/${totals.ratioShiftCount} profitable`} color={totals.avgProfitRatio != null && totals.avgProfitRatio >= 1 ? "hsl(var(--chart-3))" : "hsl(var(--destructive))"} />
-                  <StatTile icon={AlertTriangle} label="Total Waste Cost" value={fmt$(totals.totalWasteCost)} sub="materials + downtime" color="hsl(var(--destructive))" />
+                  <StatTile icon={DollarSign} label="Total Labor Cost" value={<MathValue value={fmt$(totals.totalLabor)} steps={summaries.map((s) => ({ label: s.label, value: fmt$(s.laborCost) }))} formula="Sum of each shift's labor cost this month" result={fmt$(totals.totalLabor)} />} sub={`${summaries.length} shifts`} />
+                  <StatTile icon={Package} label="Total Supply Cost" value={<MathValue value={fmt$(totals.totalSupply)} steps={summaries.map((s) => ({ label: s.label, value: fmt$(s.supplyCost) }))} formula="Sum of each shift's supply cost this month" result={fmt$(totals.totalSupply)} />} sub="materials + ingredients" />
+                  <StatTile icon={DollarSign} label="Total Combined Cost" value={<MathValue value={fmt$(totals.totalCombined)} steps={[{ label: "Labor", value: fmt$(totals.totalLabor) }, { label: "Supplies", value: fmt$(totals.totalSupply) }]} formula="Labor + Supplies" result={fmt$(totals.totalCombined)} />} sub="labor + supplies" />
+                  <StatTile icon={DollarSign} label="Avg Cost Per Shift" value={<MathValue value={fmt$(totals.avgShiftCost)} steps={[{ label: "Combined cost", value: fmt$(totals.totalCombined) }, { label: "Shifts", value: summaries.length }]} formula="Combined ÷ number of shifts" result={fmt$(totals.avgShiftCost)} />} sub={`avg of ${summaries.length}`} />
+                  <StatTile icon={DollarSign} label="Avg Cost Per Case" value={totals.avgCostPerCase != null ? <MathValue value={fmt$(totals.avgCostPerCase)} steps={[{ label: "Combined cost", value: fmt$(totals.totalCombined) }, { label: "Cases produced", value: totals.totalCases }]} formula="Combined ÷ cases" result={fmt$(totals.avgCostPerCase)} /> : "—"} sub="combined ÷ cases" />
+                  <StatTile icon={TrendingUp} label="Predicted Revenue" value={<MathValue value={fmt$(totals.totalPredictedRev)} steps={[{ label: "Avg case price", value: fmt$(avgCasePrice) }, ...summaries.filter((s) => s.predictedRevenue != null).map((s) => ({ label: s.label, value: fmt$(s.predictedRevenue) }))]} formula="Σ (avg case price × cases) per production shift" result={fmt$(totals.totalPredictedRev)} />} sub="avg price × cases" />
+                  <StatTile icon={Gauge} label="Avg Profit Ratio" value={totals.avgProfitRatio != null ? <MathValue value={`${totals.avgProfitRatio.toFixed(2)}×`} steps={[{ label: "Sum of per-shift ratios", value: `${(totals.avgProfitRatio * totals.ratioShiftCount).toFixed(2)}×` }, { label: "Shifts with ratio", value: totals.ratioShiftCount }]} formula="Sum of ratios ÷ count" result={`${totals.avgProfitRatio.toFixed(2)}×`} /> : "—"} sub={`${totals.profitableShifts}/${totals.ratioShiftCount} profitable`} color={totals.avgProfitRatio != null && totals.avgProfitRatio >= 1 ? "hsl(var(--chart-3))" : "hsl(var(--destructive))"} />
+                  <StatTile icon={AlertTriangle} label="Total Waste Cost" value={<MathValue value={fmt$(totals.totalWasteCost)} steps={summaries.filter((s) => s.wasteCost > 0).map((s) => ({ label: s.label, value: fmt$(s.wasteCost) }))} formula="Sum of each shift's waste cost" result={fmt$(totals.totalWasteCost)} />} sub="materials + downtime" color="hsl(var(--destructive))" />
                 </>
               )}
-              <StatTile icon={Package} label="Total Cases Produced" value={totals.totalCases.toLocaleString()} sub="production shifts" />
-              <StatTile icon={Activity} label="Avg Cases / Hour" value={totals.avgCasesPerHour > 0 ? totals.avgCasesPerHour.toFixed(1) : "—"} sub="production speed" />
-              <StatTile icon={AlertTriangle} label="Waste (Gallons)" value={totals.totalWasteGallons.toFixed(1)} sub="popsicle punch" color="hsl(var(--destructive))" />
-              <StatTile icon={Clock} label="Total Downtime" value={fmtHours(totals.totalDowntime)} sub="across all shifts" />
-              <StatTile icon={Users} label="Avg Crew Size" value={totals.avgEmpCount > 0 ? totals.avgEmpCount.toFixed(1) : "—"} sub="per production shift" />
+              <StatTile icon={Package} label="Total Cases Produced" value={<MathValue value={totals.totalCases.toLocaleString()} steps={summaries.filter((s) => !s.isBaseMix).map((s) => ({ label: s.label, value: (s.cases || 0).toLocaleString() }))} formula="Sum of cases from production shifts" result={totals.totalCases.toLocaleString()} />} sub="production shifts" />
+              <StatTile icon={Activity} label="Avg Cases / Hour" value={totals.avgCasesPerHour > 0 ? <MathValue value={totals.avgCasesPerHour.toFixed(1)} steps={[{ label: "Total cases", value: totals.totalCases.toLocaleString() }, { label: "Production hours", value: totals.totalProdHours.toFixed(1) }]} formula="Cases ÷ production hours" result={totals.avgCasesPerHour.toFixed(1)} /> : "—"} sub="production speed" />
+              <StatTile icon={AlertTriangle} label="Waste (Gallons)" value={<MathValue value={totals.totalWasteGallons.toFixed(1)} steps={summaries.filter((s) => s.wasteGallons > 0).map((s) => ({ label: s.label, value: s.wasteGallons }))} formula="Sum of waste gallons" result={totals.totalWasteGallons.toFixed(1)} />} sub="popsicle punch" color="hsl(var(--destructive))" />
+              <StatTile icon={Clock} label="Total Downtime" value={<MathValue value={fmtHours(totals.totalDowntime)} steps={summaries.filter((s) => s.downtimeHours > 0).map((s) => ({ label: s.label, value: fmtHours(s.downtimeHours) }))} formula="Sum of parsed downtime hours" result={fmtHours(totals.totalDowntime)} />} sub="across all shifts" />
+              <StatTile icon={Users} label="Avg Crew Size" value={totals.avgEmpCount > 0 ? <MathValue value={totals.avgEmpCount.toFixed(1)} steps={[{ label: "Sum of crew (prod)", value: summaries.filter((s) => !s.isBaseMix).reduce((a, b) => a + b.empCount, 0) }, { label: "Production shifts", value: totals.prodShiftCount }]} formula="Σ crew ÷ production shifts" result={totals.avgEmpCount.toFixed(1)} /> : "—"} sub="per production shift" />
             </div>
 
             {/* Sales vs. Production Value */}
@@ -328,12 +337,12 @@ export default function ShiftDiagnosticDialog({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="bg-muted/40 rounded-xl p-4">
                   <p className="text-xs font-medium text-muted-foreground mb-1">Sold From Orders</p>
-                  <p className="font-heading font-bold text-2xl text-primary">{fmt$(monthlySales.revenue)}</p>
+                  <p className="font-heading font-bold text-2xl text-primary"><MathValue value={fmt$(monthlySales.revenue)} steps={monthlySales.orderBreakdown.map((o) => ({ label: `${o.name}${o.date ? " · " + fmtDate(o.date) : ""}`, value: fmt$(o.revenue) }))} formula="Σ revenue from orders picked up this month" result={fmt$(monthlySales.revenue)} /></p>
                   <p className="text-xs text-muted-foreground mt-1">{monthlySales.casesSold.toLocaleString()} cases · {monthlySales.orderCount} orders</p>
                 </div>
                 <div className="bg-muted/40 rounded-xl p-4">
                   <p className="text-xs font-medium text-muted-foreground mb-1">Value of Product Made</p>
-                  <p className="font-heading font-bold text-2xl" style={{ color: "hsl(var(--chart-3))" }}>{fmt$(monthlySales.madeValue)}</p>
+                  <p className="font-heading font-bold text-2xl" style={{ color: "hsl(var(--chart-3))" }}><MathValue value={fmt$(monthlySales.madeValue)} steps={[{ label: "Cases produced", value: monthlySales.casesProduced.toLocaleString() }, { label: "Avg case price", value: fmt$(monthlySales.avgCasePrice) }]} formula="Cases produced × avg case price" result={fmt$(monthlySales.madeValue)} /></p>
                   <p className="text-xs text-muted-foreground mt-1">{monthlySales.casesProduced.toLocaleString()} cases · avg {fmt$(monthlySales.avgCasePrice)}/case</p>
                 </div>
               </div>
@@ -491,18 +500,18 @@ export default function ShiftDiagnosticDialog({
                       <tr key={i} className="border-b border-border/50">
                         <td className="py-2 pr-3">{x.label}</td>
                         <td className="py-2 pr-3">{x.isBaseMix ? "Base Mix" : "Production"}</td>
-                        {financialMode && <td className="py-2 pr-3 text-right">{fmt$(x.laborCost)}</td>}
-                        {financialMode && <td className="py-2 pr-3 text-right">{fmt$(x.supplyCost)}</td>}
-                        {financialMode && <td className="py-2 pr-3 text-right font-medium">{fmt$(x.totalCost)}</td>}
-                        <td className="py-2 pr-3 text-right">{x.cases != null ? x.cases : "—"}</td>
-                        <td className="py-2 pr-3 text-right">{x.casesPerHour != null ? x.casesPerHour.toFixed(1) : "—"}</td>
-                        {financialMode && <td className="py-2 pr-3 text-right">{x.predictedRevenue != null ? fmt$(x.predictedRevenue) : "—"}</td>}
+                        {financialMode && <td className="py-2 pr-3 text-right"><MathValue value={fmt$(x.laborCost)} steps={[{ label: "Crew members", value: x.empCount }, { label: "Labor cost", value: fmt$(x.laborCost) }]} formula="Σ (clocked hours × effective rate) + facility + salary overhead" result={fmt$(x.laborCost)} /></td>}
+                        {financialMode && <td className="py-2 pr-3 text-right"><MathValue value={fmt$(x.supplyCost)} steps={[{ label: "Supply cost", value: fmt$(x.supplyCost) }]} formula="Ingredients + flavoring + packaging materials" result={fmt$(x.supplyCost)} /></td>}
+                        {financialMode && <td className="py-2 pr-3 text-right font-medium"><MathValue value={fmt$(x.totalCost)} steps={[{ label: "Labor", value: fmt$(x.laborCost) }, { label: "Supplies", value: fmt$(x.supplyCost) }]} formula="Labor + Supplies" result={fmt$(x.totalCost)} /></td>}
+                        <td className="py-2 pr-3 text-right">{x.cases != null ? <MathValue value={x.cases} steps={[{ label: "Flavorset cases", value: x.s.flavorset_cases || 0 }, { label: "Flavor 1 cases", value: x.s.individual_flavor_1_cases || 0 }, { label: "Flavor 2 cases", value: x.s.individual_flavor_2_cases || 0 }, { label: "Flavor 3 cases", value: x.s.individual_flavor_3_cases || 0 }, { label: "Flavor 4 cases", value: x.s.individual_flavor_4_cases || 0 }]} formula="Σ all case fields on the shift" result={x.cases} /> : "—"}</td>
+                        <td className="py-2 pr-3 text-right">{x.casesPerHour != null ? <MathValue value={x.casesPerHour.toFixed(1)} steps={[{ label: "Cases", value: x.cases }, { label: "Hours", value: x.s.shift_duration || 8 }]} formula="Cases ÷ hours" result={x.casesPerHour.toFixed(1)} /> : "—"}</td>
+                        {financialMode && <td className="py-2 pr-3 text-right">{x.predictedRevenue != null ? <MathValue value={fmt$(x.predictedRevenue)} steps={[{ label: "Avg case price", value: fmt$(x.avgCasePrice) }, { label: "Cases", value: x.cases }]} formula="Avg case price × cases" result={fmt$(x.predictedRevenue)} /> : "—"}</td>}
                         <td className="py-2 pr-3 text-right" style={x.profitRatio != null && x.profitRatio >= 1 ? { color: "hsl(var(--chart-3))" } : { color: "hsl(var(--destructive))" }}>
-                          {x.profitRatio != null ? `${x.profitRatio.toFixed(2)}×` : "—"}
+                          {x.profitRatio != null ? <MathValue value={`${x.profitRatio.toFixed(2)}×`} steps={[{ label: "Predicted revenue", value: fmt$(x.predictedRevenue) }, { label: "Total cost", value: fmt$(x.totalCost) }]} formula="Predicted revenue ÷ total cost" result={`${x.profitRatio.toFixed(2)}×`} /> : "—"}
                         </td>
-                        <td className="py-2 pr-3 text-right">{x.wasteGallons > 0 ? x.wasteGallons : "—"}</td>
-                        <td className="py-2 pr-3 text-right">{x.downtimeHours > 0 ? fmtHours(x.downtimeHours) : "—"}</td>
-                        <td className="py-2 pr-3 text-right">{x.empCount}</td>
+                        <td className="py-2 pr-3 text-right">{x.wasteGallons > 0 ? <MathValue value={x.wasteGallons} steps={[{ label: "Waste field (gal)", value: x.s.waste || 0 }]} formula="Recorded waste gallons" result={x.wasteGallons} /> : "—"}</td>
+                        <td className="py-2 pr-3 text-right">{x.downtimeHours > 0 ? <MathValue value={fmtHours(x.downtimeHours)} steps={[{ label: "Downtime note", value: x.s.downtime || "—" }, { label: "Parsed hours", value: fmtHours(x.downtimeHours) }]} formula="Parsed from downtime text" result={fmtHours(x.downtimeHours)} /> : "—"}</td>
+                        <td className="py-2 pr-3 text-right"><MathValue value={x.empCount} steps={[{ label: "Unique assigned employees", value: x.empCount }]} formula="Count of crew members on the shift" result={x.empCount} /></td>
                       </tr>
                     ))}
                   </tbody>
