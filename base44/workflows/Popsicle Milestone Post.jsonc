@@ -1,0 +1,38 @@
+{
+  "name": "Popsicle Milestone Post",
+  "description": "Posts a celebratory pinned Post whenever a popsicle production milestone (1M, 5M, 10M, 25M, 100M) is reached this calendar year. Fires on production shift create/update; idempotent per year+milestone.",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "create",
+        "update"
+      ],
+      "entity_name": "Shift"
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "popsicle_milestone_post",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "milestonePost",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "milestonePost"
+  }
+}
