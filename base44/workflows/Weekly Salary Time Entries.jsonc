@@ -1,0 +1,45 @@
+{
+  "description": "Every Sunday, auto-generates Mon\u2013Fri 8-hour (7am) time entries for salary employees for the upcoming week.",
+  "name": "Weekly Salary Time Entries",
+  "trigger": {
+    "condition": null,
+    "config": {
+      "trigger_type": "scheduled",
+      "events": [],
+      "schedule_mode": "recurring",
+      "cron_expression": "0 1 * * 0",
+      "one_time_date": null,
+      "timezone": "America/Denver",
+      "interval_value": null,
+      "interval_unit": null,
+      "interval_anchor": null,
+      "ends_type": "never",
+      "ends_on_date": null,
+      "ends_after_count": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "weekly_salary_time_entries",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "generate_entries": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "generateSalaryTimeEntries",
+            "args": {}
+          },
+          "then": "end",
+          "x-base44": {
+            "title": "Generate salary weekday time entries",
+            "description": "Mon\u2013Fri, 8hrs each, 7am"
+          }
+        }
+      }
+    ]
+  }
+}
