@@ -15,6 +15,7 @@ import CostBreakdownTab from "@/components/financials/CostBreakdownTab";
 import ShiftDiagnosticDialog from "@/components/financials/ShiftDiagnosticDialog";
 import InventoryValueCard from "@/components/financials/InventoryValueCard";
 import FacilityCostCard from "@/components/financials/FacilityCostCard";
+import SavingsGoalCard from "@/components/financials/SavingsGoalCard";
 import PayPeriodsCard from "@/components/financials/PayPeriodsCard";
 import BigBoyPage from "@/components/financials/BigBoyPage";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
@@ -120,6 +121,7 @@ export default function Financials() {
   const [taxSettings, setTaxSettings] = useState(null);
   const [taxInput, setTaxInput] = useState("");
   const [facilitySettings, setFacilitySettings] = useState(null);
+  const [savingsGoal, setSavingsGoal] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // Rates UI state
@@ -150,7 +152,7 @@ export default function Financials() {
 
   async function loadData(showLoading = true) {
     if (showLoading) setLoading(true);
-    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp, tx, fc] = await Promise.all([
+    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp, tx, fc, sg] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.OrderPickupItem.list().catch(() => []),
       base44.entities.Employee.list("name"),
@@ -166,6 +168,7 @@ export default function Financials() {
       base44.entities.FlavorPrice.list(),
       base44.entities.TaxSettings.list().catch(() => []),
       base44.entities.FacilityCost.list().catch(() => []),
+      base44.entities.SavingsGoal.list().catch(() => []),
     ]);
     // Migrate legacy orders: create items for any order that has a flavorset_id but no items
     const legacyOrders = ord.filter((o) => o.flavorset_id && !oi.some((i) => i.order_id === o.id));
@@ -195,6 +198,7 @@ export default function Financials() {
     setFlavorPrices(fp);
     setTaxSettings(tx && tx.length > 0 ? tx[0] : null);
     setFacilitySettings(fc && fc.length > 0 ? fc[0] : null);
+    setSavingsGoal(sg && sg.length > 0 ? sg[0] : null);
     setLoading(false);
   }
 
@@ -274,6 +278,41 @@ export default function Financials() {
     });
     return map;
   }, [shifts, baseMixShifts, employees, rates, taxSettings]);
+
+  // Savings goal accrual: divide the target by the average shifts expected over
+  // the timeframe, then add that flat per-shift amount to every shift's cost
+  // (alongside the facility cost). Average shifts/week comes from historical
+  // production + base mix shift volume.
+  const savingsAccrual = useMemo(() => {
+    const target = savingsGoal?.target_amount || 0;
+    const months = savingsGoal?.timeframe_months || 0;
+    if (!target || !months) return { perShift: 0, shiftsInWindow: 0 };
+    const all = [...shifts, ...baseMixShifts];
+    if (all.length === 0) return { perShift: 0, shiftsInWindow: 0 };
+    let firstDate = null, lastDate = null;
+    all.forEach((s) => {
+      if (!s.shift_date) return;
+      if (!firstDate || s.shift_date < firstDate) firstDate = s.shift_date;
+      if (!lastDate || s.shift_date > lastDate) lastDate = s.shift_date;
+    });
+    if (!firstDate || !lastDate) return { perShift: target / months, shiftsInWindow: 0 };
+    const spanDays = Math.max(1, Math.round((new Date(lastDate + "T12:00:00") - new Date(firstDate + "T12:00:00")) / 86400000) + 1);
+    const shiftsPerWeek = all.length / (spanDays / 7);
+    const weeksInWindow = months * (52 / 12);
+    const shiftsInWindow = shiftsPerWeek * weeksInWindow;
+    const perShift = shiftsInWindow > 0 ? target / shiftsInWindow : 0;
+    return { perShift, shiftsInWindow };
+  }, [savingsGoal, shifts, baseMixShifts]);
+
+  async function saveSavingsGoal(amount, months) {
+    if (savingsGoal) {
+      const updated = await base44.entities.SavingsGoal.update(savingsGoal.id, { target_amount: amount, timeframe_months: months });
+      setSavingsGoal(updated);
+    } else {
+      const created = await base44.entities.SavingsGoal.create({ target_amount: amount, timeframe_months: months });
+      setSavingsGoal(created);
+    }
+  }
 
   if (!isAdmin) {
     return (
@@ -516,8 +555,8 @@ export default function Financials() {
       if (isMinor) hours = Math.min(hours, MINOR_MAX_HOURS);
       totalCost += hours * rate;
     });
-    // Add the facility cost + salary overhead allocated to this shift (monthly pools ÷ shifts in this month)
-    totalCost += getFacilityCostForShift(shift) + getSalaryOverheadForShift(shift);
+    // Add the facility cost + salary overhead + savings-goal accrual allocated to this shift
+    totalCost += getFacilityCostForShift(shift) + getSalaryOverheadForShift(shift) + (savingsAccrual?.perShift || 0);
     return totalCost;
   }
 
@@ -1348,6 +1387,13 @@ export default function Financials() {
             onSave={saveFacilityCost}
             unlocked={unlocked}
             allShifts={[...shifts, ...baseMixShifts]}
+          />
+          <SavingsGoalCard
+            goal={savingsGoal}
+            perShift={savingsAccrual.perShift}
+            shiftsInWindow={savingsAccrual.shiftsInWindow}
+            unlocked={unlocked}
+            onSave={saveSavingsGoal}
           />
           <SuppliesPricingTab />
         </TabsContent>

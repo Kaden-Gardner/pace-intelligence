@@ -1,0 +1,44 @@
+{
+  "name": "SavingsGoal",
+  "type": "object",
+  "properties": {
+    "target_amount": {
+      "type": "number",
+      "title": "Target Amount ($)",
+      "default": 0,
+      "description": "Dollar amount to set aside (accrue) over the timeframe."
+    },
+    "timeframe_months": {
+      "type": "number",
+      "title": "Timeframe (months)",
+      "default": 12,
+      "description": "How long to reach the target. The target is divided by the average shifts expected in this window and added to each shift's facility cost."
+    }
+  },
+  "required": [
+    "target_amount",
+    "timeframe_months"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
