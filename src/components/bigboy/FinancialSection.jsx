@@ -1,6 +1,7 @@
 import Section from "@/components/bigboy/Section";
 import Tile from "@/components/bigboy/Tile";
 import InfoButton from "@/components/bigboy/InfoButton";
+import TwoYearProjectionDialog from "@/components/financials/TwoYearProjectionDialog";
 import { INFO } from "@/components/bigboy/explanations";
 import { fmtInt, fmtNum, fmtPct, fmt$ } from "@/components/bigboy/format";
 
@@ -14,10 +15,13 @@ function Delta({ cur, prev, invert = false }) {
   return <span className={`text-[10px] ml-1 font-medium ${cls}`}>{pct > 0 ? "▲" : pct < 0 ? "▼" : "•"}{Math.abs(pct) >= 1000 ? "999+" : `${Math.abs(pct).toFixed(0)}%`}</span>;
 }
 
-export default function FinancialSection({ finances, monthlyRows, taxRate }) {
+export default function FinancialSection({ finances, monthlyRows, taxRate, projection }) {
   const taxPortion = taxRate > 0 ? finances.labor * (taxRate / (100 + taxRate)) : 0;
   return (
     <Section title="Financials — All Time" subtitle="Every money metric: labor (incl. facility + employer tax), supplies, revenue, and profit.">
+      <div className="flex justify-end mb-3">
+        <TwoYearProjectionDialog averages={projection} />
+      </div>
       <div className="bg-card rounded-2xl border border-border p-5">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           <Tile label="Total Revenue" value={fmt$(finances.revenue)} sub={`${fmtInt(finances.casesSold)} cases sold`} highlight info={INFO.financial.revenue} />

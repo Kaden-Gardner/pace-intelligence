@@ -392,7 +392,18 @@ export default function BigBoyPage({
 
       <EmployeeSection rows={empRows} avgCasePrice={avgCasePrice} />
 
-      <FinancialSection finances={finances} monthlyRows={monthlyRows} taxRate={taxRate} />
+      <FinancialSection
+        finances={finances}
+        monthlyRows={monthlyRows}
+        taxRate={taxRate}
+        projection={{
+          avgCasesPerHour: totals.avgCph,
+          avgSalePrice: finances.avgSalePrice,
+          costPerCase: finances.costPerCase,
+          avgShiftHours: totals.avgShiftHours,
+          shiftsPerWeek: totals.shiftsPerWeek,
+        }}
+      />
 
       <div className="mb-10">
         <PayPeriodsCard employees={employees} rates={rates} timeEntries={timeEntries} taxRate={taxRate} info={INFO.team.payPeriods} />
