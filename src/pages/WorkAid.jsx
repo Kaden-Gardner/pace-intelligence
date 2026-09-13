@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import CounterPanel from "@/components/work-aid/CounterPanel";
+import LotNumberTracker from "@/components/work-aid/LotNumberTracker";
 import FillingPanel from "@/components/work-aid/FillingPanel";
 import GeneralPanel from "@/components/work-aid/GeneralPanel";
 import Scoreboard from "@/components/work-aid/Scoreboard";
@@ -24,6 +26,8 @@ const TABS = [
 ];
 
 export default function WorkAid() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [counters, setCounters] = useState({});
   const [machineLogs, setMachineLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -209,6 +213,26 @@ export default function WorkAid() {
     }
   }
 
+  async function setLotNumber(val) {
+    const key = "lot_number";
+    if (busyRef.current.has(key)) return;
+    const rec = countersRef.current[key];
+    markBusy(key, true);
+    setCounters((prev) => ({ ...prev, [key]: rec ? { ...rec, cases: val } : { position: key, cases: val } }));
+    try {
+      if (!rec) {
+        const created = await base44.entities.WorkAidCounter.create({ position: key, cases: val });
+        setCounters((prev) => ({ ...prev, [key]: created }));
+      } else {
+        await base44.entities.WorkAidCounter.update(rec.id, { cases: val });
+      }
+    } catch (err) {
+      setCounters((prev) => ({ ...prev, [key]: rec ? { ...rec } : prev[key] }));
+    } finally {
+      markBusy(key, false);
+    }
+  }
+
   async function resetAll(keys) {
     const active = keys.filter((k) => {
       const rec = countersRef.current[k];
@@ -315,6 +339,15 @@ export default function WorkAid() {
                   </>
                 ) : (
                   <>
+                    {t.key === "boxing" && (
+                      <LotNumberTracker
+                        lotNumber={counters["lot_number"]?.cases || 0}
+                        isAdmin={isAdmin}
+                        onIncrement={() => adjustCounter("lot_number", +1)}
+                        onSet={setLotNumber}
+                        busy={busyKeys.has("lot_number")}
+                      />
+                    )}
                     <CounterPanel
                       label={t.panelLabel}
                       counter={counters[t.key]}
