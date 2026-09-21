@@ -1,6 +1,7 @@
 import { getBestPosition } from "@/lib/analyticsHelpers";
 import { positionLabel, positionColor, POSITIONS } from "@/lib/positions";
 import { CalendarClock, Sparkles, FlaskConical, Users, Star } from "lucide-react";
+import { empFirstName } from "@/lib/employeeName";
 
 export default function UpcomingShiftTab({ scheduledShifts, employees, flavorSets, shifts }) {
   const fsMap = {};
@@ -112,7 +113,7 @@ export default function UpcomingShiftTab({ scheduledShifts, employees, flavorSet
           <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-100 flex items-center gap-2">
             <FlaskConical className="w-4 h-4 text-blue-600 flex-shrink-0" />
             <p className="text-sm text-blue-800">
-              <span className="font-semibold">{mixerEmp.name}</span> mixing — arrives at <span className="font-semibold">{getMixerTime(nextShift.shift_time)}</span>
+              <span className="font-semibold">{empFirstName(mixerEmp)}</span> mixing — arrives at <span className="font-semibold">{getMixerTime(nextShift.shift_time)}</span>
             </p>
           </div>
         )}
@@ -132,7 +133,7 @@ export default function UpcomingShiftTab({ scheduledShifts, employees, flavorSet
             {empAssignments.map(({ emp, assigned, best }) => (
               <div key={emp.id} className="flex items-center justify-between gap-3 py-2 border-b border-border last:border-0">
                 <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm">{emp.name}</span>
+                  <span className="font-medium text-sm">{empFirstName(emp)}</span>
                   {best && best.toLowerCase() !== assigned && (
                     <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
                       <Star className="w-3 h-3" />best: {best}
@@ -171,7 +172,7 @@ export default function UpcomingShiftTab({ scheduledShifts, employees, flavorSet
                     <span className="text-xs text-muted-foreground italic">No one assigned</span>
                   ) : (
                     empsForPos.map((emp) => (
-                      <span key={emp.id} className="text-xs font-medium">{emp.name}</span>
+                      <span key={emp.id} className="text-xs font-medium">{empFirstName(emp)}</span>
                     ))
                   )}
                 </div>
@@ -187,7 +188,7 @@ export default function UpcomingShiftTab({ scheduledShifts, employees, flavorSet
           <p className="text-xs font-medium text-muted-foreground mb-2">On Call</p>
           <div className="flex flex-wrap gap-2">
             {onCallEmps.map((emp) => (
-              <span key={emp.id} className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-lg">{emp.name}</span>
+              <span key={emp.id} className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-lg">{empFirstName(emp)}</span>
             ))}
           </div>
         </div>

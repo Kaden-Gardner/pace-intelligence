@@ -59,6 +59,7 @@ function getShiftMetric(shift, statKey, pack) {
 }
 
 import InfoButton from "@/components/bigboy/InfoButton";
+import { empFirstName } from "@/lib/employeeName";
 
 export default function MostValuableTeamCard({ shifts, employees, packConstants, avgCasePrice, info }) {
   const [stat, setStat] = useState("pallets");
@@ -99,7 +100,7 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants,
   }, [eligibleShifts, stat, packConstants]);
 
   const selected = teams.find((t) => t.sig === selectedSig) || teams[0] || null;
-  const teamNames = (t) => t.ids.map((id) => empMap[id]?.name).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  const teamNames = (t) => t.ids.map((id) => empFirstName(empMap[id])).filter((n) => n && n !== "?").sort((a, b) => a.localeCompare(b));
 
   const statLabel = STAT_OPTIONS.find((o) => o.value === stat)?.label.toLowerCase() || stat;
 
@@ -146,8 +147,8 @@ export default function MostValuableTeamCard({ shifts, employees, packConstants,
           <>
             <div className="flex flex-wrap gap-2 mb-5">
               {selected.ids
-                .map((id) => empMap[id]?.name)
-                .filter(Boolean)
+                .map((id) => empFirstName(empMap[id]))
+                .filter((n) => n && n !== "?")
                 .sort((a, b) => a.localeCompare(b))
                 .map((name) => (
                   <span key={name} className="inline-flex items-center gap-1 bg-primary/10 text-primary rounded-full px-2.5 py-1 text-xs font-medium">

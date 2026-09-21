@@ -12,6 +12,7 @@ import { findDreamTeam } from "../lib/analyticsHelpers";
 import UpcomingShiftTab from "@/components/schedule/UpcomingShiftTab";
 import AvailabilityPlannerTab from "@/components/schedule/AvailabilityPlannerTab";
 import { POSITIONS, positionLabel } from "@/lib/positions";
+import { empFirstName } from "@/lib/employeeName";
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -484,7 +485,7 @@ export default function Schedule() {
                   <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="none">— None —</SelectItem>
-                    {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
+                    {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{empFirstName(emp)}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                     </Select>
                     {form.mixer_employee && (
@@ -515,7 +516,7 @@ export default function Schedule() {
                     return (
                       <div key={emp.id} className={`flex flex-col rounded-xl border transition-all ${isWorking ? "bg-primary/10 border-primary" : isOnCall ? "bg-yellow-50 border-yellow-300" : isBlocked ? "opacity-60 border-orange-200 bg-orange-50/40" : "border-border"}`}>
                         <div className="flex items-center gap-2 px-3 py-2">
-                          <span className="flex-1 truncate text-sm font-medium">{emp.name}</span>
+                          <span className="flex-1 truncate text-sm font-medium">{empFirstName(emp)}</span>
                           <span className="flex gap-0.5">
                             {isDream && <span title="Dream team" className="text-yellow-500 text-xs">★</span>}
                             {avail ? <span title="Available" className="text-green-500 text-xs">✓</span> : <span title="No availability set" className="text-muted-foreground text-xs">?</span>}
@@ -631,7 +632,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{empFirstName(emp)}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -641,7 +642,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{empFirstName(emp)}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -651,7 +652,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select mixer..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{empFirstName(emp)}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -661,7 +662,7 @@ export default function Schedule() {
                     <SelectTrigger><SelectValue placeholder="Select shift lead..." /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">— None —</SelectItem>
-                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{emp.name}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
+                      {activeEmployees.map((emp) => <SelectItem key={emp.id} value={emp.id} disabled={scheduledElsewhere.has(emp.id)}>{empFirstName(emp)}{scheduledElsewhere.has(emp.id) ? " · on another shift" : ""}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -712,7 +713,7 @@ export default function Schedule() {
                   <div className="mb-2">
                     <p className="text-xs font-medium text-muted-foreground mb-1">Mixer</p>
                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-lg">
-                      {empMap[s.mixer_employee].name} · arrives {getMixerArrivalTime(s.shift_time)}
+                      {empFirstName(empMap[s.mixer_employee])} · arrives {getMixerArrivalTime(s.shift_time)}
                     </span>
                   </div>
                 )}
@@ -724,7 +725,7 @@ export default function Schedule() {
                         const posAssignment = (s.position_assignments || []).find((a) => a.employee_id === emp.id);
                         return (
                           <span key={emp.id} className="text-xs px-2 py-1 bg-primary/10 text-primary rounded-lg">
-                            {emp.name}{posAssignment?.position ? ` · ${positionLabel(posAssignment.position)}` : ""}
+                            {empFirstName(emp)}{posAssignment?.position ? ` · ${positionLabel(posAssignment.position)}` : ""}
                           </span>
                         );
                       })}
@@ -736,7 +737,7 @@ export default function Schedule() {
                     <p className="text-xs font-medium text-muted-foreground mb-1">On Call</p>
                     <div className="flex flex-wrap gap-2">
                       {(s.on_call_employees || []).map((id) => empMap[id]).filter(Boolean).sort((a, b) => (a.name || "").localeCompare(b.name || "")).map((emp) => (
-                        <span key={emp.id} className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-lg">{emp.name}</span>
+                        <span key={emp.id} className="text-xs px-2 py-1 bg-yellow-100 text-yellow-800 rounded-lg">{empFirstName(emp)}</span>
                       ))}
                     </div>
                   </div>
@@ -766,7 +767,7 @@ export default function Schedule() {
                   </div>
                 </div>
                 {adminEmp && (
-                  <p className="text-xs text-muted-foreground">Admin: <span className="font-medium text-foreground">{adminEmp.name}</span></p>
+                  <p className="text-xs text-muted-foreground">Admin: <span className="font-medium text-foreground">{empFirstName(adminEmp)}</span></p>
                 )}
                 {s.notes && <p className="text-xs text-muted-foreground mt-1">{s.notes}</p>}
               </div>

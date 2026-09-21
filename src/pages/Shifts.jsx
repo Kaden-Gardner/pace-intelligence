@@ -7,6 +7,7 @@ import { Calendar, Plus, Pencil, Trash2, Clock, Package, FlaskConical, ChevronDo
 import { Button } from "@/components/ui/button";
 import EmptyState from "../components/EmptyState";
 import { getTotalCases, getCasesPerHour } from "../lib/analyticsHelpers";
+import { empFirstName } from "@/lib/employeeName";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -51,7 +52,7 @@ export default function Shifts() {
   useAutoRefresh(loadData);
 
   const empMap = {};
-  employees.forEach((e) => { empMap[e.id] = e.name; });
+  employees.forEach((e) => { empMap[e.id] = empFirstName(e); });
   const fsMap = {};
   flavorSets.forEach((fs) => { fsMap[fs.id] = fs; });
 

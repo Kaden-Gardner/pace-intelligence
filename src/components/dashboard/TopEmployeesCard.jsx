@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 import InfoButton from "@/components/bigboy/InfoButton";
+import { empFirstName } from "@/lib/employeeName";
 
 export default function TopEmployeesCard({ empStats, info }) {
   const [selectedId, setSelectedId] = useState(null);
@@ -51,7 +52,7 @@ export default function TopEmployeesCard({ empStats, info }) {
                     {i + 1}
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{stat.employee.name}</p>
+                    <p className="text-sm font-medium">{empFirstName(stat.employee)}</p>
                     <p className="text-xs text-muted-foreground">
                       Best: {bestPos?.pos || "N/A"} · {stat.totalShifts} shifts
                     </p>
@@ -80,7 +81,7 @@ export default function TopEmployeesCard({ empStats, info }) {
                 const cph = s.totalHours > 0 ? s.totalCases / s.totalHours : 0;
                 return (
                   <SelectItem key={s.employee.id} value={s.employee.id}>
-                    {s.employee.name} — {formatRate(cph, isPpm).value} {formatRate(cph, isPpm).label}
+                    {empFirstName(s.employee)} — {formatRate(cph, isPpm).value} {formatRate(cph, isPpm).label}
                   </SelectItem>
                 );
               })}
@@ -90,7 +91,7 @@ export default function TopEmployeesCard({ empStats, info }) {
           {selectedStat && (
             <div className="mt-3 bg-muted rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
-                <p className="font-medium text-sm">{selectedStat.employee.name}</p>
+                <p className="font-medium text-sm">{empFirstName(selectedStat.employee)}</p>
                 <div className="text-right">
                   <p className="font-heading font-bold text-lg text-primary">{formatRate(selectedCph, isPpm).value}</p>
                   <p className="text-xs text-muted-foreground">{formatRate(selectedCph, isPpm).label} overall</p>

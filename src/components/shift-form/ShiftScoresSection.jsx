@@ -1,4 +1,5 @@
 import { Input } from "@/components/ui/input";
+import { empFirstName } from "@/lib/employeeName";
 
 export default function ShiftScoresSection({ form, updateForm, employees }) {
   const assignedIds = [
@@ -47,7 +48,7 @@ export default function ShiftScoresSection({ form, updateForm, employees }) {
           const emp = employees.find((e) => e.id === empId);
           return (
             <div key={empId} className="flex items-center justify-between gap-4">
-              <span className="text-sm font-medium">{emp?.name || "Unknown"}</span>
+              <span className="text-sm font-medium">{emp ? empFirstName(emp) : "Unknown"}</span>
               <Input
                 type="number"
                 min={0}

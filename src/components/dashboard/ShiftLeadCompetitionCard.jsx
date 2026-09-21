@@ -1,5 +1,6 @@
 import { Trophy, Clock, Flame } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
+import { empFirstName } from "@/lib/employeeName";
 
 // Parses a free-text downtime note into hours (mirrors Financials logic).
 // Returns null for empty/missing entries (so they can be excluded), and 0
@@ -51,7 +52,7 @@ function computeShiftLeadStats(shifts, employees) {
       const totalWasteQualifying = s.wasteGallons.reduce((a, b) => a + b, 0);
       const lowestWaste = s.wasteGallons.length > 0 ? Math.min(...s.wasteGallons) : null;
       return {
-        name: emp.name,
+        name: empFirstName(emp),
         employee_number: emp.employee_number || "",
         totalCases: s.totalCases,
         totalWaste: s.totalWaste,

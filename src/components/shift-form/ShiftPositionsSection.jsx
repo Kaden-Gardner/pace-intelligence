@@ -1,6 +1,7 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Plus, X } from "lucide-react";
+import { empFirstName } from "@/lib/employeeName";
 
 const TRAINING_POSITIONS = [
   "Filling", "Pulling", "Sorting", "Bagging", "Boxing", "Shift Lead", "General"
@@ -16,7 +17,7 @@ function EmployeeSelect({ label, value, onChange, employees, required }) {
         <SelectTrigger><SelectValue placeholder="Select employee" /></SelectTrigger>
         <SelectContent>
           {employees.map((e) => (
-            <SelectItem key={e.id} value={e.id}>{e.name} (#{e.employee_number})</SelectItem>
+            <SelectItem key={e.id} value={e.id}>{empFirstName(e)} (#{e.employee_number})</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -81,7 +82,7 @@ export default function ShiftPositionsSection({ form, updateForm, employees }) {
                   <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Employee" /></SelectTrigger>
                   <SelectContent>
                     {employees.map((e) => (
-                      <SelectItem key={e.id} value={e.id}>{e.name}</SelectItem>
+                      <SelectItem key={e.id} value={e.id}>{empFirstName(e)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

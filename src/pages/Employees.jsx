@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
-import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake, Briefcase, Trophy } from "lucide-react";
+import { Users, Plus, Pencil, Trash2, Check, X, Star, UserX, UserCheck, Phone, Shield, ChevronDown, IceCream, Cake, Briefcase, Trophy, ImagePlus } from "lucide-react";
 import { getBestPosition, getEmployeePosition, getShiftEmployees, getTotalCases, getCasesPerHour, POSITION_PRODUCTION, getPositionProduction, resolvePackConstants } from "../lib/analyticsHelpers";
 import { POSITIONS, positionLabel } from "@/lib/positions";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,8 @@ export default function Employees() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [form, setForm] = useState({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [], is_salary: false });
+  const [form, setForm] = useState({ first_name: "", last_name: "", name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [], is_salary: false, photo_url: "" });
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [flavors, setFlavors] = useState([]);
 
   const [selectedPosition, setSelectedPosition] = useState({}); // empId -> position string
@@ -76,19 +77,20 @@ export default function Employees() {
   }, [shifts, packConstants]);
 
   async function handleSave() {
-    if (!form.name || !form.employee_number) return;
+    if (!form.first_name || !form.last_name || !form.employee_number) return;
+    const payload = { ...form, name: `${form.first_name} ${form.last_name}`.trim() };
     if (editingId) {
-      await base44.entities.Employee.update(editingId, form);
-      setEmployees((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...form } : e)));
+      await base44.entities.Employee.update(editingId, payload);
+      setEmployees((prev) => prev.map((e) => (e.id === editingId ? { ...e, ...payload } : e)));
       // Sync role to User entity if linked — always use app_role regardless of active status
       // (inactive admins, e.g. owners, retain their admin privileges)
       const users = await base44.entities.User.list();
-      const linked = users.find((u) => u.employee_number === form.employee_number);
+      const linked = users.find((u) => u.employee_number === payload.employee_number);
       if (linked && linked.role !== "terminated") {
-        await base44.entities.User.update(linked.id, { role: form.app_role });
+        await base44.entities.User.update(linked.id, { role: payload.app_role });
       }
     } else {
-      const created = await base44.entities.Employee.create(form);
+      const created = await base44.entities.Employee.create(payload);
       setEmployees((prev) => [...prev, created]);
     }
     resetForm();
@@ -96,7 +98,10 @@ export default function Employees() {
 
   function startEdit(emp) {
     setForm({
+      first_name: emp.first_name || "",
+      last_name: emp.last_name || "",
       name: emp.name,
+      photo_url: emp.photo_url || "",
       employee_number: emp.employee_number,
       phone_number: emp.phone_number || "",
       birthday: emp.birthday || "",
@@ -112,9 +117,22 @@ export default function Employees() {
   }
 
   function resetForm() {
-    setForm({ name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [], is_salary: false });
+    setForm({ first_name: "", last_name: "", name: "", employee_number: "", phone_number: "", birthday: "", favorite_flavor: "", active: true, app_role: "user", hired_for: "", cross_trained_positions: [], is_salary: false, photo_url: "" });
     setEditingId(null);
     setShowForm(false);
+  }
+
+  async function handlePhotoUpload(file) {
+    if (!file) return;
+    setPhotoUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
+      setForm((f) => ({ ...f, photo_url: file_url }));
+    } catch (err) {
+      console.error("Photo upload failed:", err);
+    } finally {
+      setPhotoUploading(false);
+    }
   }
 
   async function handleDelete(id) {
@@ -164,8 +182,31 @@ export default function Employees() {
           <h3 className="font-heading font-semibold mb-4">{editingId ? "Edit" : "New"} Employee</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Name</label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="John Doe" />
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">First Name</label>
+              <Input value={form.first_name} onChange={(e) => setForm({ ...form, first_name: e.target.value })} placeholder="John" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Last Name</label>
+              <Input value={form.last_name} onChange={(e) => setForm({ ...form, last_name: e.target.value })} placeholder="Doe" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Photo</label>
+              <div className="flex items-center gap-3">
+                {form.photo_url ? (
+                  <img src={form.photo_url} alt="Employee" className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <ImagePlus className="w-4 h-4 text-primary" />
+                  </div>
+                )}
+                <label className={`text-xs font-medium px-3 py-1.5 rounded-lg border border-input cursor-pointer hover:bg-accent transition-colors ${photoUploading ? "opacity-50 pointer-events-none" : ""}`}>
+                  {photoUploading ? "Uploading..." : form.photo_url ? "Change" : "Upload"}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => handlePhotoUpload(e.target.files?.[0])} disabled={photoUploading} />
+                </label>
+                {form.photo_url && (
+                  <button type="button" onClick={() => setForm({ ...form, photo_url: "" })} className="text-xs text-destructive hover:underline">Remove</button>
+                )}
+              </div>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Employee Number</label>
@@ -266,9 +307,13 @@ export default function Employees() {
             >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary">
-                      {emp.name?.charAt(0) || "?"}
-                    </div>
+                    {emp.photo_url ? (
+                      <img src={emp.photo_url} alt={emp.name} className="w-10 h-10 rounded-full object-cover flex-shrink-0" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary">
+                        {emp.first_name?.charAt(0) || emp.name?.charAt(0) || "?"}
+                      </div>
+                    )}
                     <div>
                       <p className="font-medium flex items-center gap-1.5">
                         {emp.name}

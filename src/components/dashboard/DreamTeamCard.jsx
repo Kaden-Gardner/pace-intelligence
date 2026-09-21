@@ -1,4 +1,5 @@
 import { Award } from "lucide-react";
+import { empFirstName } from "@/lib/employeeName";
 import InfoButton from "@/components/bigboy/InfoButton";
 
 export default function DreamTeamCard({ dreamTeam, info }) {
@@ -30,7 +31,7 @@ export default function DreamTeamCard({ dreamTeam, info }) {
               {i + 1}
             </div>
             <div>
-              <p className="font-medium text-sm">{emp.name}</p>
+              <p className="font-medium text-sm">{empFirstName(emp)}</p>
               <p className="text-xs text-muted-foreground">#{emp.employee_number}</p>
             </div>
           </div>

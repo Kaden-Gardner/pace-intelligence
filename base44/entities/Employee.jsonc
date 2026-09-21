@@ -2,9 +2,23 @@
   "name": "Employee",
   "type": "object",
   "properties": {
+    "first_name": {
+      "type": "string",
+      "title": "First Name"
+    },
+    "last_name": {
+      "type": "string",
+      "title": "Last Name"
+    },
     "name": {
       "type": "string",
-      "title": "Employee Name"
+      "title": "Employee Name",
+      "description": "Denormalized full name (\"First Last\"). Auto-set from first_name + last_name."
+    },
+    "photo_url": {
+      "type": "string",
+      "title": "Profile Photo URL",
+      "description": "Public URL of the employee's profile photo (uploaded by admins)."
     },
     "employee_number": {
       "type": "string",
@@ -96,6 +110,8 @@
     }
   },
   "required": [
+    "first_name",
+    "last_name",
     "name",
     "employee_number"
   ]

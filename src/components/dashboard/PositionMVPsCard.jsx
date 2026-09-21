@@ -47,6 +47,7 @@ const MVP_AWARDS = [
 ];
 
 import InfoButton from "@/components/bigboy/InfoButton";
+import { empFirstName } from "@/lib/employeeName";
 
 export default function PositionMVPsCard({ shifts, employees, packConstants, avgCasePrice, info }) {
   const empMap = useMemo(() => Object.fromEntries(employees.map((e) => [e.id, e])), [employees]);
@@ -126,7 +127,7 @@ export default function PositionMVPsCard({ shifts, employees, packConstants, avg
                 </div>
                 <p className="text-xs text-muted-foreground mt-1.5">{label}</p>
                 <p className="font-heading font-bold text-sm mt-2 truncate" title={p.title}>
-                  {emp?.name || "—"}
+                  {emp ? empFirstName(emp) : "—"}
                 </p>
                 <p className="text-xs text-primary font-medium mt-0.5">
                   {mvp && mvp.total > 0 ? `${Math.round(mvp.total).toLocaleString()} ${unit}` : "No data"}

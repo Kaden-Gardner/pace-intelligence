@@ -11,6 +11,7 @@ import { POSITION_PRODUCTION } from "@/lib/analyticsHelpers";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import EmployeeMilestoneTracker from "@/components/EmployeeMilestoneTracker";
+import { empFullName } from "@/lib/employeeName";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -199,11 +200,15 @@ export default function MyInfo() {
       <div className="max-w-md space-y-4">
         <div className="bg-card rounded-2xl border border-border p-6 space-y-5">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-xl">
-              {user?.full_name?.charAt(0) || "?"}
-            </div>
+            {employeeRecord?.photo_url ? (
+              <img src={employeeRecord.photo_url} alt="" className="w-14 h-14 rounded-full object-cover flex-shrink-0" />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-xl">
+                {employeeRecord ? empFullName(employeeRecord).charAt(0) : (user?.full_name?.charAt(0) || "?")}
+              </div>
+            )}
             <div>
-              <p className="font-heading font-semibold text-lg">{user?.full_name}</p>
+              <p className="font-heading font-semibold text-lg">{employeeRecord ? empFullName(employeeRecord) : user?.full_name}</p>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
           </div>

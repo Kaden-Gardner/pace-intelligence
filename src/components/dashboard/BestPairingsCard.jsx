@@ -3,6 +3,7 @@ import { findBestPairings } from "../../lib/analyticsHelpers";
 import { Switch } from "@/components/ui/switch";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 import InfoButton from "@/components/bigboy/InfoButton";
+import { empFirstName } from "@/lib/employeeName";
 
 export default function BestPairingsCard({ shifts, employees, info }) {
   const [isPpm, setIsPpm] = useRateUnit();
@@ -36,13 +37,13 @@ export default function BestPairingsCard({ shifts, employees, info }) {
                       key={emp.id}
                       className="w-7 h-7 rounded-full bg-primary/10 border-2 border-card flex items-center justify-center text-[10px] font-bold text-primary"
                     >
-                      {emp.name.charAt(0)}
+                      {empFirstName(emp).charAt(0)}
                     </div>
                   ))}
                 </div>
                 <div>
                   <p className="text-sm font-medium">
-                    {pair.employees.map((e) => e.name).join(" & ")}
+                    {pair.employees.map((e) => empFirstName(e)).join(" & ")}
                   </p>
                   <p className="text-xs text-muted-foreground">{pair.count} shifts together</p>
                 </div>
