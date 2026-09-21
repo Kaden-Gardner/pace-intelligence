@@ -56,8 +56,10 @@ export default function EmployeeSection({ rows, avgCasePrice }) {
                   {(() => {
                     if (r.pay > 0 && avgCasePrice != null && r.cases > 0) {
                       const ratio = (r.cases * avgCasePrice) / r.pay;
-                      const color = ratio > 5 ? "text-purple-600 dark:text-purple-400"
-                        : ratio > 1 ? "text-emerald-600 dark:text-emerald-400"
+                      const color = ratio > 30 ? "text-purple-600 dark:text-purple-400"
+                        : ratio > 20 ? "text-emerald-600 dark:text-emerald-400"
+                        : ratio > 10 ? "text-yellow-600 dark:text-yellow-400"
+                        : ratio > 1 ? "text-orange-600 dark:text-orange-400"
                         : "text-red-600 dark:text-red-400";
                       return <span className={color}>{ratio.toFixed(2)}</span>;
                     }
