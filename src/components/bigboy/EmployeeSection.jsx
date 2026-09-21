@@ -28,6 +28,7 @@ export default function EmployeeSection({ rows, avgCasePrice }) {
               <th className="py-2 pr-4 font-medium">Boxing (cases)</th>
               <th className="py-2 pr-4 font-medium">Gross Pay</th>
               <th className="py-2 pr-4 font-medium">Prod. Value</th>
+              <th className="py-2 pr-4 font-medium">PVR</th>
             </tr>
           </thead>
           <tbody>
@@ -51,10 +52,22 @@ export default function EmployeeSection({ rows, avgCasePrice }) {
                 <td className="py-2 pr-4">{fmtInt(r.pos.Boxing)}</td>
                 <td className="py-2 pr-4">{r.pay > 0 ? fmt$(r.pay) : "—"}</td>
                 <td className="py-2 pr-4">{avgCasePrice != null && r.cases > 0 ? fmt$(r.cases * avgCasePrice) : "—"}</td>
+                <td className="py-2 pr-4 font-semibold">
+                  {(() => {
+                    if (r.pay > 0 && avgCasePrice != null && r.cases > 0) {
+                      const ratio = (r.cases * avgCasePrice) / r.pay;
+                      const color = ratio > 5 ? "text-purple-600 dark:text-purple-400"
+                        : ratio > 1 ? "text-emerald-600 dark:text-emerald-400"
+                        : "text-red-600 dark:text-red-400";
+                      return <span className={color}>{ratio.toFixed(2)}</span>;
+                    }
+                    return "—";
+                  })()}
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={14} className="py-6 text-center text-muted-foreground">No employees.</td></tr>
+              <tr><td colSpan={15} className="py-6 text-center text-muted-foreground">No employees.</td></tr>
             )}
           </tbody>
         </table>

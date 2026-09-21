@@ -288,7 +288,7 @@ export const INFO = {
   employees: {
     table: {
       title: "Every Employee — Lifetime Stats",
-      calc: "One row per employee (alphabetical). Shifts counts production shifts they were staffed on (including as trainee); Lead counts shifts run as shift lead; Sched Hrs is the scheduled duration of their shifts, Clocked Hrs their time-tracking entries; Cases credits them with each shift's whole output; Cases/Hr = cases ÷ scheduled hours. The five position columns show that position's own unit — Filling gallons, Pulling molds, Sorting pops, Bagging bags, Boxing cases. Gross Pay = clocked hours × hourly rate × (1 + employer tax). Prod. Value = credited cases × avg case price.",
+      calc: "One row per employee (alphabetical). Shifts counts production shifts they were staffed on (including as trainee); Lead counts shifts run as shift lead; Sched Hrs is the scheduled duration of their shifts, Clocked Hrs their time-tracking entries; Cases credits them with each shift's whole output; Cases/Hr = cases ÷ scheduled hours. The five position columns show that position's own unit — Filling gallons, Pulling molds, Sorting pops, Bagging bags, Boxing cases. Gross Pay = clocked hours × hourly rate × (1 + employer tax). Prod. Value = credited cases × avg case price. PVR (Production Value Ratio) = Prod. Value ÷ Gross Pay — green above 1, red below 1, purple above 5.",
       usage: "Find your fastest workers, check pay vs. output, and see who produces what across positions. Terminated employees are dimmed.",
       display: "Compact table sorted alphabetically; '—' means no data (no clocked time, or no priced orders for value).",
     },
