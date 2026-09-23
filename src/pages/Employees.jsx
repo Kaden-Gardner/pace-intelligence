@@ -11,6 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import EmptyState from "../components/EmptyState";
 import EmployeeMilestoneTracker from "@/components/EmployeeMilestoneTracker";
+import ConsistentCrewsSection from "@/components/employees/ConsistentCrewsSection";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -507,6 +508,9 @@ export default function Employees() {
                 {activeEmps.map(renderCard)}
               </div>
             )}
+
+            {/* Consistent Crews — recurring shift teams (all users) */}
+            <ConsistentCrewsSection shifts={shifts} employees={employees} />
 
             {/* Inactive employees — admin only */}
             {isAdmin && inactiveEmps.length > 0 && (
