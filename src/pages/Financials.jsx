@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame, Pencil, Crown, Sparkles } from "lucide-react";
+import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame, Pencil, Crown, Sparkles, BarChart3 } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subYears } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -19,6 +19,7 @@ import SavingsGoalCard from "@/components/financials/SavingsGoalCard";
 import PayPeriodsCard from "@/components/financials/PayPeriodsCard";
 import BigBoyPage from "@/components/financials/BigBoyPage";
 import WhatIfFlow from "@/components/whatif/WhatIfFlow";
+import ComparisonsPredictions from "@/components/whatif/ComparisonsPredictions";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const GALLONS_PER_BATCH = 240;
@@ -146,6 +147,8 @@ export default function Financials() {
   const [showBigBoy, setShowBigBoy] = useState(false);
   // What If: projection scenario builder toggled from the analytics tab
   const [showWhatIf, setShowWhatIf] = useState(false);
+  // Comparisons & Predictions: metric-driver sensitivity analysis
+  const [showComparisons, setShowComparisons] = useState(false);
 
   function handleUnlock() {
     if (pwInput !== "ecap") { setPwError("Incorrect password."); return; }
@@ -1421,8 +1424,17 @@ export default function Financials() {
             <Button size="lg" variant="outline" className="gap-2" onClick={() => setShowWhatIf(true)}>
               <Sparkles className="w-4 h-4" /> What If
             </Button>
+            <Button size="lg" variant="outline" className="gap-2" onClick={() => setShowComparisons(true)}>
+              <BarChart3 className="w-4 h-4" /> Comparisons & Predictions
+            </Button>
           </div>
-          {showWhatIf ? (
+          {showComparisons ? (
+            <ComparisonsPredictions
+              shifts={shifts}
+              employees={employees}
+              onBack={() => setShowComparisons(false)}
+            />
+          ) : showWhatIf ? (
             <WhatIfFlow
               shifts={shifts}
               baseMixShifts={baseMixShifts}
