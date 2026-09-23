@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame, Pencil, Crown } from "lucide-react";
+import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame, Pencil, Crown, Sparkles } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subYears } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
@@ -18,6 +18,7 @@ import FacilityCostCard from "@/components/financials/FacilityCostCard";
 import SavingsGoalCard from "@/components/financials/SavingsGoalCard";
 import PayPeriodsCard from "@/components/financials/PayPeriodsCard";
 import BigBoyPage from "@/components/financials/BigBoyPage";
+import WhatIfFlow from "@/components/whatif/WhatIfFlow";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
 
 const GALLONS_PER_BATCH = 240;
@@ -143,6 +144,8 @@ export default function Financials() {
   const [reverseRoi, setReverseRoi] = useState(false);
   // Big Boy Page: full-scale all-metrics view toggled from the analytics tab
   const [showBigBoy, setShowBigBoy] = useState(false);
+  // What If: projection scenario builder toggled from the analytics tab
+  const [showWhatIf, setShowWhatIf] = useState(false);
 
   function handleUnlock() {
     if (pwInput !== "ecap") { setPwError("Incorrect password."); return; }
@@ -1411,12 +1414,32 @@ export default function Financials() {
               <span className="font-semibold">Disclaimer:</span> All financial figures in this app are based on <span className="font-semibold">estimates and approximations</span> (labor hours, case counts, pricing). Before making any conclusive financial decisions, all administrators should consult verified financial records and statistics outside of this application.
             </p>
           </div>
-          <div className="mb-6">
+          <div className="mb-6 flex flex-wrap gap-3">
             <Button size="lg" className="gap-2" onClick={() => setShowBigBoy(true)}>
               <Crown className="w-4 h-4" /> Big Boy Page
             </Button>
+            <Button size="lg" variant="outline" className="gap-2" onClick={() => setShowWhatIf(true)}>
+              <Sparkles className="w-4 h-4" /> What If
+            </Button>
           </div>
-          {showBigBoy ? (
+          {showWhatIf ? (
+            <WhatIfFlow
+              shifts={shifts}
+              baseMixShifts={baseMixShifts}
+              employees={employees}
+              rates={rates}
+              timeEntries={timeEntries}
+              orders={orders}
+              orderItems={orderItems}
+              flavorSets={flavorSets}
+              matDefaults={matDefaults}
+              taxRate={taxRate}
+              calcShiftCost={calcShiftCost}
+              calcProductionSupplyCost={calcProductionSupplyCost}
+              orderRevenue={orderRevenue}
+              onBack={() => setShowWhatIf(false)}
+            />
+          ) : showBigBoy ? (
             <BigBoyPage
               shifts={shifts}
               baseMixShifts={baseMixShifts}
