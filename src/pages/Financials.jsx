@@ -1432,6 +1432,9 @@ export default function Financials() {
             <ComparisonsPredictions
               shifts={shifts}
               employees={employees}
+              orderItems={orderItems}
+              calcShiftCost={calcShiftCost}
+              calcProductionSupplyCost={calcProductionSupplyCost}
               onBack={() => setShowComparisons(false)}
             />
           ) : showWhatIf ? (

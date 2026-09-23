@@ -5,10 +5,10 @@ import {
   ResponsiveContainer, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
 import {
-  ArrowLeft, BarChart3, Clock, Gauge, Users, FlaskConical, Package, Flame, Timer, Repeat2,
+  ArrowLeft, BarChart3, Clock, Gauge, Users, FlaskConical, Package, Flame, Timer, Repeat2, DollarSign,
 } from "lucide-react";
 import { getTotalCases, getShiftEmployees, excludeShiftsWithTerminated } from "@/lib/analyticsHelpers";
-import { fmtNum, fmtInt } from "@/components/bigboy/format";
+import { fmt$, fmtNum, fmtInt } from "@/components/bigboy/format";
 
 const METRICS = [
   { key: "shift_duration", label: "Shift Duration", unit: "hrs", icon: Clock, fmt: (v) => fmtNum(v, 1) },
@@ -18,6 +18,8 @@ const METRICS = [
   { key: "cases_output", label: "Cases Output", unit: "cases", icon: Package, fmt: (v) => fmtInt(Math.round(v)) },
   { key: "waste", label: "Waste", unit: "gal", icon: Flame, fmt: (v) => fmtNum(v, 1) },
   { key: "downtime", label: "Downtime", unit: "hrs", icon: Timer, fmt: (v) => fmtNum(v, 2) },
+  { key: "cost_per_case", label: "Cost / Case", unit: "$", icon: DollarSign, fmt: (v) => fmt$(v) },
+  { key: "revenue", label: "Revenue / Shift", unit: "$", icon: DollarSign, fmt: (v) => fmt$(v) },
 ];
 
 function parseDowntimeHours(text) {
@@ -32,9 +34,13 @@ function parseDowntimeHours(text) {
   return 0;
 }
 
-function computeShiftMetrics(s) {
+function computeShiftMetrics(s, ctx = {}) {
   const totalCases = getTotalCases(s);
   const duration = s.shift_duration || 0;
+  const labor = ctx.calcShiftCost ? ctx.calcShiftCost(s, false) : 0;
+  const supply = ctx.calcProductionSupplyCost ? ctx.calcProductionSupplyCost(s) : 0;
+  const cost = totalCases > 0 ? (labor + supply) / totalCases : 0;
+  const revenue = ctx.avgCasePrice != null ? totalCases * ctx.avgCasePrice : 0;
   return {
     shift_duration: duration,
     speed: duration > 0 ? totalCases / duration : 0,
@@ -47,6 +53,8 @@ function computeShiftMetrics(s) {
     cases_output: totalCases,
     waste: s.waste || 0,
     downtime: parseDowntimeHours(s.downtime),
+    cost_per_case: cost,
+    revenue,
   };
 }
 
@@ -83,17 +91,23 @@ function corrLabel(r) {
   return { txt: "None", cls: "text-muted-foreground" };
 }
 
-export default function ComparisonsPredictions({ shifts, employees, onBack }) {
+export default function ComparisonsPredictions({ shifts, employees, orderItems, calcShiftCost, calcProductionSupplyCost, onBack }) {
   const [selectedKey, setSelectedKey] = useState(null);
   const [driverValue, setDriverValue] = useState(0);
+
+  const avgCasePrice = useMemo(() => {
+    const priced = (orderItems || []).filter((i) => i.case_sell_price > 0);
+    return priced.length > 0 ? priced.reduce((s, i) => s + i.case_sell_price, 0) / priced.length : null;
+  }, [orderItems]);
 
   // Per-shift metric rows (terminated-employee shifts excluded, like Big Boy).
   const rows = useMemo(() => {
     const clean = excludeShiftsWithTerminated(shifts || [], employees || []);
+    const ctx = { calcShiftCost, calcProductionSupplyCost, avgCasePrice };
     return clean
-      .map(computeShiftMetrics)
+      .map((s) => computeShiftMetrics(s, ctx))
       .filter((r) => r.shift_duration > 0 && r.crew > 0);
-  }, [shifts, employees]);
+  }, [shifts, employees, calcShiftCost, calcProductionSupplyCost, avgCasePrice]);
 
   const averages = useMemo(() => {
     const out = {};
