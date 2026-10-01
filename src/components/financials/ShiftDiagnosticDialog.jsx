@@ -20,8 +20,9 @@ import {
   Legend,
 } from "recharts";
 import { getTotalCases } from "@/lib/analyticsHelpers";
-import { Stethoscope, Activity, DollarSign, Package, TrendingUp, AlertTriangle, Clock, Gauge, Calendar, Users } from "lucide-react";
+import { Stethoscope, Activity, DollarSign, Package, TrendingUp, AlertTriangle, Clock, Gauge, Calendar, Users, Download } from "lucide-react";
 import MathValue from "@/components/financials/MathValue";
+import { exportShiftDiagnosticPdf } from "@/components/financials/shiftDiagnosticPdf";
 
 function fmt$(n) {
   if (n == null) return "—";
@@ -87,6 +88,18 @@ export default function ShiftDiagnosticDialog({
   triggerLabel = "Diagnostic",
 }) {
   const [open, setOpen] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  async function handleExportPdf() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const monthLabel = `${MONTH_NAMES[selectedMonth.month]} ${selectedMonth.year}`;
+      await exportShiftDiagnosticPdf({ summaries, totals, monthlySales, monthLabel, financialMode });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   // Month selection: store as { year, month } (month is 0-indexed)
   const now = new Date();
@@ -288,9 +301,21 @@ export default function ShiftDiagnosticDialog({
               </button>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground ml-auto">
-            {summaries.length} shifts · {totals.prodShiftCount} production · {totals.baseMixCount} base mix
-          </p>
+          <div className="flex items-center gap-3 ml-auto">
+            <p className="text-xs text-muted-foreground hidden sm:block">
+              {summaries.length} shifts · {totals.prodShiftCount} production · {totals.baseMixCount} base mix
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 whitespace-nowrap"
+              disabled={exporting || summaries.length === 0}
+              onClick={handleExportPdf}
+            >
+              <Download className="w-3.5 h-3.5" />
+              {exporting ? "Exporting…" : "Export PDF"}
+            </Button>
+          </div>
         </div>
 
         {!financialMode && (
