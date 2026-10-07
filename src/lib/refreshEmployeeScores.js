@@ -1,13 +1,17 @@
 import { base44 } from "@/api/base44Client";
 import { computeEmployeeScores } from "./employeeScore";
 
-// Snapshots every employee's current_score into previous_score, then recomputes
-// the composite score (now including the just-posted shift) and stores it as
-// the new current_score. Called after a shift report is saved.
+// Snapshots every targeted employee's current_score into previous_score, then
+// recomputes the composite score (now including the just-posted shift) and
+// stores it as the new current_score.
 //
-// On the very first run (current_score never set), previous_score stays null so
-// no change arrow is shown until there is a real prior value to compare.
-export async function refreshEmployeeScores() {
+// employeeIds (optional): when provided (e.g. the employees on a just-posted
+// shift), only those employees are snapshot + updated. When omitted/null, every
+// employee is processed — used for the one-time bootstrap.
+//
+// On the very first run for an employee (current_score never set), previous_score
+// stays null so no change arrow is shown until there is a real prior value.
+export async function refreshEmployeeScores(employeeIds = null) {
   const [shifts, employees, timeEntries, rates, perfSettings, taxSettings, orders] = await Promise.all([
     base44.entities.Shift.list("-shift_date", 1000),
     base44.entities.Employee.list(),
@@ -18,6 +22,10 @@ export async function refreshEmployeeScores() {
     base44.entities.OrderPickup.list("-pickup_date", 1000),
   ]);
 
+  const targetEmployees = employeeIds && employeeIds.length > 0
+    ? employees.filter((e) => employeeIds.includes(e.id))
+    : employees;
+
   const rateMap = Object.fromEntries(rates.map((r) => [r.employee_id, r]));
   const taxRate = taxSettings.length > 0 ? taxSettings[0].tax_rate || 0 : 0;
   const settings = perfSettings.length > 0 ? perfSettings[0] : null;
@@ -27,12 +35,12 @@ export async function refreshEmployeeScores() {
     : null;
 
   const scores = computeEmployeeScores({
-    shifts, employees, settings, rateMap, timeEntries, avgCasePrice, taxRate,
+    shifts, employees: targetEmployees, settings, rateMap, timeEntries, avgCasePrice, taxRate,
   });
 
   // Snapshot current → previous (only when a current value already exists),
   // then set current to the freshly computed score.
-  const updates = employees.map((emp) => {
+  const updates = targetEmployees.map((emp) => {
     const newScore = scores[emp.id]?.score ?? 0;
     const hasCurrent = typeof emp.current_score === "number";
     return {
