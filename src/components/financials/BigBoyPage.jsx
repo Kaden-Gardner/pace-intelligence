@@ -12,6 +12,7 @@ import {
   getPositionProduction,
   getEmployeePosition,
 } from "@/lib/analyticsHelpers";
+import { computeEmployeeScores } from "@/lib/employeeScore";
 import OverviewSection from "@/components/bigboy/OverviewSection";
 import EmployeeSection from "@/components/bigboy/EmployeeSection";
 import FinancialSection from "@/components/bigboy/FinancialSection";
@@ -46,7 +47,7 @@ function parseDowntimeHours(text) {
 export default function BigBoyPage({
   shifts, baseMixShifts, employees, rates, timeEntries, orders, orderItems,
   flavorSets, matDefaults, taxRate,
-  calcShiftCost, calcProductionSupplyCost, orderRevenue, onBack,
+  calcShiftCost, calcProductionSupplyCost, orderRevenue, onBack, performanceSettings,
 }) {
   const [flavors, setFlavors] = useState([]);
   const [inventory, setInventory] = useState([]);
@@ -227,9 +228,13 @@ export default function BigBoyPage({
 
   // ── Employee stats (all time) ──
   const empStats = useMemo(() => computeEmployeeStats(shifts, activeEmployees), [shifts, activeEmployees]);
+  const empScores = useMemo(() => computeEmployeeScores({
+    shifts, employees: activeEmployees, settings: performanceSettings,
+    rateMap, timeEntries, avgCasePrice, taxRate,
+  }), [shifts, activeEmployees, performanceSettings, rateMap, timeEntries, avgCasePrice, taxRate]);
   const empEntries = useMemo(() => Object.values(empStats)
     .filter((s) => s.totalHours > 0)
-    .sort((a, b) => (b.totalCases / b.totalHours) - (a.totalCases / a.totalHours)), [empStats]);
+    .sort((a, b) => (empScores[b.employee.id]?.score ?? 0) - (empScores[a.employee.id]?.score ?? 0)), [empStats, empScores]);
   const dreamTeam = useMemo(
     () => findDreamTeam(shifts, activeEmployees, { empMap, rateMap, timeEntries, avgCasePrice }),
     [shifts, activeEmployees, empMap, rateMap, timeEntries, avgCasePrice]
@@ -380,7 +385,7 @@ export default function BigBoyPage({
         <p className="text-xs text-muted-foreground mb-4">All time · dream team, top employees, best pairings, position MVPs, MVT, and shift lead leaderboard.</p>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
           <DreamTeamCard dreamTeam={dreamTeam} info={INFO.team.dream} />
-          <TopEmployeesCard empStats={empEntries} info={INFO.team.topEmployees} />
+          <TopEmployeesCard empStats={empEntries} scores={empScores} info={INFO.team.topEmployees} />
           <BestPairingsCard shifts={shifts} employees={activeEmployees} info={INFO.team.pairings} />
         </div>
         <PositionMVPsCard shifts={shifts} employees={activeEmployees} packConstants={pack} avgCasePrice={avgCasePrice} info={INFO.team.mvps} />

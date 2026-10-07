@@ -1,0 +1,44 @@
+{
+  "name": "PerformanceSettings",
+  "type": "object",
+  "properties": {
+    "min_shifts_per_week": {
+      "type": "number",
+      "title": "Minimum Shifts Per Week",
+      "default": 0,
+      "description": "Required shifts per week. Used in the employee performance score (T component)."
+    },
+    "min_speed_required": {
+      "type": "number",
+      "title": "Minimum Speed Required (cases/hr)",
+      "default": 0,
+      "description": "Minimum cases per hour required. Used in the employee performance score (S component)."
+    }
+  },
+  "required": [
+    "min_shifts_per_week",
+    "min_speed_required"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

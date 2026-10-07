@@ -17,6 +17,7 @@ import InventoryValueCard from "@/components/financials/InventoryValueCard";
 import FacilityCostCard from "@/components/financials/FacilityCostCard";
 import SavingsGoalCard from "@/components/financials/SavingsGoalCard";
 import PayPeriodsCard from "@/components/financials/PayPeriodsCard";
+import PerformanceSettingsCard from "@/components/financials/PerformanceSettingsCard";
 import BigBoyPage from "@/components/financials/BigBoyPage";
 import WhatIfFlow from "@/components/whatif/WhatIfFlow";
 import ComparisonsPredictions from "@/components/whatif/ComparisonsPredictions";
@@ -124,6 +125,7 @@ export default function Financials() {
   const [taxInput, setTaxInput] = useState("");
   const [facilitySettings, setFacilitySettings] = useState(null);
   const [savingsGoal, setSavingsGoal] = useState(null);
+  const [performanceSettings, setPerformanceSettings] = useState(null);
   const [loading, setLoading] = useState(false);
 
   // Rates UI state
@@ -158,7 +160,7 @@ export default function Financials() {
 
   async function loadData(showLoading = true) {
     if (showLoading) setLoading(true);
-    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp, tx, fc, sg] = await Promise.all([
+    const [ord, oi, emps, rt, sh, bms, te, fs, sp, bmd, mdef, jdef, fp, tx, fc, sg, ps] = await Promise.all([
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.OrderPickupItem.list().catch(() => []),
       base44.entities.Employee.list("name"),
@@ -175,6 +177,7 @@ export default function Financials() {
       base44.entities.TaxSettings.list().catch(() => []),
       base44.entities.FacilityCost.list().catch(() => []),
       base44.entities.SavingsGoal.list().catch(() => []),
+      base44.entities.PerformanceSettings.list().catch(() => []),
     ]);
     // Migrate legacy orders: create items for any order that has a flavorset_id but no items
     const legacyOrders = ord.filter((o) => o.flavorset_id && !oi.some((i) => i.order_id === o.id));
@@ -205,6 +208,7 @@ export default function Financials() {
     setTaxSettings(tx && tx.length > 0 ? tx[0] : null);
     setFacilitySettings(fc && fc.length > 0 ? fc[0] : null);
     setSavingsGoal(sg && sg.length > 0 ? sg[0] : null);
+    setPerformanceSettings(ps && ps.length > 0 ? ps[0] : null);
     setLoading(false);
   }
 
@@ -317,6 +321,16 @@ export default function Financials() {
     } else {
       const created = await base44.entities.SavingsGoal.create({ target_amount: amount, timeframe_months: months });
       setSavingsGoal(created);
+    }
+  }
+
+  async function savePerformanceSettings(minShifts, minSpeed) {
+    if (performanceSettings) {
+      const updated = await base44.entities.PerformanceSettings.update(performanceSettings.id, { min_shifts_per_week: minShifts, min_speed_required: minSpeed });
+      setPerformanceSettings(updated);
+    } else {
+      const created = await base44.entities.PerformanceSettings.create({ min_shifts_per_week: minShifts, min_speed_required: minSpeed });
+      setPerformanceSettings(created);
     }
   }
 
@@ -1071,6 +1085,13 @@ export default function Financials() {
           </div>
           {ratesPwError && <p className="text-xs text-destructive mb-3">{ratesPwError}</p>}
 
+          {/* Performance score variables */}
+          <PerformanceSettingsCard
+            settings={performanceSettings}
+            unlocked={unlocked}
+            onSave={savePerformanceSettings}
+          />
+
           {/* Employer payroll tax */}
           <div className="bg-card rounded-2xl border border-border p-4 mb-4">
             <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -1469,6 +1490,7 @@ export default function Financials() {
               calcShiftCost={calcShiftCost}
               calcProductionSupplyCost={calcProductionSupplyCost}
               orderRevenue={orderRevenue}
+              performanceSettings={performanceSettings}
               onBack={() => setShowBigBoy(false)}
             />
           ) : (

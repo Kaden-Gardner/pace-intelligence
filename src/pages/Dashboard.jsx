@@ -22,6 +22,7 @@ import {
   getWeeklyProductionData,
   resolvePackConstants,
 } from "../lib/analyticsHelpers";
+import { computeEmployeeScores } from "../lib/employeeScore";
 
 const PERIODS = [
   { label: "All Time", key: "all" },
@@ -58,10 +59,12 @@ export default function Dashboard() {
   const [rates, setRates] = useState([]);
   const [orders, setOrders] = useState([]);
   const [packConstants, setPackConstants] = useState({});
+  const [taxRate, setTaxRate] = useState(0);
+  const [performanceSettings, setPerformanceSettings] = useState(null);
   const [loading, setLoading] = useState(true);
 
   async function load() {
-    const [s, e, f, fs, inv, te, rt, ord, matDef] = await Promise.all([
+    const [s, e, f, fs, inv, te, rt, ord, matDef, tx, ps] = await Promise.all([
       base44.entities.Shift.list("-shift_date", 500),
       base44.entities.Employee.list(),
       base44.entities.Flavor.list(),
@@ -71,6 +74,8 @@ export default function Dashboard() {
       base44.entities.EmployeeRate.list(),
       base44.entities.OrderPickup.list("-pickup_date", 500),
       base44.entities.MaterialDefaults.list(),
+      base44.entities.TaxSettings.list().catch(() => []),
+      base44.entities.PerformanceSettings.list().catch(() => []),
     ]);
     const matMap = {};
     matDef.forEach((d) => { matMap[d.material_key] = d; });
@@ -83,6 +88,8 @@ export default function Dashboard() {
     setTimeEntries(te);
     setRates(rt);
     setOrders(ord);
+    setTaxRate(tx && tx.length > 0 ? tx[0].tax_rate || 0 : 0);
+    setPerformanceSettings(ps && ps.length > 0 ? ps[0] : null);
     setLoading(false);
   }
 
@@ -102,11 +109,15 @@ export default function Dashboard() {
     () => findDreamTeam(shifts, activeEmployees, { empMap, rateMap, timeEntries, avgCasePrice }),
     [shifts, activeEmployees, empMap, rateMap, timeEntries, avgCasePrice]
   );
+  const empScores = useMemo(() => computeEmployeeScores({
+    shifts, employees: activeEmployees, settings: performanceSettings,
+    rateMap, timeEntries, avgCasePrice, taxRate,
+  }), [shifts, activeEmployees, performanceSettings, rateMap, timeEntries, avgCasePrice, taxRate]);
   const empEntries = useMemo(() => {
     const entries = Object.values(empStats).filter((s) => s.totalHours > 0);
-    entries.sort((a, b) => (b.totalCases / b.totalHours) - (a.totalCases / a.totalHours));
+    entries.sort((a, b) => (empScores[b.employee.id]?.score ?? 0) - (empScores[a.employee.id]?.score ?? 0));
     return entries;
-  }, [empStats]);
+  }, [empStats, empScores]);
 
   // Period-filtered data (recomputes only when period or shifts change)
   const periodShifts = useMemo(() => filterShiftsByPeriod(shifts, period), [shifts, period]);
@@ -294,7 +305,7 @@ export default function Dashboard() {
         <p className="text-xs text-muted-foreground mb-4">All time · not affected by period filter</p>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <DreamTeamCard dreamTeam={dreamTeam} />
-          <TopEmployeesCard empStats={empEntries} />
+          <TopEmployeesCard empStats={empEntries} scores={empScores} />
           <BestPairingsCard shifts={shifts} employees={employees} />
         </div>
       </div>

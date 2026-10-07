@@ -1,17 +1,19 @@
 import { useState } from "react";
-import { TrendingUp, ChevronDown } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 import InfoButton from "@/components/bigboy/InfoButton";
 import { empFirstName } from "@/lib/employeeName";
 
-export default function TopEmployeesCard({ empStats, info }) {
+export default function TopEmployeesCard({ empStats, scores, info }) {
   const [selectedId, setSelectedId] = useState(null);
   const [isPpm, setIsPpm] = useRateUnit();
   const top5 = empStats.slice(0, 5);
+  const useScore = !!scores;
 
   const selectedStat = selectedId ? empStats.find((s) => s.employee.id === selectedId) : null;
+  const selectedScore = selectedStat ? scores?.[selectedStat.employee.id]?.score : null;
   const selectedCph = selectedStat && selectedStat.totalHours > 0 ? selectedStat.totalCases / selectedStat.totalHours : 0;
   const selectedPositions = selectedStat
     ? Object.entries(selectedStat.positionStats)
@@ -27,7 +29,7 @@ export default function TopEmployeesCard({ empStats, info }) {
         {info && <InfoButton {...info} />}
       </div>
       <div className="flex items-center gap-2 mb-4">
-        <p className="text-sm text-muted-foreground">By average {isPpm ? "pops/min" : "cases/hr"}</p>
+        <p className="text-sm text-muted-foreground">{useScore ? "By performance score" : `By average ${isPpm ? "pops/min" : "cases/hr"}`}</p>
         <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
           <span>Cases/hr</span>
           <Switch checked={isPpm} onCheckedChange={setIsPpm} className="scale-75" />
@@ -41,6 +43,7 @@ export default function TopEmployeesCard({ empStats, info }) {
         <div className="space-y-3">
           {top5.map((stat, i) => {
             const cph = stat.totalHours > 0 ? (stat.totalCases / stat.totalHours) : 0;
+            const sc = scores?.[stat.employee.id]?.score;
             const bestPos = Object.entries(stat.positionStats)
               .map(([pos, data]) => ({ pos, cph: data.totalHours > 0 ? data.totalCases / data.totalHours : 0 }))
               .sort((a, b) => b.cph - a.cph)[0];
@@ -59,9 +62,18 @@ export default function TopEmployeesCard({ empStats, info }) {
                   </div>
                 </div>
                 <div className="text-right">
-                   <p className="text-sm font-heading font-bold">{formatRate(cph, isPpm).value}</p>
-                   <p className="text-xs text-muted-foreground">{formatRate(cph, isPpm).label}</p>
-                 </div>
+                  {useScore ? (
+                    <>
+                      <p className="text-sm font-heading font-bold text-primary">{sc != null ? sc.toFixed(1) : "—"}</p>
+                      <p className="text-xs text-muted-foreground">score</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-heading font-bold">{formatRate(cph, isPpm).value}</p>
+                      <p className="text-xs text-muted-foreground">{formatRate(cph, isPpm).label}</p>
+                    </>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -78,10 +90,10 @@ export default function TopEmployeesCard({ empStats, info }) {
             </SelectTrigger>
             <SelectContent>
               {empStats.map((s) => {
-                const cph = s.totalHours > 0 ? s.totalCases / s.totalHours : 0;
+                const sc = scores?.[s.employee.id]?.score;
                 return (
                   <SelectItem key={s.employee.id} value={s.employee.id}>
-                    {empFirstName(s.employee)} — {formatRate(cph, isPpm).value} {formatRate(cph, isPpm).label}
+                    {empFirstName(s.employee)}{sc != null ? ` — ${sc.toFixed(1)} score` : ""}
                   </SelectItem>
                 );
               })}
@@ -93,8 +105,17 @@ export default function TopEmployeesCard({ empStats, info }) {
               <div className="flex items-center justify-between mb-3">
                 <p className="font-medium text-sm">{empFirstName(selectedStat.employee)}</p>
                 <div className="text-right">
-                  <p className="font-heading font-bold text-lg text-primary">{formatRate(selectedCph, isPpm).value}</p>
-                  <p className="text-xs text-muted-foreground">{formatRate(selectedCph, isPpm).label} overall</p>
+                  {useScore ? (
+                    <>
+                      <p className="font-heading font-bold text-lg text-primary">{selectedScore != null ? selectedScore.toFixed(1) : "—"}</p>
+                      <p className="text-xs text-muted-foreground">score overall</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-heading font-bold text-lg text-primary">{formatRate(selectedCph, isPpm).value}</p>
+                      <p className="text-xs text-muted-foreground">{formatRate(selectedCph, isPpm).label} overall</p>
+                    </>
+                  )}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-3">
