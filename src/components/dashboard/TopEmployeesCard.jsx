@@ -1,19 +1,34 @@
 import { useState } from "react";
-import { TrendingUp } from "lucide-react";
+import { TrendingUp, ArrowUp, ArrowDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 import InfoButton from "@/components/bigboy/InfoButton";
 import { empFirstName } from "@/lib/employeeName";
 
-export default function TopEmployeesCard({ empStats, scores, info }) {
+function ScoreDelta({ current, previous }) {
+  if (previous == null || typeof current !== "number") return null;
+  const diff = current - previous;
+  if (Math.abs(diff) < 0.05) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  const up = diff > 0;
+  return (
+    <span className={`text-xs font-medium flex items-center gap-0.5 ${up ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+      {up ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
+      {Math.abs(diff).toFixed(1)}
+    </span>
+  );
+}
+
+export default function TopEmployeesCard({ empStats, info }) {
   const [selectedId, setSelectedId] = useState(null);
   const [isPpm, setIsPpm] = useRateUnit();
   const top5 = empStats.slice(0, 5);
-  const useScore = !!scores;
 
   const selectedStat = selectedId ? empStats.find((s) => s.employee.id === selectedId) : null;
-  const selectedScore = selectedStat ? scores?.[selectedStat.employee.id]?.score : null;
+  const selectedScore = selectedStat?.employee?.current_score;
+  const selectedPrev = selectedStat?.employee?.previous_score;
   const selectedCph = selectedStat && selectedStat.totalHours > 0 ? selectedStat.totalCases / selectedStat.totalHours : 0;
   const selectedPositions = selectedStat
     ? Object.entries(selectedStat.positionStats)
@@ -29,7 +44,7 @@ export default function TopEmployeesCard({ empStats, scores, info }) {
         {info && <InfoButton {...info} />}
       </div>
       <div className="flex items-center gap-2 mb-4">
-        <p className="text-sm text-muted-foreground">{useScore ? "By performance score" : `By average ${isPpm ? "pops/min" : "cases/hr"}`}</p>
+        <p className="text-sm text-muted-foreground">By performance score</p>
         <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
           <span>Cases/hr</span>
           <Switch checked={isPpm} onCheckedChange={setIsPpm} className="scale-75" />
@@ -43,7 +58,7 @@ export default function TopEmployeesCard({ empStats, scores, info }) {
         <div className="space-y-3">
           {top5.map((stat, i) => {
             const cph = stat.totalHours > 0 ? (stat.totalCases / stat.totalHours) : 0;
-            const sc = scores?.[stat.employee.id]?.score;
+            const sc = stat.employee?.current_score;
             const bestPos = Object.entries(stat.positionStats)
               .map(([pos, data]) => ({ pos, cph: data.totalHours > 0 ? data.totalCases / data.totalHours : 0 }))
               .sort((a, b) => b.cph - a.cph)[0];
@@ -61,18 +76,12 @@ export default function TopEmployeesCard({ empStats, scores, info }) {
                     </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  {useScore ? (
-                    <>
-                      <p className="text-sm font-heading font-bold text-primary">{sc != null ? sc.toFixed(1) : "—"}</p>
-                      <p className="text-xs text-muted-foreground">score</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-heading font-bold">{formatRate(cph, isPpm).value}</p>
-                      <p className="text-xs text-muted-foreground">{formatRate(cph, isPpm).label}</p>
-                    </>
-                  )}
+                <div className="flex items-center gap-2 text-right">
+                  <ScoreDelta current={sc} previous={stat.employee?.previous_score} />
+                  <div>
+                    <p className="text-sm font-heading font-bold text-primary">{typeof sc === "number" ? sc.toFixed(1) : "—"}</p>
+                    <p className="text-xs text-muted-foreground">score</p>
+                  </div>
                 </div>
               </div>
             );
@@ -90,10 +99,10 @@ export default function TopEmployeesCard({ empStats, scores, info }) {
             </SelectTrigger>
             <SelectContent>
               {empStats.map((s) => {
-                const sc = scores?.[s.employee.id]?.score;
+                const sc = s.employee?.current_score;
                 return (
                   <SelectItem key={s.employee.id} value={s.employee.id}>
-                    {empFirstName(s.employee)}{sc != null ? ` — ${sc.toFixed(1)} score` : ""}
+                    {empFirstName(s.employee)}{typeof sc === "number" ? ` — ${sc.toFixed(1)} score` : ""}
                   </SelectItem>
                 );
               })}
@@ -104,18 +113,12 @@ export default function TopEmployeesCard({ empStats, scores, info }) {
             <div className="mt-3 bg-muted rounded-xl p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="font-medium text-sm">{empFirstName(selectedStat.employee)}</p>
-                <div className="text-right">
-                  {useScore ? (
-                    <>
-                      <p className="font-heading font-bold text-lg text-primary">{selectedScore != null ? selectedScore.toFixed(1) : "—"}</p>
-                      <p className="text-xs text-muted-foreground">score overall</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="font-heading font-bold text-lg text-primary">{formatRate(selectedCph, isPpm).value}</p>
-                      <p className="text-xs text-muted-foreground">{formatRate(selectedCph, isPpm).label} overall</p>
-                    </>
-                  )}
+                <div className="flex items-center gap-2 text-right">
+                  <ScoreDelta current={selectedScore} previous={selectedPrev} />
+                  <div>
+                    <p className="font-heading font-bold text-lg text-primary">{typeof selectedScore === "number" ? selectedScore.toFixed(1) : "—"}</p>
+                    <p className="text-xs text-muted-foreground">score overall</p>
+                  </div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-3">

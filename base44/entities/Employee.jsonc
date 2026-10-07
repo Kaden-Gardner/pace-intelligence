@@ -107,6 +107,16 @@
       "type": "boolean",
       "title": "Opt Out of Post Notifications",
       "default": false
+    },
+    "current_score": {
+      "type": "number",
+      "title": "Current Performance Score",
+      "description": "Composite performance score as of the last shift post. Displayed in Top Employees rankings."
+    },
+    "previous_score": {
+      "type": "number",
+      "title": "Previous Performance Score",
+      "description": "Snapshot of current_score from before the most recent shift post. Used to show the change arrow."
     }
   },
   "required": [

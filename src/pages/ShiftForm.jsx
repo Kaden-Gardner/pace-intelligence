@@ -11,6 +11,7 @@ import ShiftPositionsSection from "../components/shift-form/ShiftPositionsSectio
 import ShiftProductionSection from "../components/shift-form/ShiftProductionSection";
 import ShiftMaterialsUsageSection from "../components/shift-form/ShiftMaterialsUsageSection";
 import ShiftScoresSection from "../components/shift-form/ShiftScoresSection";
+import { refreshEmployeeScores } from "../lib/refreshEmployeeScores";
 
 
 export default function ShiftForm() {
@@ -464,6 +465,8 @@ export default function ShiftForm() {
       }
     }
 
+    // Snapshot previous ← current, then recompute and store new current scores
+    await refreshEmployeeScores().catch(() => {});
     setSaving(false);
     navigate("/shifts");
   }

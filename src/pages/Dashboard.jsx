@@ -22,8 +22,6 @@ import {
   getWeeklyProductionData,
   resolvePackConstants,
 } from "../lib/analyticsHelpers";
-import { computeEmployeeScores } from "../lib/employeeScore";
-
 const PERIODS = [
   { label: "All Time", key: "all" },
   { label: "Past Year", key: "year" },
@@ -109,15 +107,11 @@ export default function Dashboard() {
     () => findDreamTeam(shifts, activeEmployees, { empMap, rateMap, timeEntries, avgCasePrice }),
     [shifts, activeEmployees, empMap, rateMap, timeEntries, avgCasePrice]
   );
-  const empScores = useMemo(() => computeEmployeeScores({
-    shifts, employees: activeEmployees, settings: performanceSettings,
-    rateMap, timeEntries, avgCasePrice, taxRate,
-  }), [shifts, activeEmployees, performanceSettings, rateMap, timeEntries, avgCasePrice, taxRate]);
   const empEntries = useMemo(() => {
     const entries = Object.values(empStats).filter((s) => s.totalHours > 0);
-    entries.sort((a, b) => (empScores[b.employee.id]?.score ?? 0) - (empScores[a.employee.id]?.score ?? 0));
+    entries.sort((a, b) => (b.employee.current_score ?? 0) - (a.employee.current_score ?? 0));
     return entries;
-  }, [empStats, empScores]);
+  }, [empStats]);
 
   // Period-filtered data (recomputes only when period or shifts change)
   const periodShifts = useMemo(() => filterShiftsByPeriod(shifts, period), [shifts, period]);
@@ -305,7 +299,7 @@ export default function Dashboard() {
         <p className="text-xs text-muted-foreground mb-4">All time · not affected by period filter</p>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <DreamTeamCard dreamTeam={dreamTeam} />
-          <TopEmployeesCard empStats={empEntries} scores={empScores} />
+          <TopEmployeesCard empStats={empEntries} />
           <BestPairingsCard shifts={shifts} employees={employees} />
         </div>
       </div>
