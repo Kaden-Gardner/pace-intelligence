@@ -1422,7 +1422,7 @@ export default function Financials() {
             unlocked={unlocked}
             onSave={saveSavingsGoal}
           />
-          <SuppliesPricingTab />
+          <SuppliesPricingTab facilityCost={facilitySettings} savingsGoal={savingsGoal} />
         </TabsContent>
 
         {/* ===== BREAKDOWN ===== */}

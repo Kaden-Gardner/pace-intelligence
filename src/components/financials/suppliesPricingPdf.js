@@ -19,9 +19,19 @@ function loadLogo() {
 }
 
 // sections: [{ name, rows: [{ label, sublabel, price }] }]
-// Only supply prices are exported — facility cost per shift and savings goal
-// accrual are intentionally excluded.
-export async function exportSuppliesPricingPdf({ sections }) {
+// facilityCost: { monthly_cost } | null
+// savingsGoal: { target_amount, timeframe_months } | null
+// Estimated per-shift cost assumes 5 shifts/week × 52 weeks/year = 260 shifts.
+export async function exportSuppliesPricingPdf({ sections, facilityCost, savingsGoal }) {
+  const SHIFTS_PER_YEAR = 5 * 52; // 260
+  const SHIFTS_PER_MONTH = SHIFTS_PER_YEAR / 12;
+
+  const monthlyFacility = facilityCost?.monthly_cost || 0;
+  const facilityPerShift = SHIFTS_PER_MONTH > 0 ? monthlyFacility / SHIFTS_PER_MONTH : 0;
+  const savingsTarget = savingsGoal?.target_amount || 0;
+  const savingsMonths = savingsGoal?.timeframe_months || 0;
+  const savingsPerMonth = savingsMonths > 0 ? savingsTarget / savingsMonths : 0;
+  const savingsPerShift = SHIFTS_PER_MONTH > 0 ? savingsPerMonth / SHIFTS_PER_MONTH : 0;
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
@@ -50,6 +60,29 @@ export async function exportSuppliesPricingPdf({ sections }) {
   doc.setTextColor(90);
   doc.text(`Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, margin, y);
   y += 7;
+
+  // Summary stats (two columns) — facility cost and savings goal with
+  // estimated per-shift cost at 5 shifts/week × 52 weeks/year.
+  doc.setTextColor(20);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Summary", margin, y);
+  y += 5;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  const stats = [
+    `Monthly Facility Cost: ${fmt$(monthlyFacility)}`,
+    `Est. Facility / Shift (5/wk × 52): ${fmt$(facilityPerShift)}`,
+    savingsGoal ? `Savings Goal: ${fmt$(savingsTarget)} over ${savingsMonths} months` : null,
+    savingsGoal ? `Est. Savings / Shift (5/wk × 52): ${fmt$(savingsPerShift)}` : null,
+  ].filter(Boolean);
+  const colW = (pageW - margin * 2) / 2;
+  stats.forEach((s, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    doc.text(s, margin + col * colW, y + row * 5);
+  });
+  y += Math.ceil(stats.length / 2) * 5 + 4;
 
   const tableW = pageW - margin * 2;
   const labelW = 90;

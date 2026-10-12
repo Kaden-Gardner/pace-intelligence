@@ -45,7 +45,7 @@ const TYPE_LABELS = {
 
 function fmt$(n) { return n == null ? "—" : `$${Number(n).toFixed(2)}`; }
 
-export default function SuppliesPricingTab() {
+export default function SuppliesPricingTab({ facilityCost, savingsGoal }) {
   const [prices, setPrices] = useState([]);
   const [flavors, setFlavors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -111,6 +111,8 @@ export default function SuppliesPricingTab() {
           { name: "Flavoring", rows: flavorRows },
           { name: "Bags", rows: bagRows },
         ],
+        facilityCost,
+        savingsGoal,
       });
     } finally {
       setExporting(false);
