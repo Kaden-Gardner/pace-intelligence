@@ -7,6 +7,7 @@ function fmt$(n) {
   return `$${Number(n).toFixed(2)}`;
 }
 
+// Loads the Pace logo image so it can be embedded at the top of the PDF.
 function loadLogo() {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -21,10 +22,10 @@ function loadLogo() {
 // Only supply prices are exported — facility cost per shift and savings goal
 // accrual are intentionally excluded.
 export async function exportSuppliesPricingPdf({ sections }) {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const margin = 14;
+  const margin = 10;
   let y = margin;
 
   // Logo
@@ -33,7 +34,7 @@ export async function exportSuppliesPricingPdf({ sections }) {
     const logoH = 12;
     const logoW = logo.width ? (logo.width / logo.height) * logoH : 36;
     doc.addImage(logo, "PNG", margin, y, logoW, logoH);
-    y += logoH + 4;
+    y += logoH + 3;
   } catch {
     // logo unavailable — continue without it
   }
@@ -44,16 +45,15 @@ export async function exportSuppliesPricingPdf({ sections }) {
   doc.setTextColor(20);
   doc.text("Supplies Pricing", margin, y + 4);
   y += 9;
-
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
+  doc.setFontSize(11);
   doc.setTextColor(90);
   doc.text(`Generated ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`, margin, y);
-  y += 8;
+  y += 7;
 
   const tableW = pageW - margin * 2;
-  const labelW = 70;
-  const subW = 60;
+  const labelW = 90;
+  const subW = 80;
   const priceW = tableW - labelW - subW;
   const rowH = 6;
   const headerH = 6;
@@ -70,12 +70,14 @@ export async function exportSuppliesPricingPdf({ sections }) {
     doc.setFontSize(12);
     doc.setTextColor(20);
     doc.text(section.name, margin, y);
-    y += 4;
+    y += 5;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
 
     // Table header
     doc.setFillColor(230, 230, 230);
     doc.rect(margin, y, tableW, headerH, "F");
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(60);
     doc.text("Item", margin + 1, y + 4);
@@ -85,18 +87,17 @@ export async function exportSuppliesPricingPdf({ sections }) {
 
     // Rows
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
+    doc.setFontSize(8.5);
     section.rows.forEach((row) => {
       if (y > pageH - margin - rowH) {
         doc.addPage();
         y = margin;
       }
       doc.setTextColor(30);
-      // Truncate long labels
-      const label = row.label.length > 32 ? row.label.slice(0, 31) + "…" : row.label;
+      const label = row.label.length > 40 ? row.label.slice(0, 39) + "…" : row.label;
       doc.text(label, margin + 1, y + 4);
 
-      const sub = (row.sublabel || "").length > 30 ? (row.sublabel || "").slice(0, 29) + "…" : (row.sublabel || "");
+      const sub = (row.sublabel || "").length > 40 ? (row.sublabel || "").slice(0, 39) + "…" : (row.sublabel || "");
       doc.setTextColor(110);
       doc.text(sub, margin + labelW + 1, y + 4);
 
@@ -107,10 +108,10 @@ export async function exportSuppliesPricingPdf({ sections }) {
       y += rowH;
     });
 
-    y += 5;
+    y += 4;
   });
 
-  // Footer page numbers
+  // Footer page numbers on every page
   const pageCount = doc.internal.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
