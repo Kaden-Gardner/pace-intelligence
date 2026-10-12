@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Pencil, Check, X } from "lucide-react";
+import { Pencil, Check, X, FileDown } from "lucide-react";
 import { INGREDIENTS } from "@/components/inventory/IngredientsTab";
+import { exportSuppliesPricingPdf } from "./suppliesPricingPdf";
 
 const MATERIALS = [
   { key: "individual_wrap", label: "Individual Wrap",  unit: "roll" },
@@ -50,6 +51,7 @@ export default function SuppliesPricingTab() {
   const [loading, setLoading] = useState(true);
   const [editKey, setEditKey] = useState(null);
   const [editVal, setEditVal] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -65,6 +67,54 @@ export default function SuppliesPricingTab() {
 
   function getPrice(key, type) {
     return prices.find((p) => p.item_key === key && p.item_type === type);
+  }
+
+  async function handleExportPdf() {
+    setExporting(true);
+    try {
+      const CONTAINER_LABELS = {
+        liquid_1gal: "1-gal jug",
+        liquid_5gal: "5-gal jug",
+        powder_5gal: "5-gal bucket (powder)",
+      };
+      const TYPE_LABELS = { processed: "Processed", bought: "Bought" };
+
+      const ingRows = INGREDIENTS.map((ing) => {
+        const rec = getPrice(ing.key, "ingredient");
+        return { label: ing.label, sublabel: `per ${ing.unit}`, price: rec?.price_per_unit };
+      });
+      const matRows = MATERIALS.map((mat) => {
+        const rec = getPrice(mat.key, "material");
+        return { label: mat.label, sublabel: `per ${mat.unit}`, price: rec?.price_per_unit };
+      });
+      const flavorRows = flavors.map((f) => {
+        const rec = getPrice(`flavor_${f.id}`, "flavoring");
+        const containerLabel = CONTAINER_LABELS[f.container_type] || "container";
+        const typeLabel = TYPE_LABELS[f.flavor_type];
+        return {
+          label: f.name,
+          sublabel: `per ${containerLabel}${typeLabel ? ` · ${typeLabel}` : ""}`,
+          price: rec?.price_per_unit,
+        };
+      });
+      const bagRec = getPrice(BAG_CASE_ITEM.key, "bags");
+      const bagRows = [{
+        label: BAG_CASE_ITEM.label,
+        sublabel: `per ${BAG_CASE_ITEM.unit}`,
+        price: bagRec?.price_per_unit,
+      }];
+
+      await exportSuppliesPricingPdf({
+        sections: [
+          { name: "Ingredients", rows: ingRows },
+          { name: "Materials", rows: matRows },
+          { name: "Flavoring", rows: flavorRows },
+          { name: "Bags", rows: bagRows },
+        ],
+      });
+    } finally {
+      setExporting(false);
+    }
   }
 
   async function savePrice(key, type) {
@@ -126,7 +176,12 @@ export default function SuppliesPricingTab() {
 
   return (
     <div className="space-y-8">
-      <p className="text-sm text-muted-foreground">Set the cost price per unit for each ingredient, material, and flavoring. Used to calculate supply costs per shift.</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-sm text-muted-foreground">Set the cost price per unit for each ingredient, material, and flavoring. Used to calculate supply costs per shift.</p>
+        <Button variant="outline" size="sm" className="gap-2" onClick={handleExportPdf} disabled={exporting}>
+          <FileDown className="w-4 h-4" /> {exporting ? "Exporting…" : "Export PDF"}
+        </Button>
+      </div>
 
       <div>
         <h3 className="font-heading font-semibold text-lg mb-3">Ingredients</h3>
