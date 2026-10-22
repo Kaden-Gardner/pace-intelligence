@@ -11,7 +11,12 @@ import { computeEmployeeScores } from "./employeeScore";
 //
 // On the very first run for an employee (current_score never set), previous_score
 // stays null so no change arrow is shown until there is a real prior value.
-export async function refreshEmployeeScores(employeeIds = null) {
+// options.rebaseline: when true, previous_score is set equal to the freshly
+// computed score (no change arrow) instead of snapshotting the old value. Used
+// when the scoring settings themselves change, so every employee gets a clean
+// baseline rather than a misleading shift-to-shift drop.
+export async function refreshEmployeeScores(employeeIds = null, options = {}) {
+  const { rebaseline = false } = options;
   const [shifts, employees, timeEntries, rates, perfSettings, taxSettings, orders] = await Promise.all([
     base44.entities.Shift.list("-shift_date", 1000),
     base44.entities.Employee.list(),
@@ -42,6 +47,9 @@ export async function refreshEmployeeScores(employeeIds = null) {
   // then set current to the freshly computed score.
   const updates = targetEmployees.map((emp) => {
     const newScore = scores[emp.id]?.score ?? 0;
+    if (rebaseline) {
+      return { id: emp.id, previous_score: newScore, current_score: newScore };
+    }
     const hasCurrent = typeof emp.current_score === "number";
     return {
       id: emp.id,

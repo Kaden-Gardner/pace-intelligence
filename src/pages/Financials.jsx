@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { DollarSign, Lock, Unlock, Package, Calendar, Check, X, Flame, Pencil, Crown, Sparkles, BarChart3 } from "lucide-react";
 import { getTotalCases } from "@/lib/analyticsHelpers";
+import { refreshEmployeeScores } from "@/lib/refreshEmployeeScores";
+import { useToast } from "@/components/ui/use-toast";
 import { differenceInMinutes, parseISO, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths, subYears } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 import SuppliesPricingTab from "@/components/financials/SuppliesPricingTab";
@@ -127,6 +129,7 @@ export default function Financials() {
   const [savingsGoal, setSavingsGoal] = useState(null);
   const [performanceSettings, setPerformanceSettings] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
 
   // Rates UI state
   const [ratesUnlocked, setRatesUnlocked] = useState(false);
@@ -331,6 +334,14 @@ export default function Financials() {
     } else {
       const created = await base44.entities.PerformanceSettings.create({ min_shifts_per_week: minShifts, min_speed_required: minSpeed });
       setPerformanceSettings(created);
+    }
+    // Re-baseline every employee's score against the new settings immediately,
+    // so no one carries a score computed under the previous minimums.
+    try {
+      const { updated } = await refreshEmployeeScores(null, { rebaseline: true });
+      toast({ title: "Scores updated", description: `Re-baselined ${updated} employees to the new minimums.` });
+    } catch (e) {
+      toast({ title: "Scores not updated", description: "Settings saved, but the score refresh failed.", variant: "destructive" });
     }
   }
 
