@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useRateUnit, formatRate } from "@/hooks/useRateUnit";
 import InfoButton from "@/components/bigboy/InfoButton";
+import ScoreFormulaInfo from "@/components/dashboard/ScoreFormulaInfo";
 import { empFirstName } from "@/lib/employeeName";
 
 function ScoreDelta({ current, previous }) {
@@ -45,6 +46,7 @@ export default function TopEmployeesCard({ empStats, info }) {
       </div>
       <div className="flex items-center gap-2 mb-4">
         <p className="text-sm text-muted-foreground">By performance score</p>
+        <ScoreFormulaInfo />
         <div className="flex items-center gap-1.5 ml-auto text-xs text-muted-foreground">
           <span>Cases/hr</span>
           <Switch checked={isPpm} onCheckedChange={setIsPpm} className="scale-75" />
