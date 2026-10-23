@@ -13,16 +13,17 @@ function loadLogo() {
   });
 }
 
-// Renders a simple portrait table report: logo, title, subtitle and rows.
+// Renders a portrait table report: logo, title, subtitle, a main table and an
+// optional second table (breakdown) underneath it.
 // columns: [{ key, label, w, align }] — widths are mm and should add up to the
 // printable width (A4 portrait is 210mm, minus 12mm margins on each side).
-export async function exportTimeTrackingPdf({ title, subtitle, columns, rows, totalsRow, filename }) {
+// breakdown: { title, columns, rows, totalsRow } — rendered below the main table.
+export async function exportTimeTrackingPdf({ title, subtitle, columns, rows, totalsRow, breakdown, filename }) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
   const margin = 12;
   const rowH = 6.5;
-  const tableW = columns.reduce((s, c) => s + c.w, 0);
   let y = margin;
 
   try {
@@ -47,14 +48,14 @@ export async function exportTimeTrackingPdf({ title, subtitle, columns, rows, to
   doc.text(subtitle, margin, y);
   y += 7;
 
-  function drawHeaderRow() {
+  function drawHeaderRow(cols, width) {
     doc.setFillColor(235, 235, 235);
-    doc.rect(margin, y, tableW, rowH, "F");
+    doc.rect(margin, y, width, rowH, "F");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8.5);
     doc.setTextColor(20);
     let x = margin;
-    columns.forEach((c) => {
+    cols.forEach((c) => {
       const tx = c.align === "right" ? x + c.w - 1.5 : x + 1.5;
       doc.text(c.label, tx, y + 4.2, { align: c.align === "right" ? "right" : "left" });
       x += c.w;
@@ -62,12 +63,12 @@ export async function exportTimeTrackingPdf({ title, subtitle, columns, rows, to
     y += rowH;
   }
 
-  function drawRow(row, bold) {
+  function drawRow(row, cols, bold) {
     doc.setFont("helvetica", bold ? "bold" : "normal");
     doc.setFontSize(8.5);
     doc.setTextColor(20);
     let x = margin;
-    columns.forEach((c) => {
+    cols.forEach((c) => {
       const value = row[c.key] == null ? "" : String(row[c.key]);
       const tx = c.align === "right" ? x + c.w - 1.5 : x + 1.5;
       const text = c.align === "right" ? value : doc.splitTextToSize(value, c.w - 3)[0] || "";
@@ -77,25 +78,44 @@ export async function exportTimeTrackingPdf({ title, subtitle, columns, rows, to
     y += rowH;
   }
 
-  drawHeaderRow();
-  rows.forEach((r) => {
-    if (y > pageH - margin - rowH) {
-      doc.addPage();
-      y = margin;
-      drawHeaderRow();
+  function drawTable(cols, tableRows, totalRow) {
+    const width = cols.reduce((s, c) => s + c.w, 0);
+    drawHeaderRow(cols, width);
+    tableRows.forEach((r) => {
+      if (y > pageH - margin - rowH) {
+        doc.addPage();
+        y = margin;
+        drawHeaderRow(cols, width);
+      }
+      drawRow(r, cols, false);
+    });
+    if (totalRow) {
+      if (y > pageH - margin - rowH * 2) {
+        doc.addPage();
+        y = margin;
+        drawHeaderRow(cols, width);
+      }
+      doc.setDrawColor(180);
+      doc.line(margin, y, margin + width, y);
+      y += 0.5;
+      drawRow(totalRow, cols, true);
     }
-    drawRow(r, false);
-  });
+  }
 
-  if (totalsRow) {
-    if (y > pageH - margin - rowH * 2) {
+  drawTable(columns, rows, totalsRow);
+
+  if (breakdown) {
+    y += 6;
+    if (y > pageH - margin - 14) {
       doc.addPage();
       y = margin;
     }
-    doc.setDrawColor(180);
-    doc.line(margin, y, margin + tableW, y);
-    y += 0.5;
-    drawRow(totalsRow, true);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20);
+    doc.text(breakdown.title, margin, y);
+    y += 5;
+    drawTable(breakdown.columns, breakdown.rows, breakdown.totalsRow);
   }
 
   const pageCount = doc.internal.getNumberOfPages();
