@@ -68,8 +68,11 @@ export default function TimeExportDialog({ open, onOpenChange, employees, period
       const emp = e.employee_id ? empById[e.employee_id] : null;
       const key = e.employee_id || e.employee_number || e.employee_name || "unknown";
       if (!groups[key]) {
+        const fullName = emp?.name || e.employee_name || "Unknown";
+        const lastName = emp?.last_name || fullName.trim().split(/\s+/).slice(1).join(" ") || fullName;
         groups[key] = {
-          name: emp?.name || e.employee_name || "Unknown",
+          name: fullName,
+          last: lastName,
           number: emp?.employee_number || e.employee_number || "",
           entries: 0,
           hours: 0,
@@ -79,9 +82,10 @@ export default function TimeExportDialog({ open, onOpenChange, employees, period
       groups[key].hours += entryHours(e) || 0;
     });
 
+    // Alphabetical by last name, then first name
     const list = Object.values(groups)
       .filter((g) => g.hours > 0)
-      .sort((a, b) => a.name.localeCompare(b.name));
+      .sort((a, b) => a.last.localeCompare(b.last) || a.name.localeCompare(b.name));
 
     const totalHours = list.reduce((s, g) => s + g.hours, 0);
     const totalEntries = list.reduce((s, g) => s + g.entries, 0);
