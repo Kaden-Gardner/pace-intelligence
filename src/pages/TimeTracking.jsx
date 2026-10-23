@@ -4,7 +4,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { useAutoRefresh } from "@/hooks/useAutoRefresh";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Clock, LogIn, LogOut, Pencil, Check, X, Trash2, MapPin, CalendarRange } from "lucide-react";
+import { Clock, LogIn, LogOut, Pencil, Check, X, Trash2, MapPin, CalendarRange, Download } from "lucide-react";
+import TimeExportDialog from "@/components/time-tracking/TimeExportDialog";
 import { format, parseISO, differenceInMinutes, startOfWeek, endOfWeek, startOfMonth, endOfMonth, subMonths } from "date-fns";
 
 const PERIODS = [
@@ -29,6 +30,20 @@ function getPeriodRange(key) {
     return [startOfMonth(lm), endOfMonth(lm)];
   }
   return [null, null];
+}
+
+function getPeriodLabel(key, customStart, customEnd) {
+  const fmt = (d) => format(d, "MMM d, yyyy");
+  if (key === "all") return "All Time";
+  if (key === "custom") {
+    if (customStart && customEnd) return `${fmt(new Date(customStart + "T12:00:00"))} – ${fmt(new Date(customEnd + "T12:00:00"))}`;
+    if (customStart) return `From ${fmt(new Date(customStart + "T12:00:00"))}`;
+    if (customEnd) return `Through ${fmt(new Date(customEnd + "T12:00:00"))}`;
+    return "Custom Range (no dates selected)";
+  }
+  const [s, e] = getPeriodRange(key);
+  const label = PERIODS.find((p) => p.key === key)?.label || "";
+  return `${label} (${fmt(s)} – ${fmt(e)})`;
 }
 
 function fmtHours(h) {
@@ -65,6 +80,7 @@ export default function TimeTracking() {
   const [adminView, setAdminView] = useState("my"); // "my" | "all" | "terminal"
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
+  const [exportOpen, setExportOpen] = useState(false);
 
   const GEOFENCE = { lat: 40.856180, lng: -111.927465, radiusMeters: 27.4 }; // 30 yards
 
@@ -304,6 +320,8 @@ export default function TimeTracking() {
   });
   const summaryList = Object.values(empSummary).sort((a, b) => b.totalHours - a.totalHours);
 
+  const periodLabel = getPeriodLabel(period, customStart, customEnd);
+
   const [expandedEmp, setExpandedEmp] = useState(null);
 
   if (loading) return (
@@ -349,13 +367,18 @@ export default function TimeTracking() {
       </div>
 
       {/* Period filter */}
-      <div className="flex flex-wrap gap-2 mb-3">
+      <div className="flex flex-wrap items-center gap-2 mb-3">
         {PERIODS.map((p) => (
           <button key={p.key} onClick={() => setPeriod(p.key)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${period === p.key ? "bg-foreground text-background" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
             {p.label}
           </button>
         ))}
+        {isAdmin && (
+          <Button variant="outline" size="sm" className="gap-2 ml-auto" onClick={() => setExportOpen(true)}>
+            <Download className="w-4 h-4" /> Export PDF
+          </Button>
+        )}
       </div>
       {period === "custom" && (
         <div className="flex flex-wrap items-center gap-3 mb-6 p-4 bg-muted/50 rounded-xl border border-border">
@@ -606,6 +629,17 @@ export default function TimeTracking() {
           </div>
         )}
       </div>}
+      {isAdmin && (
+        <TimeExportDialog
+          open={exportOpen}
+          onOpenChange={setExportOpen}
+          employees={employees}
+          periodEntries={allEntries}
+          allEntries={entries}
+          periodLabel={periodLabel}
+        />
+      )}
+
       {/* Delete confirmation dialog */}
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
