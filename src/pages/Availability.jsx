@@ -59,12 +59,17 @@ export default function Availability() {
     setAvailabilities(fresh);
   }
 
-  const terminatedEmpNumbers = new Set(employees.filter((e) => e.terminated).map((e) => e.employee_number).filter(Boolean));
-  const terminatedEmpIds = new Set(employees.filter((e) => e.terminated).map((e) => e.id).filter(Boolean));
+  // Only active, non-terminated employees appear in the availability views
+  const inactiveEmployees = employees.filter((e) => e.terminated || e.active === false);
+  const inactiveEmpIds = new Set(inactiveEmployees.map((e) => e.id).filter(Boolean));
+  const inactiveEmpNumbers = new Set(inactiveEmployees.map((e) => e.employee_number).filter(Boolean));
+  const inactiveEmpNames = new Set(inactiveEmployees.map((e) => e.name).filter(Boolean));
   const activeAvailabilities = availabilities.filter((a) =>
-    !terminatedEmpIds.has(a.employee_id) && !terminatedEmpNumbers.has(a.employee_number)
+    !inactiveEmpIds.has(a.employee_id) &&
+    !inactiveEmpNumbers.has(a.employee_number) &&
+    !inactiveEmpNames.has(a.employee_name)
   );
-  const myAvailabilities = activeAvailabilities.filter((a) => a.user_id === user?.id);
+  const myAvailabilities = availabilities.filter((a) => a.user_id === user?.id);
   const displayAvailabilities = isAdmin
     ? (selectedEmployeeFilter === "all" ? activeAvailabilities : activeAvailabilities.filter((a) => a.user_id === selectedEmployeeFilter))
     : myAvailabilities;
