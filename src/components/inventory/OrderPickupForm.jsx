@@ -5,17 +5,18 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, X, Plus, Trash2 } from "lucide-react";
+import { formatShortDate } from "@/lib/lots";
 
 const CASES_PER_PALLET = 66;
 
-export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel, existingOrder = null, existingItems = [] }) {
+export default function OrderPickupForm({ flavorSets, flavors, palletLots = [], onSaved, onCancel, existingOrder = null, existingItems = [] }) {
   const [form, setForm] = useState({
     vendor_name: existingOrder?.vendor_name || "",
     pickup_date: existingOrder?.pickup_date || new Date().toISOString().split("T")[0],
     notes: existingOrder?.notes || "",
   });
 
-  const blankItem = { item_type: "flavorset", flavorset_id: "", flavor_id: "", pallets: "", cases: "" };
+  const blankItem = { item_type: "flavorset", flavorset_id: "", flavor_id: "", pallets: "", cases: "", lot_numbers: "" };
 
   const [items, setItems] = useState(() => {
     if (existingItems.length > 0) {
@@ -26,6 +27,7 @@ export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel
         flavor_id: i.flavor_id || "",
         pallets: i.pallets != null ? String(i.pallets) : "",
         cases: i.cases != null ? String(i.cases) : "",
+        lot_numbers: (i.lot_numbers || []).join(", "),
       }));
     }
     // Legacy single-item order
@@ -36,6 +38,7 @@ export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel
         flavor_id: "",
         pallets: existingOrder.pallets != null ? String(existingOrder.pallets) : "",
         cases: existingOrder.cases != null ? String(existingOrder.cases) : "",
+        lot_numbers: "",
       }];
     }
     return [{ ...blankItem }];
@@ -66,6 +69,23 @@ export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel
     if (item.pallets !== "" && item.pallets !== undefined) return parseFloat(item.pallets) || 0;
     if (item.cases !== "" && item.cases !== undefined) return (parseFloat(item.cases) || 0) / CASES_PER_PALLET;
     return 0;
+  }
+
+  function parseLots(value) {
+    return String(value || "").split(",").map((s) => s.trim()).filter(Boolean);
+  }
+
+  // Pallet lots marked finished in inventory for the item's product.
+  function inventoryLotsFor(item) {
+    if (item.item_type === "flavorset") {
+      return (palletLots || []).filter((l) => l.flavorset_id === item.flavorset_id);
+    }
+    return (palletLots || []).filter((l) => l.flavor_id === item.flavor_id && !l.flavorset_id);
+  }
+
+  function matchedLots(item, lotNumber) {
+    const key = lotNumber.toLowerCase();
+    return inventoryLotsFor(item).filter((l) => String(l.lot_number || "").trim().toLowerCase() === key);
   }
 
   async function handleSave() {
@@ -142,6 +162,7 @@ export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel
         item_type: it.item_type,
         pallets,
         cases,
+        lot_numbers: parseLots(it.lot_numbers),
       };
       if (it.item_type === "flavorset") payload.flavorset_id = it.flavorset_id;
       else payload.flavor_id = it.flavor_id;
@@ -275,6 +296,45 @@ export default function OrderPickupForm({ flavorSets, flavors, onSaved, onCancel
                   )}
                 </div>
               </div>
+
+              {/* Pallet lot numbers pulled from inventory */}
+              {(it.flavorset_id || it.flavor_id) && (
+                <div className="mt-3">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Lot Numbers on this pickup</label>
+                  <Input
+                    placeholder="Lot #s, comma separated"
+                    value={it.lot_numbers}
+                    onChange={(e) => updateItem(idx, "lot_numbers", e.target.value)}
+                    className="h-8 text-xs"
+                  />
+                  {parseLots(it.lot_numbers).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {parseLots(it.lot_numbers).map((num, i) => {
+                        const hits = matchedLots(it, num);
+                        const cases = hits.reduce((s, l) => s + (l.cases || 0), 0);
+                        return (
+                          <span
+                            key={i}
+                            className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
+                              hits.length
+                                ? "bg-green-100 text-green-700 border-green-200"
+                                : "bg-red-100 text-red-700 border-red-200"
+                            }`}
+                          >
+                            {num}
+                            {hits.length ? ` · finished ${formatShortDate(hits[0].finished_date)} · ${cases} cases` : " · not in inventory"}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )}
+                  {inventoryLotsFor(it).length > 0 && (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      In inventory: {inventoryLotsFor(it).map((l) => l.lot_number).join(", ")}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

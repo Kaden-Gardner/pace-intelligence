@@ -37,6 +37,15 @@
       "type": "number",
       "title": "Case Sell Price ($)",
       "default": 0
+    },
+    "lot_numbers": {
+      "type": "array",
+      "title": "Pallet Lot Numbers",
+      "description": "Lot numbers of the finished pallets included in this pickup. Matched against pallet lots marked in inventory.",
+      "items": {
+        "type": "string"
+      },
+      "default": []
     }
   },
   "required": [

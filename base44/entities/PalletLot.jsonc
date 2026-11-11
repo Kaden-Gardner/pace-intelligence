@@ -1,0 +1,68 @@
+{
+  "name": "PalletLot",
+  "type": "object",
+  "properties": {
+    "item_type": {
+      "type": "string",
+      "title": "Item Type",
+      "enum": [
+        "flavorset",
+        "individual"
+      ],
+      "default": "flavorset"
+    },
+    "flavorset_id": {
+      "type": "string",
+      "title": "Flavorset"
+    },
+    "flavor_id": {
+      "type": "string",
+      "title": "Individual Flavor"
+    },
+    "lot_number": {
+      "type": "string",
+      "title": "Pallet Lot Number"
+    },
+    "finished_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Date Finished"
+    },
+    "cases": {
+      "type": "number",
+      "title": "Cases on Pallet",
+      "default": 66
+    },
+    "notes": {
+      "type": "string",
+      "title": "Notes"
+    }
+  },
+  "required": [
+    "item_type",
+    "lot_number",
+    "finished_date"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

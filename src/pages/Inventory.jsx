@@ -6,6 +6,7 @@ import IngredientsTab from "../components/inventory/IngredientsTab";
 import MaterialsTab from "../components/inventory/MaterialsTab";
 import ProductBreakdownTab from "../components/inventory/ProductBreakdownTab";
 import ProductLotsPanel from "../components/inventory/ProductLotsPanel";
+import PalletLotsPanel from "../components/inventory/PalletLotsPanel";
 import BaseBatchesPanel from "../components/inventory/BaseBatchesPanel";
 import OrderPickupForm from "../components/inventory/OrderPickupForm";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ export default function Inventory() {
   const [baseInventory, setBaseInventory] = useState([]);
   const [productionShifts, setProductionShifts] = useState([]);
   const [baseMixingShifts, setBaseMixingShifts] = useState([]);
+  const [palletLots, setPalletLots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
@@ -58,7 +60,7 @@ export default function Inventory() {
   useAutoRefresh(load);
 
   async function load() {
-    const [fs, fl, inv, pk, pi, bi, ss, ps, bm] = await Promise.all([
+    const [fs, fl, inv, pk, pi, bi, ss, ps, bm, pl] = await Promise.all([
       base44.entities.FlavorSet.list("name").catch(() => []),
       base44.entities.Flavor.list("name").catch(() => []),
       base44.entities.Inventory.list().catch(() => []),
@@ -68,6 +70,7 @@ export default function Inventory() {
       base44.entities.ScheduledShift.list("-shift_date", 200).catch(() => []),
       base44.entities.Shift.list("-shift_date", 500).catch(() => []),
       base44.entities.BaseMixingShift.list("-shift_date", 500).catch(() => []),
+      base44.entities.PalletLot.list("-finished_date", 500).catch(() => []),
     ]);
     // Migrate legacy orders: create items for any order with a flavorset_id but no items yet
     const legacyOrders = pk.filter((o) => o.flavorset_id && !pi.some((i) => i.order_id === o.id));
@@ -90,6 +93,7 @@ export default function Inventory() {
     setScheduledShifts(ss);
     setProductionShifts(ps);
     setBaseMixingShifts(bm);
+    setPalletLots(pl);
     setLoading(false);
   }
 
@@ -355,6 +359,11 @@ export default function Inventory() {
                         batches={baseMixingShifts}
                         casesOnHand={totalCases}
                       />
+                      <PalletLotsPanel
+                        target={{ flavorsetId: inv.flavorset_id }}
+                        lots={palletLots}
+                        onChanged={load}
+                      />
                     </div>
                   );
                 })}
@@ -382,6 +391,11 @@ export default function Inventory() {
                         shifts={productionShifts}
                         batches={baseMixingShifts}
                         casesOnHand={inv ? inv.cases || 0 : null}
+                      />
+                      <PalletLotsPanel
+                        target={{ flavorId: f.id }}
+                        lots={palletLots}
+                        onChanged={load}
                       />
                       {inv && editingInvId === inv.id ? (
                         <div className="space-y-2">
@@ -524,6 +538,7 @@ export default function Inventory() {
             <OrderPickupForm
               flavorSets={flavorSets}
               flavors={flavors}
+              palletLots={palletLots}
               existingOrder={editingOrder}
               existingItems={editingOrder ? pickupItems.filter((pi) => pi.order_id === editingOrder.id) : []}
               onSaved={handleOrderSaved}
@@ -570,6 +585,7 @@ export default function Inventory() {
                                   <p key={it.id} className="text-xs text-muted-foreground flex items-center gap-1.5">
                                     {color && <span className="w-2 h-2 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: color }} />}
                                     {label} · {it.pallets > 0 ? `${it.pallets} pal` : ""} {Math.round(it.cases || 0)} cases
+                                    {(it.lot_numbers || []).length > 0 ? ` · Lots ${it.lot_numbers.join(", ")}` : ""}
                                   </p>
                                 );
                               })}
