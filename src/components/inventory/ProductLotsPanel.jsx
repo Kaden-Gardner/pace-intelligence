@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronRight, Box } from "lucide-react";
-import { buildProductCases, groupLots, formatShortDate, lotFinishDate, lotShiftIds, CASES_PER_PALLET } from "@/lib/lots";
+import { buildProductCases, groupLots, formatShortDate, lotShiftIds, CASES_PER_PALLET } from "@/lib/lots";
 import LotTraceability from "./LotTraceability";
 
 function LotRow({ title, subtitle, open, onToggle, children }) {
@@ -51,7 +51,7 @@ export default function ProductLotsPanel({ target, shifts, batches, casesOnHand 
               <LotRow
                 key={key}
                 title={`Pallet ${index + 1} · ${palletCases.length} cases`}
-                subtitle={`finished ${formatShortDate(lotFinishDate(palletCases))}`}
+                subtitle="date not set"
                 open={expanded === key}
                 onToggle={() => setExpanded(expanded === key ? null : key)}
               >
