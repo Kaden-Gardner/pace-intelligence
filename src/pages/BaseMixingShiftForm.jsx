@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save, Sparkles, FlaskConical } from "lucide-react";
+import BaseLotSection from "@/components/shift-form/BaseLotSection";
 
 const GALLONS_PER_BATCH = 240;
 
@@ -19,6 +20,7 @@ export default function BaseMixingShiftForm() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scheduledBaseMix, setScheduledBaseMix] = useState([]);
+  const [baseMixDefaults, setBaseMixDefaults] = useState([]);
 
   const [form, setForm] = useState({
     shift_date: new Date().toISOString().split("T")[0],
@@ -31,18 +33,22 @@ export default function BaseMixingShiftForm() {
     mixer_3: "",
     shift_lead: "",
     notes: "",
+    ingredient_lots: {},
+    material_lots: [],
   });
 
   useEffect(() => {
     async function load() {
-      const [e, fs, sbm] = await Promise.all([
+      const [e, fs, sbm, defs] = await Promise.all([
         base44.entities.Employee.list("name"),
         base44.entities.FlavorSet.list("name"),
         base44.entities.ScheduledBaseMixShift.list("-shift_date", 200),
+        base44.entities.BaseMixDefaults.list(),
       ]);
       setEmployees(e.filter((emp) => emp.active !== false && !emp.terminated));
       setFlavorSets(fs);
       setScheduledBaseMix(sbm);
+      setBaseMixDefaults(defs);
 
       if (editId) {
         const rows = await base44.entities.BaseMixingShift.filter({ id: editId });
@@ -59,6 +65,8 @@ export default function BaseMixingShiftForm() {
             mixer_3: s.mixer_3 || "",
             shift_lead: s.shift_lead || "",
             notes: s.notes || "",
+            ingredient_lots: Object.fromEntries((s.ingredient_lots || []).map((r) => [r.ingredient, r.lot_number || ""])),
+            material_lots: (s.material_lots || []).map((r) => ({ material_key: r.material_key, lot_number: r.lot_number || "" })),
           });
         }
       }
@@ -90,6 +98,12 @@ export default function BaseMixingShiftForm() {
 
     const payload = { ...form, batch_size: Number(form.batch_size), shift_duration: Number(form.shift_duration) };
     Object.keys(payload).forEach((k) => { if (payload[k] === "") delete payload[k]; });
+    payload.ingredient_lots = Object.entries(form.ingredient_lots || {})
+      .filter(([, lot]) => lot && lot.trim())
+      .map(([ingredient, lot]) => ({ ingredient, lot_number: lot.trim() }));
+    payload.material_lots = (form.material_lots || [])
+      .filter((r) => r.material_key && r.lot_number && r.lot_number.trim())
+      .map((r) => ({ material_key: r.material_key, lot_number: r.lot_number.trim() }));
 
     const newGallons = Number(form.batch_size) * GALLONS_PER_BATCH;
 
@@ -268,6 +282,17 @@ export default function BaseMixingShiftForm() {
             </div>
           </div>
         </section>
+
+        {/* Lot Numbers */}
+        <BaseLotSection
+          flavorsetId={form.flavorset_id}
+          flavorsetName={flavorSets.find((fs) => fs.id === form.flavorset_id)?.name || ""}
+          baseMixDefaults={baseMixDefaults}
+          ingredientLots={form.ingredient_lots}
+          setIngredientLots={(v) => updateForm("ingredient_lots", typeof v === "function" ? v(form.ingredient_lots) : v)}
+          materialLots={form.material_lots}
+          setMaterialLots={(v) => updateForm("material_lots", typeof v === "function" ? v(form.material_lots) : v)}
+        />
 
         {/* Employees */}
         <section className="bg-card rounded-2xl border border-border p-6">

@@ -95,6 +95,15 @@
       "title": "Waste (gallons)",
       "default": 0
     },
+    "base_batch_ids": {
+      "type": "array",
+      "title": "Base Batches Used",
+      "description": "Base mixing shifts whose base was used in this production shift, for lot traceability.",
+      "items": {
+        "type": "string"
+      },
+      "default": []
+    },
     "filling_employee": {
       "type": "string",
       "title": "Filling Position"

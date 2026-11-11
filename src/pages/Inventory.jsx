@@ -5,6 +5,8 @@ import { Package, Truck, Plus, Pencil, Check, X, Trash2 } from "lucide-react";
 import IngredientsTab from "../components/inventory/IngredientsTab";
 import MaterialsTab from "../components/inventory/MaterialsTab";
 import ProductBreakdownTab from "../components/inventory/ProductBreakdownTab";
+import ProductLotsPanel from "../components/inventory/ProductLotsPanel";
+import BaseBatchesPanel from "../components/inventory/BaseBatchesPanel";
 import OrderPickupForm from "../components/inventory/OrderPickupForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +30,8 @@ export default function Inventory() {
   const [pickupItems, setPickupItems] = useState([]);
   const [scheduledShifts, setScheduledShifts] = useState([]);
   const [baseInventory, setBaseInventory] = useState([]);
+  const [productionShifts, setProductionShifts] = useState([]);
+  const [baseMixingShifts, setBaseMixingShifts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showOrderForm, setShowOrderForm] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
@@ -54,7 +58,7 @@ export default function Inventory() {
   useAutoRefresh(load);
 
   async function load() {
-    const [fs, fl, inv, pk, pi, bi, ss] = await Promise.all([
+    const [fs, fl, inv, pk, pi, bi, ss, ps, bm] = await Promise.all([
       base44.entities.FlavorSet.list("name").catch(() => []),
       base44.entities.Flavor.list("name").catch(() => []),
       base44.entities.Inventory.list().catch(() => []),
@@ -62,6 +66,8 @@ export default function Inventory() {
       base44.entities.OrderPickupItem.list().catch(() => []),
       base44.entities.BaseInventory.list().catch(() => []),
       base44.entities.ScheduledShift.list("-shift_date", 200).catch(() => []),
+      base44.entities.Shift.list("-shift_date", 500).catch(() => []),
+      base44.entities.BaseMixingShift.list("-shift_date", 500).catch(() => []),
     ]);
     // Migrate legacy orders: create items for any order with a flavorset_id but no items yet
     const legacyOrders = pk.filter((o) => o.flavorset_id && !pi.some((i) => i.order_id === o.id));
@@ -82,6 +88,8 @@ export default function Inventory() {
     setPickupItems([...pi, ...migratedItems.filter(Boolean)]);
     setBaseInventory(bi);
     setScheduledShifts(ss);
+    setProductionShifts(ps);
+    setBaseMixingShifts(bm);
     setLoading(false);
   }
 
@@ -341,6 +349,12 @@ export default function Inventory() {
                           {remainder > 0 && <p className="text-xs text-muted-foreground mt-2">+{remainder} loose cases (partial pallet)</p>}
                         </>
                       )}
+                      <ProductLotsPanel
+                        target={{ flavorsetId: inv.flavorset_id }}
+                        shifts={productionShifts}
+                        batches={baseMixingShifts}
+                        casesOnHand={totalCases}
+                      />
                     </div>
                   );
                 })}
@@ -363,6 +377,12 @@ export default function Inventory() {
                         {f.color && <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: f.color }} />}
                         <p className="font-medium text-sm flex-1 truncate">{f.name}</p>
                       </div>
+                      <ProductLotsPanel
+                        target={{ flavorId: f.id }}
+                        shifts={productionShifts}
+                        batches={baseMixingShifts}
+                        casesOnHand={inv ? inv.cases || 0 : null}
+                      />
                       {inv && editingInvId === inv.id ? (
                         <div className="space-y-2">
                           <label className="text-xs text-muted-foreground block">Cases on hand</label>
@@ -484,6 +504,7 @@ export default function Inventory() {
                         </div>
                       </div>
                     )}
+                    <BaseBatchesPanel batches={baseMixingShifts.filter((b) => b.flavorset_id === bi.flavorset_id)} />
                   </div>
                 );
               })}

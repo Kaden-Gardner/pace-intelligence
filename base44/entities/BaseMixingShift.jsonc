@@ -40,6 +40,40 @@
       "type": "string",
       "title": "Shift Lead"
     },
+    "ingredient_lots": {
+      "type": "array",
+      "title": "Ingredient Lot Numbers",
+      "description": "Lot number of each ingredient used in this batch.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "ingredient": {
+            "type": "string"
+          },
+          "lot_number": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
+    "material_lots": {
+      "type": "array",
+      "title": "Material Lot Numbers",
+      "description": "Lot number of each material used in this batch.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "material_key": {
+            "type": "string"
+          },
+          "lot_number": {
+            "type": "string"
+          }
+        }
+      },
+      "default": []
+    },
     "notes": {
       "type": "string",
       "title": "Notes"

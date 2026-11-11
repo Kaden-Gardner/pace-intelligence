@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import ShiftPositionsSection from "../components/shift-form/ShiftPositionsSection";
 import ShiftProductionSection from "../components/shift-form/ShiftProductionSection";
+import ShiftBaseBatchSection from "../components/shift-form/ShiftBaseBatchSection";
 import ShiftMaterialsUsageSection from "../components/shift-form/ShiftMaterialsUsageSection";
 import ShiftScoresSection from "../components/shift-form/ShiftScoresSection";
 import { getShiftEmployees } from "../lib/analyticsHelpers";
@@ -29,6 +30,7 @@ export default function ShiftForm() {
   const [scheduledShifts, setScheduledShifts] = useState([]);
   const [selectedScheduledShiftId, setSelectedScheduledShiftId] = useState("");
   const [materialsUsed, setMaterialsUsed] = useState({});
+  const [baseBatches, setBaseBatches] = useState([]);
 
   const [form, setForm] = useState({
     shift_date: new Date().toISOString().split("T")[0],
@@ -59,22 +61,25 @@ export default function ShiftForm() {
     notes: "",
     downtime: "",
     employee_scores: [],
+    base_batch_ids: [],
   });
 
   useEffect(() => {
     async function load() {
-      const [e, f, fs, cs, allProdShifts, allSchedShifts] = await Promise.all([
+      const [e, f, fs, cs, allProdShifts, allSchedShifts, batches] = await Promise.all([
         base44.entities.Employee.list("name"),
         base44.entities.Flavor.list("name"),
         base44.entities.FlavorSet.list("name"),
         base44.entities.CaseSize.list("name"),
         base44.entities.Shift.list("shift_date", 500),
         base44.entities.ScheduledShift.list("shift_date", 500),
+        base44.entities.BaseMixingShift.list("-shift_date", 500),
       ]);
       setEmployees(e.filter((emp) => emp.active !== false && !emp.terminated));
       setFlavors(f);
       setFlavorSets(fs);
       setCaseSizes(cs);
+      setBaseBatches(batches);
       // Only show scheduled shifts that don't already have a recorded production shift on same date
       const usedDates = new Set(allProdShifts.map((s) => s.shift_date));
       // Allow autofill up to 1 day past the scheduled shift date
@@ -121,6 +126,7 @@ export default function ShiftForm() {
             notes: s.notes || "",
             downtime: s.downtime || "",
             employee_scores: s.employee_scores || [],
+            base_batch_ids: s.base_batch_ids || [],
           });
           const usedMap = {};
           (s.materials_used || []).forEach((m) => { if (m.material_key) usedMap[m.material_key] = m.quantity || 0; });
@@ -542,6 +548,14 @@ export default function ShiftForm() {
           flavors={flavors}
           flavorSets={flavorSets}
           caseSizes={caseSizes}
+        />
+
+        {/* Base Batches Used */}
+        <ShiftBaseBatchSection
+          form={form}
+          updateForm={updateForm}
+          batches={baseBatches}
+          flavorSets={flavorSets}
         />
 
         {/* Positions */}
