@@ -2,6 +2,7 @@ import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Database, Download, Loader2 } from "lucide-react";
+import { buildAllDataPdf } from "@/lib/allDataPdf";
 
 export default function DataExportCard() {
   const [exporting, setExporting] = useState(false);
@@ -17,17 +18,10 @@ export default function DataExportCard() {
       const data = res.data;
       if (!data || data.error) throw new Error(data?.error || "Export failed");
 
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `pace-intelligence-data-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      const doc = buildAllDataPdf(data);
+      doc.save(`pace-intelligence-data-${new Date().toISOString().slice(0, 10)}.pdf`);
 
-      setSummary(`Exported ${data.total_records ?? 0} records from ${Object.keys(data.tables || {}).length} tables.`);
+      setSummary(`Exported ${data.total_records ?? 0} records from ${Object.keys(data.tables || {}).length} tables (${doc.getNumberOfPages()} pages).`);
     } catch (e) {
       setError(e?.response?.data?.error || e.message || "Export failed");
     } finally {
@@ -42,7 +36,7 @@ export default function DataExportCard() {
         <h2 className="font-heading font-semibold text-base">Export All Data</h2>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
-        Download every record in the app — shifts, base mixing, employees, schedules, time tracking, flavors, inventory, materials, ingredients, order pickups, pallets, posts, and settings — as one data file. Admin only.
+        Download every record in the app — shifts, base mixing, employees, schedules, time tracking, flavors, inventory, materials, ingredients, order pickups, pallets, posts, and settings — as one PDF, grouped by table with a contents page. Admin only.
       </p>
       <Button size="sm" className="gap-2" onClick={handleExport} disabled={exporting}>
         {exporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}

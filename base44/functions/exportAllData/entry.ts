@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
 
+// User records are not readable through the service role — they are fetched separately below.
 const TABLES = [
-  'User',
   'Employee',
   'EmployeeRate',
   'Shift',
@@ -85,8 +85,23 @@ export default async function (req: Request): Promise<Response> {
       });
     }
 
-    if (!tables.User || tables.User.length === 0) {
-      tables.User = await base44.entities.User.list().catch(() => []);
+    try {
+      const users = await base44.entities.User.list();
+      tables.User = Array.isArray(users) ? users : users?.items || [];
+    } catch (e: any) {
+      tables.User = [];
+      errors.push(`User: ${e.message}`);
+    }
+
+    if (errors.length > 0) {
+      return Response.json(
+        {
+          error:
+            'The export was interrupted by the app\'s read limit, so it would be incomplete. Please try again in about a minute.',
+          errors,
+        },
+        { status: 429 }
+      );
     }
 
     const counts: Record<string, number> = {};
