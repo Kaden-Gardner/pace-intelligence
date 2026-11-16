@@ -11,6 +11,7 @@ import { POSITION_PRODUCTION } from "@/lib/analyticsHelpers";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import EmployeeMilestoneTracker from "@/components/EmployeeMilestoneTracker";
+import DataExportCard from "@/components/DataExportCard";
 import { empFullName } from "@/lib/employeeName";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -571,6 +572,8 @@ export default function MyInfo() {
             </Button>
           </a>
         </div>
+
+        {user?.role === "admin" && <DataExportCard />}
 
         {/* Log Out */}
         <div className="bg-card rounded-2xl border border-border p-6">
